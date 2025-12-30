@@ -140,6 +140,9 @@
                         <button onclick="switchTab('detalhado')" id="tab-detalhado" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
                             📊 Detalhado
                         </button>
+                        <button onclick="switchTab('fluxo-caixa')" id="tab-fluxo-caixa" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                            💸 Fluxo de Caixa
+                        </button>
                     </nav>
                 </div>
 
@@ -287,6 +290,79 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Tab: Fluxo de Caixa -->
+                <div id="content-fluxo-caixa" class="tab-content p-6 hidden">
+                    <h3 class="text-lg font-semibold mb-6">Fluxo de Caixa</h3>
+                    
+                    <!-- Cards Resumo Fluxo -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">💰 Entradas (Vendas)</p>
+                                    <p id="card-fc-entradas" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">💸 Saídas (Compras)</p>
+                                    <p id="card-fc-saidas" class="text-2xl font-bold text-red-600">R$ 0,00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">📊 Saldo</p>
+                                    <p id="card-fc-saldo" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">🔄 Movimentações</p>
+                                    <p id="card-fc-movimentacoes" class="text-2xl font-bold text-blue-600">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                        <h4 class="text-md font-semibold mb-4 text-gray-700">📈 Evolução do Saldo</h4>
+                        <canvas id="chart-fluxo-caixa"></canvas>
+                    </div>
+
+                    <!-- Tabela de Movimentações -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 class="text-md font-semibold mb-4 text-gray-700">Movimentações Detalhadas</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nº Pedido</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrada</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saída</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saldo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-fluxo-caixa" class="bg-white divide-y divide-gray-200">
+                                    <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -306,6 +382,7 @@
     
     <script>
         let vendasFinalizadas = [];
+        let comprasFinalizadas = [];
         let todosProdutos = [];
         let filtroAtual = {
             marca: '',
@@ -432,7 +509,7 @@
                 todosProdutos = await listProdutos();
                 
                 // Carregar vendas finalizadas com itens
-                const { data: pedidos, error } = await supabase
+                const { data: vendas, error: errorVendas } = await supabase
                     .from('pedidos')
                     .select(`
                         *,
@@ -443,10 +520,30 @@
                     .eq('status', 'FINALIZADO')
                     .order('created_at', { ascending: false });
                 
-                if (error) throw error;
+                if (errorVendas) throw errorVendas;
                 
-                // Buscar itens de cada pedido
-                vendasFinalizadas = await Promise.all(pedidos.map(async p => {
+                // Buscar itens de cada venda
+                vendasFinalizadas = await Promise.all(vendas.map(async p => {
+                    const itens = await getItensPedido(p.id);
+                    return { ...p, itens };
+                }));
+
+                // Carregar compras finalizadas com itens
+                const { data: compras, error: errorCompras } = await supabase
+                    .from('pedidos')
+                    .select(`
+                        *,
+                        fornecedor:fornecedores(nome),
+                        solicitante:users!pedidos_solicitante_id_fkey(full_name)
+                    `)
+                    .eq('tipo_pedido', 'COMPRA')
+                    .eq('status', 'FINALIZADO')
+                    .order('created_at', { ascending: false });
+                
+                if (errorCompras) throw errorCompras;
+                
+                // Buscar itens de cada compra
+                comprasFinalizadas = await Promise.all(compras.map(async p => {
                     const itens = await getItensPedido(p.id);
                     return { ...p, itens };
                 }));
@@ -516,7 +613,7 @@
             
             renderizarTabAtiva();
         }
-
+            
         function renderizarTabAtiva() {
             const activeTab = document.querySelector('.tab-button.active').id.replace('tab-', '');
             
@@ -535,6 +632,9 @@
                     break;
                 case 'detalhado':
                     renderDetalhado();
+                    break;
+                case 'fluxo-caixa':
+                    renderFluxoCaixa();
                     break;
             }
         }
@@ -785,6 +885,10 @@
                     dados = obterDadosDetalhado();
                     nomeArquivo = `Vendas_Detalhadas_${timestamp}.xlsx`;
                     break;
+                case 'fluxo-caixa':
+                    dados = obterDadosFluxoCaixa();
+                    nomeArquivo = `Fluxo_Caixa_${timestamp}.xlsx`;
+                    break;
             }
 
             if (dados.length === 0) {
@@ -842,6 +946,9 @@
                     break;
                 case 'detalhado':
                     exportarTabelaPDF(doc, 'Vendas Detalhadas', obterDadosDetalhadoTabela(), startY);
+                    break;
+                case 'fluxo-caixa':
+                    exportarFluxoCaixaPDF(doc, startY);
                     break;
             }
 
@@ -1085,6 +1192,310 @@
                 rows: dados.map(d => [d.Data, d.Pedido, d.Cliente, d.Produto, d.Sabor, d.Qtd, d['Preço Un.'], d['Custo Un.'], d['Lucro Un.'], d['Lucro Total']])
             };
         }
+
+        function obterDadosFluxoCaixa() {
+            const movimentacoes = [];
+            
+            // Adicionar vendas
+            filtrarVendas().forEach(venda => {
+                let total = 0;
+                venda.itens.forEach(item => {
+                    total += item.preco_unitario * item.quantidade;
+                });
+                movimentacoes.push({
+                    'Data': new Date(venda.created_at).toLocaleDateString('pt-BR'),
+                    'Tipo': 'ENTRADA',
+                    'Nº Pedido': venda.numero,
+                    'Descrição': `Venda - ${venda.cliente?.nome || 'Cliente Avulso'}`,
+                    'Entrada': `R$ ${total.toFixed(2)}`,
+                    'Saída': '-'
+                });
+            });
+
+            // Adicionar compras
+            filtrarCompras().forEach(compra => {
+                let total = 0;
+                compra.itens.forEach(item => {
+                    total += item.preco_unitario * item.quantidade;
+                });
+                movimentacoes.push({
+                    'Data': new Date(compra.created_at).toLocaleDateString('pt-BR'),
+                    'Tipo': 'SAÍDA',
+                    'Nº Pedido': compra.numero,
+                    'Descrição': `Compra - ${compra.fornecedor?.nome || 'Fornecedor'}`,
+                    'Entrada': '-',
+                    'Saída': `R$ ${total.toFixed(2)}`
+                });
+            });
+
+            // Ordenar por data
+            movimentacoes.sort((a, b) => {
+                const [dA, mA, yA] = a.Data.split('/');
+                const [dB, mB, yB] = b.Data.split('/');
+                return new Date(yA, mA - 1, dA) - new Date(yB, mB - 1, dB);
+            });
+
+            return movimentacoes;
+        }
+
+        function exportarFluxoCaixaPDF(doc, startY) {
+            // Resumo
+            doc.setFontSize(12);
+            doc.text('Resumo do Fluxo de Caixa', 14, startY);
+            
+            const resumo = [
+                ['Entradas (Vendas)', document.getElementById('card-fc-entradas').textContent],
+                ['Saídas (Compras)', document.getElementById('card-fc-saidas').textContent],
+                ['Saldo', document.getElementById('card-fc-saldo').textContent],
+                ['Total de Movimentações', document.getElementById('card-fc-movimentacoes').textContent]
+            ];
+
+            doc.autoTable({
+                startY: startY + 5,
+                head: [['Item', 'Valor']],
+                body: resumo,
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246] }
+            });
+
+            // Movimentações
+            const movimentacoes = obterDadosFluxoCaixa();
+            const rows = movimentacoes.map(m => [
+                m.Data,
+                m.Tipo,
+                m['Nº Pedido'],
+                m['Descrição'],
+                m.Entrada,
+                m['Saída']
+            ]);
+
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['Data', 'Tipo', 'Nº Pedido', 'Descrição', 'Entrada', 'Saída']],
+                body: rows,
+                theme: 'striped',
+                headStyles: { fillColor: [34, 197, 94] },
+                styles: { fontSize: 8 }
+            });
+        }
+
+        // ========================================
+        // FLUXO DE CAIXA
+        // ========================================
+
+        function renderFluxoCaixa() {
+            const movimentacoes = [];
+            
+            // Adicionar vendas (entradas)
+            filtrarVendas().forEach(venda => {
+                let totalVenda = 0;
+                venda.itens.forEach(item => {
+                    totalVenda += item.preco_unitario * item.quantidade;
+                });
+                
+                movimentacoes.push({
+                    data: venda.created_at,
+                    tipo: 'ENTRADA',
+                    numero: venda.numero,
+                    descricao: `Venda - ${venda.cliente?.nome || 'Cliente Avulso'}`,
+                    entrada: totalVenda,
+                    saida: 0
+                });
+            });
+
+            // Adicionar compras (saídas)
+            const compras = filtrarCompras();
+            compras.forEach(compra => {
+                let totalCompra = 0;
+                compra.itens.forEach(item => {
+                    totalCompra += item.preco_unitario * item.quantidade;
+                });
+                
+                movimentacoes.push({
+                    data: compra.created_at,
+                    tipo: 'SAÍDA',
+                    numero: compra.numero,
+                    descricao: `Compra - ${compra.fornecedor?.nome || 'Fornecedor'}`,
+                    entrada: 0,
+                    saida: totalCompra
+                });
+            });
+
+            // Ordenar por data
+            movimentacoes.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+            // Calcular saldo acumulado
+            let saldoAtual = 0;
+            movimentacoes.forEach(mov => {
+                saldoAtual += mov.entrada - mov.saida;
+                mov.saldo = saldoAtual;
+            });
+
+            // Calcular resumo
+            const totalEntradas = movimentacoes.reduce((sum, m) => sum + m.entrada, 0);
+            const totalSaidas = movimentacoes.reduce((sum, m) => sum + m.saida, 0);
+            const saldoFinal = totalEntradas - totalSaidas;
+
+            // Atualizar cards
+            document.getElementById('card-fc-entradas').textContent = formatCurrency(totalEntradas);
+            document.getElementById('card-fc-saidas').textContent = formatCurrency(totalSaidas);
+            document.getElementById('card-fc-saldo').textContent = formatCurrency(saldoFinal);
+            document.getElementById('card-fc-movimentacoes').textContent = movimentacoes.length;
+
+            // Atualizar cor do saldo
+            const cardSaldo = document.getElementById('card-fc-saldo');
+            if (saldoFinal >= 0) {
+                cardSaldo.className = 'text-2xl font-bold text-green-600';
+            } else {
+                cardSaldo.className = 'text-2xl font-bold text-red-600';
+            }
+
+            // Renderizar tabela
+            const tbody = document.getElementById('tbody-fluxo-caixa');
+            if (movimentacoes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
+            } else {
+                tbody.innerHTML = movimentacoes.map(m => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm text-gray-600">${formatDate(m.data)}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${m.tipo === 'ENTRADA' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${m.tipo}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 font-mono">${m.numero}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${m.descricao}</td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold text-green-600">
+                            ${m.entrada > 0 ? formatCurrency(m.entrada) : '-'}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold text-red-600">
+                            ${m.saida > 0 ? formatCurrency(m.saida) : '-'}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right font-bold ${m.saldo >= 0 ? 'text-blue-600' : 'text-red-600'}">
+                            ${formatCurrency(m.saldo)}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Renderizar gráfico
+            renderGraficoFluxoCaixa(movimentacoes);
+        }
+
+        function filtrarCompras() {
+            let compras = [...comprasFinalizadas];
+            
+            // Filtro de data
+            if (filtroAtual.dataInicio) {
+                compras = compras.filter(c => new Date(c.created_at) >= new Date(filtroAtual.dataInicio));
+            }
+            if (filtroAtual.dataFim) {
+                const dataFim = new Date(filtroAtual.dataFim);
+                dataFim.setHours(23, 59, 59);
+                compras = compras.filter(c => new Date(c.created_at) <= dataFim);
+            }
+            
+            return compras;
+        }
+
+        function renderGraficoFluxoCaixa(movimentacoes) {
+            // Destruir gráfico existente
+            if (chartInstances.fluxoCaixa) {
+                chartInstances.fluxoCaixa.destroy();
+            }
+
+            // Agrupar por dia
+            const dadosPorDia = {};
+            movimentacoes.forEach(mov => {
+                const data = new Date(mov.data).toLocaleDateString('pt-BR');
+                if (!dadosPorDia[data]) {
+                    dadosPorDia[data] = { entradas: 0, saidas: 0 };
+                }
+                dadosPorDia[data].entradas += mov.entrada;
+                dadosPorDia[data].saidas += mov.saida;
+            });
+
+            const datasOrdenadas = Object.keys(dadosPorDia).sort((a, b) => {
+                const [dA, mA, yA] = a.split('/');
+                const [dB, mB, yB] = b.split('/');
+                return new Date(yA, mA - 1, dA) - new Date(yB, mB - 1, dB);
+            });
+
+            // Calcular saldo acumulado
+            let saldoAcumulado = 0;
+            const saldos = datasOrdenadas.map(data => {
+                saldoAcumulado += dadosPorDia[data].entradas - dadosPorDia[data].saidas;
+                return saldoAcumulado;
+            });
+
+            const ctx = document.getElementById('chart-fluxo-caixa');
+            chartInstances.fluxoCaixa = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: datasOrdenadas,
+                    datasets: [
+                        {
+                            label: 'Entradas (R$)',
+                            data: datasOrdenadas.map(d => dadosPorDia[d].entradas),
+                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Saídas (R$)',
+                            data: datasOrdenadas.map(d => dadosPorDia[d].saidas),
+                            borderColor: 'rgb(239, 68, 68)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Saldo Acumulado (R$)',
+                            data: saldos,
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': R$ ' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ========================================
+        // 
 
         // ========================================
         // DASHBOARD COM GRÁFICOS

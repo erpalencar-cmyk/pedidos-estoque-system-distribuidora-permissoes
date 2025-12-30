@@ -143,6 +143,54 @@
                     </div>
                 </div>
 
+                <!-- WhatsApp API -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">🔌 Integração WhatsApp API</h3>
+                    <p class="text-sm text-gray-600 mb-4">Configure para envio automático de PDFs via WhatsApp</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Provedor da API</label>
+                            <select id="whatsapp_api_provider" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Não configurado</option>
+                                <option value="evolution">Evolution API</option>
+                                <option value="twilio">Twilio</option>
+                                <option value="baileys">Baileys</option>
+                                <option value="outro">Outro</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Número de Origem (com DDI)</label>
+                            <input type="text" id="whatsapp_numero_origem" placeholder="5511999999999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Formato: 55 + DDD + número (sem espaços ou caracteres)</p>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">URL da API</label>
+                            <input type="url" id="whatsapp_api_url" placeholder="https://api.exemplo.com" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">API Key / Token</label>
+                            <input type="password" id="whatsapp_api_key" placeholder="Seu token de API" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ID da Instância (Evolution API)</label>
+                            <input type="text" id="whatsapp_instance_id" placeholder="nome-da-instancia" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 class="text-sm font-semibold text-blue-900 mb-2">📘 APIs Recomendadas:</h4>
+                        <ul class="text-sm text-blue-800 space-y-1">
+                            <li><strong>Evolution API</strong> - <a href="https://evolution-api.com" target="_blank" class="underline">evolution-api.com</a> (Gratuita, auto-hospedada)</li>
+                            <li><strong>Twilio</strong> - <a href="https://www.twilio.com/whatsapp" target="_blank" class="underline">twilio.com/whatsapp</a> (Paga, oficial)</li>
+                        </ul>
+                    </div>
+                </div>
+
                 <!-- Botões -->
                 <div class="flex justify-end space-x-3">
                     <button type="button" onclick="window.location.href='/pages/dashboard.html'" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -277,6 +325,13 @@
                     document.getElementById('cidade').value = config.cidade || '';
                     document.getElementById('estado').value = config.estado || '';
                     document.getElementById('cep').value = config.cep || '';
+                    
+                    // Configurações WhatsApp API
+                    document.getElementById('whatsapp_api_provider').value = config.whatsapp_api_provider || '';
+                    document.getElementById('whatsapp_numero_origem').value = config.whatsapp_numero_origem || '';
+                    document.getElementById('whatsapp_api_url').value = config.whatsapp_api_url || '';
+                    document.getElementById('whatsapp_api_key').value = config.whatsapp_api_key || '';
+                    document.getElementById('whatsapp_instance_id').value = config.whatsapp_instance_id || '';
 
                     if (config.logo_url) {
                         logoAtual = config.logo_url;
@@ -323,7 +378,12 @@
                     cidade: document.getElementById('cidade').value || null,
                     estado: document.getElementById('estado').value || null,
                     cep: document.getElementById('cep').value || null,
-                    logo_url: logoUrl
+                    logo_url: logoUrl,
+                    whatsapp_api_provider: document.getElementById('whatsapp_api_provider').value || null,
+                    whatsapp_numero_origem: document.getElementById('whatsapp_numero_origem').value || null,
+                    whatsapp_api_url: document.getElementById('whatsapp_api_url').value || null,
+                    whatsapp_api_key: document.getElementById('whatsapp_api_key').value || null,
+                    whatsapp_instance_id: document.getElementById('whatsapp_instance_id').value || null
                 };
 
                 console.log('Salvando configurações:', empresaData);

@@ -125,6 +125,7 @@ function gerarHTMLPedidoCompra(pedido, itens, empresaConfig) {
     };
 
     const total = itens.reduce((sum, item) => sum + (item.quantidade * item.preco_unitario), 0);
+    const totalQuantidade = itens.reduce((sum, item) => sum + item.quantidade, 0);
 
     return `
 <!DOCTYPE html>
@@ -447,6 +448,10 @@ function gerarHTMLPedidoCompra(pedido, itens, empresaConfig) {
     </table>
 
     <div class="totais">
+        <div class="total-row">
+            <span>Total de Itens:</span>
+            <span><strong>${totalQuantidade}</strong></span>
+        </div>
         <div class="total-row final">
             <span>TOTAL GERAL:</span>
             <span>${formatCurrency(total)}</span>
@@ -497,6 +502,7 @@ function gerarHTMLPedidoVenda(pedido, itens, empresaConfig) {
     };
 
     const total = itens.reduce((sum, item) => sum + (item.quantidade * item.preco_unitario), 0);
+    const totalQuantidade = itens.reduce((sum, item) => sum + item.quantidade, 0);
 
     return `
 <!DOCTYPE html>
@@ -829,6 +835,10 @@ function gerarHTMLPedidoVenda(pedido, itens, empresaConfig) {
     </table>
 
     <div class="totais">
+        <div class="total-row">
+            <span>Total de Itens:</span>
+            <span><strong>${totalQuantidade}</strong></span>
+        </div>
         <div class="total-row final">
             <span>TOTAL GERAL:</span>
             <span>${formatCurrency(total)}</span>

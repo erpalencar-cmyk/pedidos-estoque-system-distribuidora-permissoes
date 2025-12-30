@@ -101,6 +101,32 @@
         </div>
     </main>
 
+    <!-- Modal Cancelar Venda -->
+    <div id="modal-cancelar" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Cancelar Venda</h3>
+                <button onclick="closeModal('modal-cancelar')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-gray-600 mb-6">Como deseja cancelar esta venda?</p>
+                <div class="space-y-3">
+                    <button onclick="cancelarVendaHandler('CANCELADO')" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-left">
+                        <div class="font-semibold">❌ Cancelar Definitivo</div>
+                        <div class="text-sm opacity-90">A venda será cancelada e os itens retornarão ao estoque</div>
+                    </button>
+                    <button onclick="cancelarVendaHandler('RASCUNHO')" class="w-full px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-left">
+                        <div class="font-semibold">🔄 Cancelar e Reabrir</div>
+                        <div class="text-sm opacity-90">A venda voltará para rascunho para edição</div>
+                    </button>
+                </div>
+                <button onclick="closeModal('modal-cancelar')" class="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Voltar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Adicionar Item -->
     <div id="modal-item" class="modal-backdrop hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -182,6 +208,7 @@
     <script src="../js/services/pedidos.js"></script>
     <script src="../js/services/produtos.js"></script>
     <script src="../js/services/impressao.js"></script>
+    <script src="../js/services/whatsapp.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
     <script src="../components/modal.js"></script>
@@ -192,10 +219,15 @@
         let itens = [];
         let produtos = [];
         let currentUser = null;
+        let empresaConfig = null;
 
         (async () => {
             await checkAuth();
             currentUser = await getCurrentUser();
+            
+            // Carregar configurações da empresa
+            empresaConfig = await getEmpresaConfig();
+            
             document.getElementById('navbar').innerHTML = createNavbar();
             document.getElementById('sidebar-container').innerHTML = createSidebar();
             await initNavbar();
@@ -440,6 +472,30 @@
             // Botão de impressão sempre visível
             botoes.push('<button onclick="imprimirPedidoVenda(\'' + vendaId + '\')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">🖨️ Imprimir</button>');
             
+            // DEBUG: Verificar configurações WhatsApp
+            console.log('=== DEBUG WHATSAPP ===');
+            console.log('empresaConfig:', empresaConfig);
+            console.log('whatsapp_api_provider:', empresaConfig?.whatsapp_api_provider);
+            console.log('whatsapp_api_url:', empresaConfig?.whatsapp_api_url);
+            console.log('whatsapp_api_key:', empresaConfig?.whatsapp_api_key);
+            console.log('venda.status:', venda.status);
+            console.log('venda.cliente:', venda.cliente);
+            console.log('venda.cliente?.whatsapp:', venda.cliente?.whatsapp);
+            
+            // Botão de envio por WhatsApp
+            const whatsappConfigurado = empresaConfig?.whatsapp_api_provider && empresaConfig?.whatsapp_api_url && empresaConfig?.whatsapp_api_key;
+            const statusPermitido = ['APROVADO', 'FINALIZADO'].includes(venda.status);
+            const clienteTemWhatsApp = venda.cliente?.whatsapp;
+            
+            console.log('whatsappConfigurado:', whatsappConfigurado);
+            console.log('statusPermitido:', statusPermitido);
+            console.log('clienteTemWhatsApp:', clienteTemWhatsApp);
+            console.log('=== FIM DEBUG ===');
+            
+            if (whatsappConfigurado && statusPermitido && clienteTemWhatsApp) {
+                botoes.push('<button onclick="enviarPDFWhatsAppHandler()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">📱 Enviar WhatsApp</button>');
+            }
+            
             const podeEditar = venda.status === 'RASCUNHO' && venda.solicitante.id === currentUser.id;
             const podeAprovar = venda.status === 'ENVIADO' && ['APROVADOR', 'ADMIN'].includes(currentUser.role);
             const podeFinalizar = venda.status === 'APROVADO' && currentUser.role === 'ADMIN';
@@ -458,6 +514,11 @@
             
             if (podeFinalizar) {
                 botoes.push('<button onclick="finalizarVenda()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">Finalizar Venda</button>');
+            }
+            
+            // Botão de cancelar disponível para ADMIN em vendas APROVADAS ou FINALIZADAS
+            if ((venda.status === 'APROVADO' || venda.status === 'FINALIZADO') && currentUser.role === 'ADMIN') {
+                botoes.push('<button onclick="openModal(\'modal-cancelar\')" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700">🚫 Cancelar Venda</button>');
             }
             
             acoesDiv.innerHTML = botoes.join('');
@@ -548,9 +609,111 @@
                 'ENVIADO': 'Status: Aguardando Aprovação',
                 'APROVADO': 'Status: Aprovada',
                 'REJEITADO': 'Status: Rejeitada',
-                'FINALIZADO': 'Status: Finalizada'
+                'FINALIZADO': 'Status: Finalizada',
+                'CANCELADO': 'Status: Cancelada'
             };
             return texts[status] || status;
+        }
+
+        async function cancelarVendaHandler(novoStatus) {
+            const mensagem = novoStatus === 'CANCELADO' 
+                ? 'Tem certeza que deseja CANCELAR DEFINITIVAMENTE esta venda? Os itens retornarão ao estoque.' 
+                : 'Tem certeza que deseja CANCELAR e REABRIR esta venda como rascunho?';
+            
+            if (!confirm(mensagem)) {
+                closeModal('modal-cancelar');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                // SEMPRE devolver ao estoque se a venda estiver FINALIZADA
+                if (venda.status === 'FINALIZADO') {
+                    const itensVenda = await getItensPedido(vendaId);
+                    
+                    for (const item of itensVenda) {
+                        if (item.sabor_id) {
+                            // Devolver ao estoque usando RPC
+                            const { error: estoqueError } = await supabase.rpc('atualizar_estoque_sabor', {
+                                p_sabor_id: item.sabor_id,
+                                p_quantidade: item.quantidade // POSITIVO para adicionar de volta
+                            });
+                            
+                            if (estoqueError) {
+                                console.error('Erro ao devolver ao estoque:', estoqueError);
+                                throw estoqueError;
+                            }
+                            
+                            // Registrar movimentação
+                            const { data: saborAtual } = await supabase
+                                .from('produto_sabores')
+                                .select('quantidade')
+                                .eq('id', item.sabor_id)
+                                .single();
+                            
+                            await supabase
+                                .from('estoque_movimentacoes')
+                                .insert({
+                                    produto_id: item.produto_id,
+                                    sabor_id: item.sabor_id,
+                                    tipo: 'ENTRADA',
+                                    quantidade: item.quantidade,
+                                    estoque_anterior: saborAtual.quantidade - item.quantidade,
+                                    estoque_novo: saborAtual.quantidade,
+                                    usuario_id: currentUser.id,
+                                    pedido_id: vendaId,
+                                    observacao: novoStatus === 'CANCELADO'
+                                        ? 'Devolução - Cancelamento definitivo de venda'
+                                        : 'Devolução - Reabertura de venda como rascunho'
+                                });
+                        }
+                    }
+                }
+                
+                const updateData = { status: novoStatus };
+                
+                // Se for cancelamento definitivo, registrar quem cancelou
+                if (novoStatus === 'CANCELADO') {
+                    updateData.aprovador_id = currentUser.id;
+                }
+                
+                const { error } = await supabase
+                    .from('pedidos')
+                    .update(updateData)
+                    .eq('id', vendaId);
+                
+                if (error) throw error;
+                
+                const msgSucesso = novoStatus === 'CANCELADO' 
+                    ? 'Venda cancelada definitivamente! Itens devolvidos ao estoque.' 
+                    : 'Venda cancelada e reaberta como rascunho!';
+                
+                showToast(msgSucesso, 'success');
+                closeModal('modal-cancelar');
+                await loadVenda();
+            } catch (error) {
+                handleError(error, 'Erro ao cancelar venda');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function enviarPDFWhatsAppHandler() {
+            try {
+                if (!venda.cliente?.whatsapp) {
+                    showToast('Cliente não possui WhatsApp cadastrado', 'error');
+                    return;
+                }
+
+                if (!confirm(`Enviar PDF da venda para ${venda.cliente.nome}?\n\nWhatsApp: ${venda.cliente.whatsapp}`)) {
+                    return;
+                }
+
+                await enviarPDFWhatsApp(vendaId, venda.cliente.whatsapp);
+            } catch (error) {
+                // Erro já tratado na função enviarPDFWhatsApp
+                console.error('Erro ao enviar WhatsApp:', error);
+            }
         }
     </script>
 </body>

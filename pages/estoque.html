@@ -51,6 +51,7 @@
                             <option value="OK">OK</option>
                             <option value="BAIXO">Estoque Baixo</option>
                             <option value="ZERADO">Zerado</option>
+                            <option value="BAIXO,OK">Baixo e OK</option>
                         </select>
                     </div>
                 </div>
@@ -285,10 +286,21 @@
                 return;
             }
             
-            const sabores = await getSaboresProduto(produtoId);
+            // Buscar sabores diretamente da view para ter consistência
+            const { data: sabores, error } = await supabase
+                .from('vw_estoque_sabores')
+                .select('sabor_id, sabor')
+                .eq('produto_id', produtoId)
+                .order('sabor');
+            
+            if (error) {
+                console.error('Erro ao buscar sabores:', error);
+                return;
+            }
+            
             sabores.forEach(s => {
                 const option = document.createElement('option');
-                option.value = s.id;
+                option.value = s.sabor_id;
                 option.textContent = s.sabor;
                 selectSabor.appendChild(option);
             });
@@ -392,9 +404,11 @@
                 produtos = produtos.filter(p => p.id === filtroAtual.produto);
             }
             if (filtroAtual.situacao) {
+                // Suportar múltiplos status separados por vírgula
+                const situacoes = filtroAtual.situacao.split(',');
                 produtos = produtos.filter(p => {
                     const situacao = getSituacaoEstoque(p).tipo;
-                    return situacao === filtroAtual.situacao;
+                    return situacoes.includes(situacao);
                 });
             }
             
@@ -425,6 +439,13 @@
         function renderEstoqueSabor() {
             let sabores = [...todosSabores];
             
+            // Recalcular status para incluir ZERADO
+            sabores = sabores.map(s => ({
+                ...s,
+                status_estoque: s.quantidade === 0 ? 'ZERADO' : 
+                               (s.quantidade <= s.estoque_minimo ? 'BAIXO' : 'OK')
+            }));
+            
             // Aplicar filtros
             if (filtroAtual.marca) {
                 sabores = sabores.filter(s => s.marca === filtroAtual.marca);
@@ -433,10 +454,12 @@
                 sabores = sabores.filter(s => s.produto_id === filtroAtual.produto);
             }
             if (filtroAtual.sabor) {
-                sabores = sabores.filter(s => s.id === filtroAtual.sabor);
+                sabores = sabores.filter(s => s.sabor_id === filtroAtual.sabor);
             }
             if (filtroAtual.situacao) {
-                sabores = sabores.filter(s => s.status_estoque === filtroAtual.situacao);
+                // Suportar múltiplos status separados por vírgula
+                const situacoes = filtroAtual.situacao.split(',');
+                sabores = sabores.filter(s => situacoes.includes(s.status_estoque));
             }
             
             const tbody = document.getElementById('tbody-estoque-sabor');
@@ -447,10 +470,17 @@
             }
             
             tbody.innerHTML = sabores.map(s => {
-                const situacao = s.status_estoque === 'BAIXO' ? 'text-red-600' : 'text-green-600';
-                const badge = s.status_estoque === 'BAIXO' 
-                    ? '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Baixo</span>'
-                    : '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">OK</span>';
+                let situacao, badge;
+                if (s.status_estoque === 'ZERADO') {
+                    situacao = 'text-gray-600';
+                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Zerado</span>';
+                } else if (s.status_estoque === 'BAIXO') {
+                    situacao = 'text-red-600';
+                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Baixo</span>';
+                } else {
+                    situacao = 'text-green-600';
+                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">OK</span>';
+                }
                 const margem = s.preco_venda && s.preco_compra 
                     ? ((s.preco_venda - s.preco_compra) / s.preco_compra * 100).toFixed(1) + '%'
                     : '-';

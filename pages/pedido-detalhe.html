@@ -78,6 +78,32 @@
         </div>
     </main>
 
+    <!-- Modal Cancelar Pedido -->
+    <div id="modal-cancelar" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Cancelar Pedido</h3>
+                <button onclick="closeModal('modal-cancelar')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-gray-600 mb-6">Como deseja cancelar este pedido?</p>
+                <div class="space-y-3">
+                    <button onclick="cancelarPedidoHandler('CANCELADO')" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-left">
+                        <div class="font-semibold">❌ Cancelar Definitivo</div>
+                        <div class="text-sm opacity-90">O pedido será cancelado e não poderá ser reaberto</div>
+                    </button>
+                    <button onclick="cancelarPedidoHandler('RASCUNHO')" class="w-full px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-left">
+                        <div class="font-semibold">🔄 Cancelar e Reabrir</div>
+                        <div class="text-sm opacity-90">O pedido voltará para rascunho para edição</div>
+                    </button>
+                </div>
+                <button onclick="closeModal('modal-cancelar')" class="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Voltar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Adicionar Item -->
     <div id="modal-item" class="modal-backdrop hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -273,13 +299,17 @@
             let botoesHTML = '<button onclick="imprimirPedidoCompra(\'' + pedidoId + '\')" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">🖨️ Imprimir</button>';
             
             if (pedido.status === 'RASCUNHO' && pedido.solicitante_id === currentUser.id) {
-                botoesHTML += ' <button onclick="enviarPedidoHandler()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">Enviar para Aprovação</button>';
+                // Solicitante pode editar e finalizar
+                botoesHTML += ' <button onclick="finalizarPedidoHandler()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">✅ Finalizar Pedido</button>';
                 btnAddItem.classList.remove('hidden');
+            } else if (pedido.status === 'FINALIZADO') {
+                // Quando está FINALIZADO, apenas ADMIN pode cancelar
+                if (currentUser.role === 'ADMIN') {
+                    botoesHTML += ' <button onclick="openModal(\'modal-cancelar\')" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700">🚫 Cancelar Pedido</button>';
+                }
+                btnAddItem.classList.add('hidden');
             } else {
                 btnAddItem.classList.add('hidden');
-                if (pedido.status === 'APROVADO' && ['ADMIN'].includes(currentUser.role)) {
-                    botoesHTML += ' <button onclick="finalizarPedidoHandler()" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">Finalizar Pedido</button>';
-                }
             }
             
             acoesEl.innerHTML = botoesHTML;
@@ -345,14 +375,96 @@
             if (success) await loadPedido();
         }
 
-        async function enviarPedidoHandler() {
-            await enviarPedido(pedidoId);
-            await loadPedido();
-        }
-
         async function finalizarPedidoHandler() {
             const success = await finalizarPedido(pedidoId);
             if (success) await loadPedido();
+        }
+
+        async function cancelarPedidoHandler(novoStatus) {
+            const mensagem = novoStatus === 'CANCELADO' 
+                ? 'Tem certeza que deseja CANCELAR DEFINITIVAMENTE este pedido?' 
+                : 'Tem certeza que deseja CANCELAR e REABRIR este pedido como rascunho?';
+            
+            if (!confirm(mensagem)) {
+                closeModal('modal-cancelar');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                // SEMPRE reverter estoque se o pedido estiver FINALIZADO (tanto para CANCELADO quanto RASCUNHO)
+                if (pedido.status === 'FINALIZADO') {
+                    // Buscar itens do pedido
+                    const itensPedido = await getItensPedido(pedidoId);
+                    
+                    // Reverter movimentação de estoque
+                    for (const item of itensPedido) {
+                        if (item.sabor_id) {
+                            // COMPRA finalizada: tinha ADICIONADO estoque, agora precisa REMOVER
+                            // Usar quantidade negativa para remover
+                            const { error: estoqueError } = await supabase
+                                .rpc('atualizar_estoque_sabor', {
+                                    p_sabor_id: item.sabor_id,
+                                    p_quantidade: -item.quantidade  // NEGATIVO para remover
+                                });
+                            
+                            if (estoqueError) {
+                                console.error('Erro ao reverter estoque:', estoqueError);
+                                throw estoqueError;
+                            }
+                            
+                            // Registrar movimentação de ajuste
+                            const { data: saborAtual } = await supabase
+                                .from('produto_sabores')
+                                .select('quantidade')
+                                .eq('id', item.sabor_id)
+                                .single();
+                            
+                            await supabase
+                                .from('estoque_movimentacoes')
+                                .insert({
+                                    produto_id: item.produto_id,
+                                    sabor_id: item.sabor_id,
+                                    tipo: 'SAIDA',
+                                    quantidade: item.quantidade,
+                                    estoque_anterior: saborAtual.quantidade + item.quantidade,
+                                    estoque_novo: saborAtual.quantidade,
+                                    usuario_id: currentUser.id,
+                                    pedido_id: pedidoId,
+                                    observacao: novoStatus === 'CANCELADO' 
+                                        ? 'Ajuste - Cancelamento definitivo de compra'
+                                        : 'Ajuste - Reabertura de compra como rascunho'
+                                });
+                        }
+                    }
+                }
+                
+                const updateData = { status: novoStatus };
+                
+                // Se for cancelamento definitivo, registrar quem cancelou
+                if (novoStatus === 'CANCELADO') {
+                    updateData.aprovador_id = currentUser.id;
+                }
+                
+                const { error } = await supabase
+                    .from('pedidos')
+                    .update(updateData)
+                    .eq('id', pedidoId);
+                
+                if (error) throw error;
+                
+                const msgSucesso = novoStatus === 'CANCELADO' 
+                    ? 'Pedido cancelado definitivamente! Estoque ajustado.' 
+                    : 'Pedido reaberto como rascunho! Estoque ajustado.';
+                
+                showToast(msgSucesso, 'success');
+                closeModal('modal-cancelar');
+                await loadPedido();
+            } catch (error) {
+                handleError(error, 'Erro ao cancelar pedido');
+            } finally {
+                showLoading(false);
+            }
         }
     </script>
 </body>

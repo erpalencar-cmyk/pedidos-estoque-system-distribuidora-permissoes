@@ -375,21 +375,33 @@ function maskWhatsApp(value) {
         value = '55' + value;
     }
     
-    // Limita a 13 dígitos (55 + DDD + número)
+    // Limita a 13 dígitos (55 + 2 DDD + 9 número)
     value = value.substring(0, 13);
     
-    // Aplica a máscara
-    if (value.length > 2) {
-        value = value.replace(/^(\d{2})(\d)/g, '+$1 ($2');
-    }
-    if (value.length > 6) {
-        value = value.replace(/(\d{2})\)(\d)/g, '$1) $2');
-    }
-    if (value.length > 11) {
-        value = value.replace(/(\d{5})(\d)/g, '$1-$2');
+    // Aplica a máscara progressivamente
+    let formatted = '';
+    
+    if (value.length >= 2) {
+        // +55
+        formatted = '+' + value.substring(0, 2);
     }
     
-    return value;
+    if (value.length > 2) {
+        // +55 (XX
+        formatted += ' (' + value.substring(2, 4);
+    }
+    
+    if (value.length > 4) {
+        // +55 (XX) 
+        formatted += ') ' + value.substring(4, 9);
+    }
+    
+    if (value.length > 9) {
+        // +55 (XX) XXXXX-XXXX
+        formatted += '-' + value.substring(9, 13);
+    }
+    
+    return formatted || value;
 }
 
 // Remover máscara e retornar apenas números
