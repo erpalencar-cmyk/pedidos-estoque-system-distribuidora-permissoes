@@ -192,8 +192,8 @@
                         type="text" 
                         name="sabor-nome-${saboresCount}" 
                         value="${sabor}" 
-                        placeholder="Nome do sabor (ex: Melancia)" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        placeholder="Nome do sabor (ex: MELANCIA)" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm sabor-input"
                         required
                     >
                 </div>
@@ -239,7 +239,7 @@
             inputs.forEach(input => {
                 const num = input.name.split('-')[2];
                 const saborId = document.querySelector(`[name="sabor-id-${num}"]`).value || null;
-                const nome = input.value.trim();
+                const nome = input.value.trim().toUpperCase();
                 const qtd = parseFloat(document.querySelector(`[name="sabor-qtd-${num}"]`).value) || 0;
                 
                 if (nome) {
@@ -306,11 +306,15 @@
             const precoCompra = parseFloat(document.getElementById('produto-preco-compra').value) || 0;
             const precoVenda = parseFloat(document.getElementById('produto-preco-venda').value) || 0;
             
+            // Validar e formatar nome e marca
+            let nome = document.getElementById('produto-nome').value.trim().toUpperCase();
+            let marca = document.getElementById('produto-marca').value.trim().toUpperCase();
+            
             const produto = {
                 // Código será gerado automaticamente
-                nome: document.getElementById('produto-nome').value,
-                marca: document.getElementById('produto-marca').value,
-                categoria: document.getElementById('produto-categoria').value || null,
+                nome: nome,
+                marca: marca,
+                categoria: document.getElementById('produto-categoria').value.trim() || null,
                 unidade: document.getElementById('produto-unidade').value,
                 estoque_minimo: parseFloat(document.getElementById('produto-estoque-minimo').value),
                 preco_compra: precoCompra,
@@ -397,6 +401,28 @@
 
         // Adicionar listener no preço de compra também
         document.getElementById('produto-preco-compra').addEventListener('input', calcularMargem);
+
+        // Converter nome e marca para maiúsculas em tempo real
+        document.getElementById('produto-nome').addEventListener('input', function(e) {
+            const cursorPos = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPos, cursorPos);
+        });
+        
+        document.getElementById('produto-marca').addEventListener('input', function(e) {
+            const cursorPos = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPos, cursorPos);
+        });
+
+        // Converter sabores para maiúsculas em tempo real (delegação de eventos)
+        document.getElementById('sabores-container').addEventListener('input', function(e) {
+            if (e.target.classList.contains('sabor-input')) {
+                const cursorPos = e.target.selectionStart;
+                e.target.value = e.target.value.toUpperCase();
+                e.target.setSelectionRange(cursorPos, cursorPos);
+            }
+        });
 
         document.getElementById('search').addEventListener('input', debounce(loadProdutos, 500));
     </script>

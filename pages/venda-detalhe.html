@@ -503,6 +503,7 @@
             if (podeEditar) {
                 document.getElementById('btn-add-item').style.display = 'block';
                 botoes.push('<button onclick="enviarParaAprovacao()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Enviar para Aprovação</button>');
+                botoes.push('<button onclick="excluirVenda()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">🗑️ Excluir Venda</button>');
             } else {
                 document.getElementById('btn-add-item').style.display = 'none';
             }
@@ -600,6 +601,18 @@
             if (confirm('Finalizar venda? O estoque será REDUZIDO automaticamente.')) {
                 const success = await finalizarPedido(vendaId);
                 if (success) await loadVenda();
+            }
+        }
+
+        async function excluirVenda() {
+            if (!confirm('⚠️ Tem certeza que deseja EXCLUIR esta venda?\n\nEsta ação NÃO pode ser desfeita!')) {
+                return;
+            }
+            
+            const success = await deletePedido(vendaId);
+            if (success) {
+                // Redirecionar para lista de vendas
+                window.location.href = 'vendas.html';
             }
         }
 

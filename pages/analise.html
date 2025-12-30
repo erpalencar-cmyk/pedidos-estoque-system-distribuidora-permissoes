@@ -566,10 +566,15 @@
             vendas.forEach(venda => {
                 venda.itens.forEach(item => {
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
-                    if (produto) {
-                        receitaTotal += item.preco_unitario * item.quantidade;
-                        custoTotal += (produto.preco_compra || 0) * item.quantidade;
-                    }
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
+                    receitaTotal += item.preco_unitario * item.quantidade;
+                    custoTotal += (produto.preco_compra || 0) * item.quantidade;
                 });
             });
             
@@ -647,6 +652,11 @@
                 venda.itens.forEach(item => {
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
                     if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
                     
                     const marca = produto.marca || 'SEM MARCA';
                     if (!lucrosPorMarca[marca]) {
@@ -1290,17 +1300,27 @@
             filtrarVendas().forEach(venda => {
                 let totalVenda = 0;
                 venda.itens.forEach(item => {
+                    const produto = todosProdutos.find(p => p.id === item.produto_id);
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
                     totalVenda += item.preco_unitario * item.quantidade;
                 });
                 
-                movimentacoes.push({
-                    data: venda.created_at,
-                    tipo: 'ENTRADA',
-                    numero: venda.numero,
-                    descricao: `Venda - ${venda.cliente?.nome || 'Cliente Avulso'}`,
-                    entrada: totalVenda,
-                    saida: 0
-                });
+                if (totalVenda > 0) {
+                    movimentacoes.push({
+                        data: venda.created_at,
+                        tipo: 'ENTRADA',
+                        numero: venda.numero,
+                        descricao: `Venda - ${venda.cliente?.nome || 'Cliente Avulso'}`,
+                        entrada: totalVenda,
+                        saida: 0
+                    });
+                }
             });
 
             // Adicionar compras (saídas)
@@ -1308,17 +1328,27 @@
             compras.forEach(compra => {
                 let totalCompra = 0;
                 compra.itens.forEach(item => {
+                    const produto = todosProdutos.find(p => p.id === item.produto_id);
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
                     totalCompra += item.preco_unitario * item.quantidade;
                 });
                 
-                movimentacoes.push({
-                    data: compra.created_at,
-                    tipo: 'SAÍDA',
-                    numero: compra.numero,
-                    descricao: `Compra - ${compra.fornecedor?.nome || 'Fornecedor'}`,
-                    entrada: 0,
-                    saida: totalCompra
-                });
+                if (totalCompra > 0) {
+                    movimentacoes.push({
+                        data: compra.created_at,
+                        tipo: 'SAÍDA',
+                        numero: compra.numero,
+                        descricao: `Compra - ${compra.fornecedor?.nome || 'Fornecedor'}`,
+                        entrada: 0,
+                        saida: totalCompra
+                    });
+                }
             });
 
             // Ordenar por data
@@ -1525,12 +1555,26 @@
             
             vendas.forEach(venda => {
                 const data = new Date(venda.created_at).toLocaleDateString('pt-BR');
-                if (!vendasPorDia[data]) {
-                    vendasPorDia[data] = 0;
-                }
+                let totalDia = 0;
+                
                 venda.itens.forEach(item => {
-                    vendasPorDia[data] += item.preco_unitario * item.quantidade;
+                    const produto = todosProdutos.find(p => p.id === item.produto_id);
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
+                    totalDia += item.preco_unitario * item.quantidade;
                 });
+                
+                if (totalDia > 0) {
+                    if (!vendasPorDia[data]) {
+                        vendasPorDia[data] = 0;
+                    }
+                    vendasPorDia[data] += totalDia;
+                }
             });
 
             const datasOrdenadas = Object.keys(vendasPorDia).sort((a, b) => {
@@ -1578,6 +1622,11 @@
                 venda.itens.forEach(item => {
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
                     if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
                     
                     const marca = produto.marca || 'SEM MARCA';
                     if (!vendasPorMarca[marca]) {
@@ -1637,13 +1686,29 @@
             const vendasPorCliente = {};
             
             vendas.forEach(venda => {
-                const cliente = venda.cliente?.nome || 'Cliente Avulso';
-                if (!vendasPorCliente[cliente]) {
-                    vendasPorCliente[cliente] = 0;
-                }
+                let totalVenda = 0;
+                let incluirVenda = false;
+                
                 venda.itens.forEach(item => {
-                    vendasPorCliente[cliente] += item.preco_unitario * item.quantidade;
+                    const produto = todosProdutos.find(p => p.id === item.produto_id);
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
+                    totalVenda += item.preco_unitario * item.quantidade;
+                    incluirVenda = true;
                 });
+                
+                if (incluirVenda && totalVenda > 0) {
+                    const cliente = venda.cliente?.nome || 'Cliente Avulso';
+                    if (!vendasPorCliente[cliente]) {
+                        vendasPorCliente[cliente] = 0;
+                    }
+                    vendasPorCliente[cliente] += totalVenda;
+                }
             });
 
             const topClientes = Object.entries(vendasPorCliente)
@@ -1688,6 +1753,14 @@
             vendas.forEach(venda => {
                 venda.itens.forEach(item => {
                     if (!item.sabor_id) return;
+                    
+                    const produto = todosProdutos.find(p => p.id === item.produto_id);
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
                     
                     const sabor = item.sabor?.sabor || 'Sabor Desconhecido';
                     if (!qtdPorSabor[sabor]) {
@@ -1738,6 +1811,11 @@
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
                     if (!produto) return;
                     
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
                     if (!qtdPorProduto[produto.nome]) {
                         qtdPorProduto[produto.nome] = 0;
                     }
@@ -1784,6 +1862,11 @@
                 venda.itens.forEach(item => {
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
                     if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
                     
                     const marca = produto.marca || 'SEM MARCA';
                     if (!dadosPorMarca[marca]) {
@@ -1851,15 +1934,29 @@
             
             vendas.forEach(venda => {
                 const data = new Date(venda.created_at).toLocaleDateString('pt-BR');
-                if (!dadosPorDia[data]) {
-                    dadosPorDia[data] = { receita: 0, custo: 0 };
-                }
+                let receitaDia = 0;
+                let custoDia = 0;
                 
                 venda.itens.forEach(item => {
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
-                    dadosPorDia[data].receita += item.preco_unitario * item.quantidade;
-                    dadosPorDia[data].custo += (produto?.preco_compra || 0) * item.quantidade;
+                    if (!produto) return;
+                    
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
+                    receitaDia += item.preco_unitario * item.quantidade;
+                    custoDia += (produto.preco_compra || 0) * item.quantidade;
                 });
+                
+                if (receitaDia > 0 || custoDia > 0) {
+                    if (!dadosPorDia[data]) {
+                        dadosPorDia[data] = { receita: 0, custo: 0 };
+                    }
+                    dadosPorDia[data].receita += receitaDia;
+                    dadosPorDia[data].custo += custoDia;
+                }
             });
 
             const datasOrdenadas = Object.keys(dadosPorDia).sort((a, b) => {

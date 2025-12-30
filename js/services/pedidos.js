@@ -531,3 +531,48 @@ async function getEstatisticasPedidos() {
         return null;
     }
 }
+
+// Excluir pedido (apenas RASCUNHO)
+async function deletePedido(pedidoId) {
+    try {
+        showLoading(true);
+        
+        // Verificar se o pedido está em RASCUNHO
+        const { data: pedido, error: errorPedido } = await supabase
+            .from('pedidos')
+            .select('status, numero, tipo_pedido')
+            .eq('id', pedidoId)
+            .single();
+            
+        if (errorPedido) throw errorPedido;
+        
+        if (pedido.status !== 'RASCUNHO') {
+            throw new Error('Apenas pedidos em RASCUNHO podem ser excluídos');
+        }
+        
+        // Primeiro, excluir os itens do pedido
+        const { error: errorItens } = await supabase
+            .from('pedido_itens')
+            .delete()
+            .eq('pedido_id', pedidoId);
+            
+        if (errorItens) throw errorItens;
+        
+        // Depois, excluir o pedido
+        const { error: errorDelete } = await supabase
+            .from('pedidos')
+            .delete()
+            .eq('id', pedidoId);
+            
+        if (errorDelete) throw errorDelete;
+        
+        showToast(`${pedido.tipo_pedido === 'COMPRA' ? 'Pedido de compra' : 'Venda'} ${pedido.numero} excluído com sucesso!`, 'success');
+        return true;
+        
+    } catch (error) {
+        handleError(error, 'Erro ao excluir pedido');
+        return false;
+    } finally {
+        showLoading(false);
+    }
+}

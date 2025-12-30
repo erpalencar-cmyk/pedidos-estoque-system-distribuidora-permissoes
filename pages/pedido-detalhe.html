@@ -299,8 +299,9 @@
             let botoesHTML = '<button onclick="imprimirPedidoCompra(\'' + pedidoId + '\')" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">🖨️ Imprimir</button>';
             
             if (pedido.status === 'RASCUNHO' && pedido.solicitante_id === currentUser.id) {
-                // Solicitante pode editar e finalizar
+                // Solicitante pode editar, finalizar e excluir
                 botoesHTML += ' <button onclick="finalizarPedidoHandler()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">✅ Finalizar Pedido</button>';
+                botoesHTML += ' <button onclick="excluirPedido()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">🗑️ Excluir Pedido</button>';
                 btnAddItem.classList.remove('hidden');
             } else if (pedido.status === 'FINALIZADO') {
                 // Quando está FINALIZADO, apenas ADMIN pode cancelar
@@ -378,6 +379,18 @@
         async function finalizarPedidoHandler() {
             const success = await finalizarPedido(pedidoId);
             if (success) await loadPedido();
+        }
+
+        async function excluirPedido() {
+            if (!confirm('⚠️ Tem certeza que deseja EXCLUIR este pedido de compra?\n\nEsta ação NÃO pode ser desfeita!')) {
+                return;
+            }
+            
+            const success = await deletePedido(pedidoId);
+            if (success) {
+                // Redirecionar para lista de pedidos
+                window.location.href = 'pedidos.html';
+            }
         }
 
         async function cancelarPedidoHandler(novoStatus) {

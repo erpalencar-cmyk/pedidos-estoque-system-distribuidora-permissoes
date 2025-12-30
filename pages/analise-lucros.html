@@ -486,6 +486,11 @@
                     const produto = todosProdutos.find(p => p.id === item.produto_id);
                     if (!produto) return;
                     
+                    // Aplicar filtros
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
+                    if (filtroAtual.sabor && item.sabor_id !== filtroAtual.sabor) return;
+                    
                     const marca = produto.marca || 'SEM MARCA';
                     if (!lucrosPorMarca[marca]) {
                         lucrosPorMarca[marca] = { quantidade: 0, receita: 0, custo: 0 };
