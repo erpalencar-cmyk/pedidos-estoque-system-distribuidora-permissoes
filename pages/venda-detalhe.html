@@ -72,6 +72,10 @@
                                 <dt class="text-gray-600">Total:</dt>
                                 <dd id="venda-total" class="font-bold text-2xl text-green-600">R$ 0,00</dd>
                             </div>
+                            <div class="flex justify-between pt-2 border-t">
+                                <dt class="text-gray-600 text-sm">Quantidade Total:</dt>
+                                <dd id="venda-quantidade-total" class="font-medium text-gray-700">0 UN</dd>
+                            </div>
                             <div id="pagamento-info" class="hidden pt-3 border-t space-y-2">
                                 <div class="flex justify-between text-sm">
                                     <dt class="text-gray-600">Valor Pago:</dt>
@@ -786,8 +790,13 @@
             
             if (itens.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500 text-sm">Nenhum item adicionado</td></tr>';
+                document.getElementById('venda-quantidade-total').textContent = '0 UN';
                 return;
             }
+            
+            // Calcular quantidade total de itens
+            const quantidadeTotal = itens.reduce((sum, item) => sum + parseFloat(item.quantidade || 0), 0);
+            document.getElementById('venda-quantidade-total').textContent = `${quantidadeTotal.toFixed(2)} UN`;
             
             tbody.innerHTML = itens.map(item => {
                 const produtoNome = item.produto?.nome || 'N/A';
@@ -1010,23 +1019,36 @@
             try {
                 showLoading(true);
                 
-                const { error } = await supabase
+                console.log('📝 Atualizando item da venda:', itemId, {quantidade, preco});
+                
+                const { data, error } = await supabase
                     .from('pedido_itens')
                     .update({
                         quantidade: quantidade,
-                        preco_unitario: preco,
-                        subtotal: quantidade * preco
+                        preco_unitario: preco
+                        // subtotal é calculado automaticamente pelo banco (coluna GENERATED)
                     })
-                    .eq('id', itemId);
+                    .eq('id', itemId)
+                    .select();
 
-                if (error) throw error;
+                if (error) {
+                    console.error('❌ Erro no Supabase:', error);
+                    throw error;
+                }
+                
+                if (!data || data.length === 0) {
+                    console.warn('⚠️ Nenhum item foi atualizado. Possível problema de RLS.');
+                    throw new Error('Não foi possível atualizar o item. Verifique suas permissões.');
+                }
 
+                console.log('✅ Item atualizado:', data);
                 showToast('Item atualizado com sucesso!', 'success');
                 closeModal('modal-editar-item');
                 await loadVenda();
             } catch (error) {
-                console.error('Erro ao atualizar item:', error);
-                showToast('Erro ao atualizar item', 'error');
+                console.error('❌ Erro completo ao atualizar item:', error);
+                const mensagemErro = error.message || 'Erro ao atualizar item';
+                showToast(mensagemErro, 'error');
             } finally {
                 showLoading(false);
             }
@@ -1197,6 +1219,19 @@
         }
 
         async function cancelarVendaHandler(novoStatus) {
+            // VALIDAÇÃO: Impedir cancelamento de vendas já canceladas ou em rascunho
+            if (venda.status === 'CANCELADO') {
+                showToast('❌ Esta venda já foi cancelada anteriormente!', 'error');
+                closeModal('modal-cancelar');
+                return;
+            }
+            
+            if (venda.status === 'RASCUNHO') {
+                showToast('❌ Esta venda já está em rascunho!', 'error');
+                closeModal('modal-cancelar');
+                return;
+            }
+            
             const mensagem = novoStatus === 'CANCELADO' 
                 ? 'Tem certeza que deseja CANCELAR DEFINITIVAMENTE esta venda? Os itens retornarão ao estoque.' 
                 : 'Tem certeza que deseja CANCELAR e REABRIR esta venda como rascunho?';
@@ -1258,12 +1293,21 @@
                     updateData.aprovador_id = currentUser.id;
                 }
                 
-                const { error } = await supabase
+                console.log('📝 Atualizando venda:', vendaId, 'Status atual:', venda.status, 'Novo status:', novoStatus);
+                console.log('📝 Dados para atualizar:', updateData);
+                
+                const { data, error } = await supabase
                     .from('pedidos')
                     .update(updateData)
-                    .eq('id', vendaId);
+                    .eq('id', vendaId)
+                    .select();
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('❌ Erro ao atualizar status:', error);
+                    throw error;
+                }
+                
+                console.log('✅ Venda atualizada com sucesso:', data);
                 
                 const msgSucesso = novoStatus === 'CANCELADO' 
                     ? 'Venda cancelada definitivamente! Itens devolvidos ao estoque.' 
@@ -1271,7 +1315,11 @@
                 
                 showToast(msgSucesso, 'success');
                 closeModal('modal-cancelar');
+                
+                // Recarregar dados da venda para exibir novo status
+                console.log('🔄 Recarregando dados da venda...');
                 await loadVenda();
+                console.log('✅ Venda recarregada. Novo status:', venda.status);
             } catch (error) {
                 handleError(error, 'Erro ao cancelar venda');
             } finally {
