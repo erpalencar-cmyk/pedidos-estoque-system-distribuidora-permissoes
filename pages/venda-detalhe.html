@@ -1278,8 +1278,21 @@
             
             showLoading(true);
             try {
-                // SEMPRE devolver ao estoque se a venda estiver FINALIZADA
-                if (venda.status === 'FINALIZADO') {
+                // ✅ LÓGICA CORRIGIDA PARA REABERTURA
+                //
+                // CANCELAMENTO DEFINITIVO (CANCELADO):
+                // - Devolver produtos ao estoque (ENTRADA)
+                // - Registrar movimentação de devolução
+                //
+                // REABERTURA COMO RASCUNHO:
+                // - NÃO mexer no estoque (já está correto)
+                // - Apenas mudar status
+                // - Ao refinalizar, o sistema vai calcular diferença
+                
+                if (venda.status === 'FINALIZADO' && novoStatus === 'CANCELADO') {
+                    // ❌ CANCELAMENTO DEFINITIVO: Devolver ao estoque
+                    console.log('❌ Cancelamento definitivo - devolvendo produtos ao estoque');
+                    
                     const itensVenda = await getItensPedido(vendaId);
                     
                     for (const item of itensVenda) {
@@ -1313,12 +1326,15 @@
                                     estoque_novo: saborAtual.quantidade,
                                     usuario_id: currentUser.id,
                                     pedido_id: vendaId,
-                                    observacao: novoStatus === 'CANCELADO'
-                                        ? 'Devolução - Cancelamento definitivo de venda'
-                                        : 'Devolução - Reabertura de venda como rascunho'
+                                    observacao: 'Devolução - Cancelamento definitivo de venda'
                                 });
                         }
                     }
+                } else if (venda.status === 'FINALIZADO' && novoStatus === 'RASCUNHO') {
+                    // 🔄 REABERTURA COMO RASCUNHO: NÃO mexer no estoque
+                    console.log('🔄 Reabrindo venda como RASCUNHO (SEM mexer no estoque)');
+                    console.log('   → Estoque permanece intacto');
+                    console.log('   → Ao refinalizar, o sistema vai recalcular');
                 }
                 
                 const updateData = { status: novoStatus };
@@ -1326,6 +1342,8 @@
                 // Se for cancelamento definitivo, registrar quem cancelou
                 if (novoStatus === 'CANCELADO') {
                     updateData.aprovador_id = currentUser.id;
+                } else if (novoStatus === 'RASCUNHO') {
+                    updateData.data_finalizacao = null; // Limpar data de finalização
                 }
                 
                 console.log('📝 Atualizando venda:', vendaId, 'Status atual:', venda.status, 'Novo status:', novoStatus);

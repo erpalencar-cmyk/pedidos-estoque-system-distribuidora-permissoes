@@ -732,6 +732,74 @@
                 return;
             }
             
+            // ⚠️ VALIDAÇÃO PRÉVIA: Se for cancelamento definitivo de COMPRA, verificar estoque
+            if (novoStatus === 'CANCELADO' && pedido.status === 'FINALIZADO' && pedido.tipo_pedido === 'COMPRA') {
+                try {
+                    console.log('🔍 Validando estoque antes de cancelar compra...');
+                    const itensPedido = await getItensPedido(pedidoId);
+                    const problemas = [];
+                    
+                    for (const item of itensPedido) {
+                        if (item.sabor_id) {
+                            const { data: saborAtual, error } = await supabase
+                                .from('produto_sabores')
+                                .select('quantidade, sabor, produtos(codigo)')
+                                .eq('id', item.sabor_id)
+                                .single();
+                            
+                            console.log('📊 Item do pedido:', {
+                                produto: item.produto?.codigo,
+                                sabor: item.sabor?.sabor,
+                                quantidade_pedido: item.quantidade,
+                                estoque_atual: saborAtual?.quantidade,
+                                erro: error
+                            });
+                            
+                            if (error) {
+                                console.error('❌ Erro ao buscar estoque:', error);
+                                throw new Error(`Erro ao verificar estoque: ${error.message}`);
+                            }
+                            
+                            if (saborAtual && saborAtual.quantidade < item.quantidade) {
+                                const faltam = item.quantidade - saborAtual.quantidade;
+                                console.warn('⚠️ Estoque insuficiente detectado:', {
+                                    produto: saborAtual.produtos.codigo,
+                                    sabor: saborAtual.sabor,
+                                    necessario: item.quantidade,
+                                    disponivel: saborAtual.quantidade,
+                                    faltam: faltam
+                                });
+                                problemas.push(
+                                    `• ${saborAtual.produtos.codigo} (${saborAtual.sabor}): ` +
+                                    `Necessário: ${item.quantidade}, Disponível: ${saborAtual.quantidade}, Faltam: ${faltam}`
+                                );
+                            } else {
+                                console.log('✅ Estoque OK para este item');
+                            }
+                        }
+                    }
+                    
+                    if (problemas.length > 0) {
+                        alert(
+                            '⚠️ NÃO É POSSÍVEL CANCELAR ESTA COMPRA!\n\n' +
+                            'Os produtos já foram vendidos e não há estoque suficiente:\n\n' +
+                            problemas.join('\n') +
+                            '\n\n💡 OPÇÕES:\n' +
+                            '1. Use "Cancelar e Reabrir" para editar o pedido\n' +
+                            '2. Compre mais unidades antes de cancelar\n' +
+                            '3. Faça um ajuste manual no estoque (com cuidado!)'
+                        );
+                        closeModal('modal-cancelar');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Erro ao validar estoque:', error);
+                    handleError(error, 'Erro ao validar estoque para cancelamento');
+                    closeModal('modal-cancelar');
+                    return;
+                }
+            }
+            
             const mensagem = novoStatus === 'CANCELADO' 
                 ? 'Tem certeza que deseja CANCELAR DEFINITIVAMENTE este pedido?' 
                 : 'Tem certeza que deseja CANCELAR e REABRIR este pedido como rascunho?';
@@ -743,79 +811,83 @@
             
             showLoading(true);
             try {
-                // SEMPRE reverter estoque se o pedido estiver FINALIZADO (tanto para CANCELADO quanto RASCUNHO)
-                if (pedido.status === 'FINALIZADO') {
-                    // Buscar itens do pedido
-                    const itensPedido = await getItensPedido(pedidoId);
+                // ✅ USAR FUNÇÃO SQL COM PROTEÇÕES COMPLETAS
+                // A função cancelar_pedido_definitivo tem:
+                // - Validação de estoque ANTES de qualquer mudança
+                // - Locks de transação (FOR UPDATE)
+                // - Atomicidade garantida (tudo ou nada)
+                
+                if (novoStatus === 'CANCELADO' && pedido.status === 'FINALIZADO') {
+                    // Cancelamento definitivo usando função SQL protegida
+                    const { data, error } = await supabase.rpc('cancelar_pedido_definitivo', {
+                        p_pedido_id: pedidoId,
+                        p_usuario_id: currentUser.id
+                    });
                     
-                    // Reverter movimentação de estoque
-                    for (const item of itensPedido) {
-                        if (item.sabor_id) {
-                            // COMPRA finalizada: tinha ADICIONADO estoque, agora precisa REMOVER
-                            // Usar quantidade negativa para remover
-                            const { error: estoqueError } = await supabase
-                                .rpc('atualizar_estoque_sabor', {
-                                    p_sabor_id: item.sabor_id,
-                                    p_quantidade: -item.quantidade  // NEGATIVO para remover
-                                });
-                            
-                            if (estoqueError) {
-                                console.error('Erro ao reverter estoque:', estoqueError);
-                                throw estoqueError;
-                            }
-                            
-                            // Registrar movimentação de ajuste
-                            const { data: saborAtual } = await supabase
-                                .from('produto_sabores')
-                                .select('quantidade')
-                                .eq('id', item.sabor_id)
-                                .single();
-                            
-                            await supabase
-                                .from('estoque_movimentacoes')
-                                .insert({
-                                    produto_id: item.produto_id,
-                                    sabor_id: item.sabor_id,
-                                    tipo: 'SAIDA',
-                                    quantidade: item.quantidade,
-                                    estoque_anterior: saborAtual.quantidade + item.quantidade,
-                                    estoque_novo: saborAtual.quantidade,
-                                    usuario_id: currentUser.id,
-                                    pedido_id: pedidoId,
-                                    observacao: novoStatus === 'CANCELADO' 
-                                        ? 'Ajuste - Cancelamento definitivo de compra'
-                                        : 'Ajuste - Reabertura de compra como rascunho'
-                                });
+                    if (error) {
+                        console.error('❌ Erro ao cancelar pedido:', error);
+                        
+                        // Mensagem amigável para erro de estoque
+                        if (error.message.includes('BLOQUEIO') || error.message.includes('Estoque')) {
+                            throw new Error(
+                                `❌ ${error.message}\n\n` +
+                                `O cancelamento foi BLOQUEADO para proteger a integridade do estoque.\n` +
+                                `Nenhuma alteração foi realizada no sistema.`
+                            );
                         }
+                        
+                        throw error;
                     }
+                    
+                    console.log('✅ Pedido cancelado com sucesso via função SQL');
+                    
+                } else if (novoStatus === 'RASCUNHO' && pedido.status === 'FINALIZADO') {
+                    // ⚠️ REABERTURA COMO RASCUNHO: NÃO REVERTER ESTOQUE!
+                    // 
+                    // LÓGICA CORRETA:
+                    // 1. Quando reabrir, manter o pedido FINALIZADO no histórico de estoque
+                    // 2. Quando refinalizar, o sistema vai detectar que JÁ foi finalizado antes
+                    //    e NÃO vai duplicar movimentações
+                    // 3. Se o usuário mudar quantidades/itens, a finalização vai calcular a diferença
+                    //
+                    // PROBLEMA SE REVERTER:
+                    // - Reabrir: Remove do estoque (ex: COMPRA volta a -20)
+                    // - Refinalizar: Adiciona de novo (+20) → DUPLICA!
+                    
+                    console.log('🔄 Reabrindo pedido como RASCUNHO (SEM mexer no estoque)');
+                    
+                    // ✅ APENAS mudar status para RASCUNHO
+                    // NÃO mexer no estoque - ele já está correto
+                    const { error } = await supabase
+                        .from('pedidos')
+                        .update({ 
+                            status: 'RASCUNHO',
+                            data_finalizacao: null // Limpar data de finalização
+                        })
+                        .eq('id', pedidoId);
+                    
+                    if (error) throw error;
+                    
+                    console.log('✅ Pedido reaberto como RASCUNHO. Estoque mantido intacto.');
+                    
+                } else {
+                    // Outros casos (ex: APROVADO → RASCUNHO sem reverter estoque)
+                    const { error } = await supabase
+                        .from('pedidos')
+                        .update({ 
+                            status: novoStatus,
+                            aprovador_id: novoStatus === 'CANCELADO' ? currentUser.id : null
+                        })
+                        .eq('id', pedidoId);
+                    
+                    if (error) throw error;
                 }
                 
-                const updateData = { status: novoStatus };
-                
-                // Se for cancelamento definitivo, registrar quem cancelou
-                if (novoStatus === 'CANCELADO') {
-                    updateData.aprovador_id = currentUser.id;
-                }
-                
-                console.log('📝 Atualizando pedido:', pedidoId, 'Status atual:', pedido.status, 'Novo status:', novoStatus);
-                console.log('📝 Dados para atualizar:', updateData);
-                
-                const { data, error } = await supabase
-                    .from('pedidos')
-                    .update(updateData)
-                    .eq('id', pedidoId)
-                    .select();
-                
-                if (error) {
-                    console.error('❌ Erro ao atualizar status:', error);
-                    throw error;
-                }
-                
-                console.log('✅ Pedido atualizado com sucesso:', data);
+                console.log('✅ Pedido atualizado com sucesso');
                 
                 const msgSucesso = novoStatus === 'CANCELADO' 
                     ? 'Pedido cancelado definitivamente! Estoque ajustado.' 
-                    : 'Pedido reaberto como rascunho! Estoque ajustado.';
+                    : 'Pedido reaberto como rascunho!';
                 
                 showToast(msgSucesso, 'success');
                 closeModal('modal-cancelar');

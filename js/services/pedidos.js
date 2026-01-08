@@ -305,13 +305,40 @@ async function rejeitarPedido(pedidoId, motivo) {
     }
 }
 
+// Variável para controle de finalização em progresso
+let finalizacaoEmProgresso = false;
+
 // Finalizar pedido (baixar estoque)
 async function finalizarPedido(pedidoId) {
     try {
+        // PROTEÇÃO: Impedir múltiplas finalizações simultâneas
+        if (finalizacaoEmProgresso) {
+            showToast('⏳ Aguarde... O pedido já está sendo finalizado!', 'warning');
+            return false;
+        }
+
+        // Verificar se o pedido já está finalizado
+        const { data: pedidoAtual } = await supabase
+            .from('pedidos')
+            .select('status, numero')
+            .eq('id', pedidoId)
+            .single();
+
+        if (pedidoAtual && pedidoAtual.status === 'FINALIZADO') {
+            showToast('⚠️ Este pedido já foi finalizado anteriormente!', 'error');
+            return false;
+        }
+
+        if (pedidoAtual && pedidoAtual.status === 'CANCELADO') {
+            showToast('⚠️ Este pedido está cancelado e não pode ser finalizado!', 'error');
+            return false;
+        }
+
         if (!await confirmAction('Deseja finalizar este pedido? O estoque será baixado automaticamente.')) {
             return false;
         }
 
+        finalizacaoEmProgresso = true;
         showLoading(true);
         
         const user = await getCurrentUser();
@@ -332,6 +359,7 @@ async function finalizarPedido(pedidoId) {
         handleError(error, 'Erro ao finalizar pedido');
         return false;
     } finally {
+        finalizacaoEmProgresso = false;
         showLoading(false);
     }
 }
