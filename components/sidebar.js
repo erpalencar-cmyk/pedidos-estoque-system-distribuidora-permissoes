@@ -103,7 +103,19 @@ function createSidebar() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                         Análise de Lucros
-                    </a>                </div>
+                    </a>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sistema</h3>
+                    
+                    <a href="/pages/reprocessar-estoque.html" id="menu-reprocessar-estoque" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition mt-1">
+                        <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Reprocessar Estoque
+                    </a>
+                </div>
             </nav>
         </aside>
     `;
@@ -146,9 +158,9 @@ async function initSidebar() {
         }
 
         // ADMIN: Vê tudo (não esconde nada)
-        // Análise de Lucros é exclusiva do ADMIN
+        // Análise de Lucros e Reprocessar Estoque são exclusivos do ADMIN
         if (role !== 'ADMIN') {
-            hideMenuItems(['menu-analise']);
+            hideMenuItems(['menu-analise', 'menu-reprocessar-estoque']);
         }
     }
 

@@ -229,6 +229,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/services/pedidos.js"></script>
@@ -267,15 +268,20 @@
 
         // Carregar marcas no select
         async function loadMarcasSelect() {
-            const marcas = await getMarcas();
-            const selectMarca = document.getElementById('item-marca');
-            selectMarca.innerHTML = '<option value="">Selecione a marca...</option>';
-            marcas.forEach(marca => {
-                const option = document.createElement('option');
-                option.value = marca;
-                option.textContent = marca;
-                selectMarca.appendChild(option);
-            });
+            try {
+                showLoading(true);
+                const marcas = await getMarcas();
+                const selectMarca = document.getElementById('item-marca');
+                selectMarca.innerHTML = '<option value="">Selecione a marca...</option>';
+                marcas.forEach(marca => {
+                    const option = document.createElement('option');
+                    option.value = marca;
+                    option.textContent = marca;
+                    selectMarca.appendChild(option);
+                });
+            } finally {
+                showLoading(false);
+            }
         }
 
         // Carregar produtos ao selecionar marca
@@ -546,8 +552,10 @@
         }
 
         async function loadPedido() {
-            pedido = await getPedido(pedidoId);
-            if (!pedido) return;
+            try {
+                showLoading(true);
+                pedido = await getPedido(pedidoId);
+                if (!pedido) return;
 
             document.getElementById('pedido-numero').textContent = `Pedido ${pedido.numero}`;
             document.getElementById('pedido-status').innerHTML = getStatusBadge(pedido.status);
@@ -581,6 +589,9 @@
             acoesEl.innerHTML = botoesHTML;
 
             await loadItens();
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function loadItens() {
@@ -627,8 +638,13 @@
 
         async function removeItem(itemId) {
             if (confirm('Deseja remover este item?')) {
-                const success = await removeItemPedido(itemId);
-                if (success) await loadPedido();
+                try {
+                    showLoading(true);
+                    const success = await removeItemPedido(itemId);
+                    if (success) await loadPedido();
+                } finally {
+                    showLoading(false);
+                }
             }
         }
 
@@ -721,8 +737,13 @@
         });
 
         async function finalizarPedidoHandler() {
-            const success = await finalizarPedido(pedidoId);
-            if (success) await loadPedido();
+            try {
+                showLoading(true);
+                const success = await finalizarPedido(pedidoId);
+                if (success) await loadPedido();
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function excluirPedido() {
@@ -730,10 +751,15 @@
                 return;
             }
             
-            const success = await deletePedido(pedidoId);
-            if (success) {
-                // Redirecionar para lista de pedidos
-                window.location.href = 'pedidos.html';
+            try {
+                showLoading(true);
+                const success = await deletePedido(pedidoId);
+                if (success) {
+                    // Redirecionar para lista de pedidos
+                    window.location.href = 'pedidos.html';
+                }
+            } finally {
+                showLoading(false);
             }
         }
 

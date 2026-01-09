@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reprocessar Estoque - Sistema de Pedidos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-gray-50">
+    <div id="navbar"></div>
+    <div id="sidebar-container"></div>
+
+    <main class="lg:ml-64 pt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    <i class="fas fa-sync-alt mr-2"></i>Reprocessar Estoque
+                </h1>
+                <p class="text-gray-600">Reconstruir movimentações de estoque baseadas nos pedidos finalizados</p>
+            </div>
+
+            <!-- Avisos de Segurança -->
+            <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl mr-4 mt-1"></i>
+                    <div>
+                        <h3 class="text-lg font-bold text-red-800 mb-2">⚠️ ATENÇÃO: Operação Crítica!</h3>
+                        <ul class="text-red-700 space-y-1 text-sm">
+                            <li>• Esta operação irá <strong>APAGAR TODAS</strong> as movimentações de estoque atuais</li>
+                            <li>• O estoque será <strong>ZERADO</strong> e reconstruído do zero</li>
+                            <li>• Um backup será criado automaticamente antes do processamento</li>
+                            <li>• Esta operação <strong>NÃO PODE SER DESFEITA</strong> facilmente</li>
+                            <li>• Execute apenas se tiver certeza de que o estoque está inconsistente</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status do Sistema -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="text-sm text-gray-600 mb-1">Pedidos Finalizados</div>
+                    <div class="text-2xl font-bold text-blue-600" id="total-pedidos">-</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="text-sm text-gray-600 mb-1">Movimentações Atuais</div>
+                    <div class="text-2xl font-bold text-purple-600" id="total-movimentacoes">-</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="text-sm text-gray-600 mb-1">Estoque Atual (Total)</div>
+                    <div class="text-2xl font-bold text-green-600" id="total-estoque">-</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="text-sm text-gray-600 mb-1">Status Backup</div>
+                    <div class="text-sm font-bold" id="status-backup">
+                        <span class="text-gray-500">Não criado</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de Controle -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">
+                    <i class="fas fa-tasks mr-2"></i>Painel de Controle
+                </h2>
+
+                <!-- Passo 1: Carregar Status -->
+                <div class="border-b pb-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">1. Carregar Status do Sistema</h3>
+                            <p class="text-sm text-gray-600">Verificar dados antes de reprocessar</p>
+                        </div>
+                        <button onclick="carregarStatus()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-refresh mr-2"></i>Carregar
+                        </button>
+                    </div>
+                    <div id="status-passo1" class="text-sm text-gray-500">Aguardando...</div>
+                </div>
+
+                <!-- Passo 2: Criar Backup -->
+                <div class="border-b pb-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">2. Criar Backup das Movimentações</h3>
+                            <p class="text-sm text-gray-600">Salvar movimentações atuais para segurança</p>
+                        </div>
+                        <button onclick="criarBackup()" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
+                            <i class="fas fa-save mr-2"></i>Criar Backup
+                        </button>
+                    </div>
+                    <div id="status-passo2" class="text-sm text-gray-500">Aguardando...</div>
+                </div>
+
+                <!-- Passo 3: Reprocessar (CRÍTICO) -->
+                <div class="border-b pb-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-red-700">3. REPROCESSAR ESTOQUE</h3>
+                            <p class="text-sm text-red-600">⚠️ Limpar e reconstruir TUDO do zero</p>
+                        </div>
+                        <button onclick="confirmarReprocessamento()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            <i class="fas fa-sync-alt mr-2"></i>Reprocessar Tudo
+                        </button>
+                    </div>
+                    <div id="status-passo3" class="text-sm text-gray-500">Aguardando confirmação...</div>
+                </div>
+
+                <!-- Passo 4: Verificar Resultado -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">4. Verificar Resultado</h3>
+                            <p class="text-sm text-gray-600">Comparar estoque final com movimentações</p>
+                        </div>
+                        <button onclick="verificarResultado()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <i class="fas fa-check-circle mr-2"></i>Verificar
+                        </button>
+                    </div>
+                    <div id="status-passo4" class="text-sm text-gray-500">Aguardando...</div>
+                </div>
+            </div>
+
+            <!-- Log de Processamento -->
+            <div class="bg-gray-900 rounded-lg shadow-lg p-6 mb-6" id="log-container" style="display: none;">
+                <h2 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-terminal mr-2"></i>Log de Processamento
+                </h2>
+                <div id="log-content" class="bg-black text-green-400 font-mono text-sm p-4 rounded max-h-96 overflow-y-auto">
+                    <div>Aguardando início do processamento...</div>
+                </div>
+            </div>
+
+            <!-- Resultado Final -->
+            <div id="resultado-container" style="display: none;">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">
+                        <i class="fas fa-chart-line mr-2"></i>Resultado do Reprocessamento
+                    </h2>
+                    <div id="resultado-content"></div>
+                </div>
+            </div>
+
+            <!-- Detalhes dos Pedidos Processados -->
+            <div id="pedidos-processados-container" class="bg-white rounded-lg shadow-lg p-6 mt-6" style="display:none;">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">
+                    <i class="fas fa-list mr-2"></i>Pedidos Processados
+                </h2>
+                
+                <!-- Tabs -->
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8">
+                        <button onclick="trocarAba('compras')" id="tab-compras" class="tab-button border-b-2 border-blue-500 py-2 px-1 text-sm font-medium text-blue-600">
+                            <i class="fas fa-arrow-down mr-1"></i>Compras
+                        </button>
+                        <button onclick="trocarAba('vendas')" id="tab-vendas" class="tab-button border-b-2 border-transparent py-2 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-arrow-up mr-1"></i>Vendas
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Conteúdo Compras -->
+                <div id="content-compras" class="tab-content">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fornecedor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Itens</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-compras" class="bg-white divide-y divide-gray-200">
+                                <!-- Preenchido via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Conteúdo Vendas -->
+                <div id="content-vendas" class="tab-content hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Itens</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-vendas" class="bg-white divide-y divide-gray-200">
+                                <!-- Preenchido via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Confirmação -->
+    <div id="modal-confirmacao" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md">
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-6xl mb-4"></i>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Confirmar Reprocessamento</h3>
+                <p class="text-gray-600 mb-4">
+                    Esta operação irá <strong>APAGAR TODAS</strong> as movimentações e <strong>ZERAR</strong> o estoque atual.
+                </p>
+                <p class="text-red-600 font-bold">
+                    Esta ação NÃO PODE SER DESFEITA!
+                </p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="fecharModal()" class="flex-1 px-4 py-3 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+                <button onclick="executarReprocessamento()" class="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    <i class="fas fa-check mr-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-sm text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-700 font-semibold" id="loading-text">Processando...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../components/navbar.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script src="../js/utils.js"></script>
+
+    <script>
+        // Usar a instância global do Supabase já criada em config.js
+        const supabaseClient = supabase;
+
+        let logLines = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const prefix = {
+                'info': '📋',
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️',
+                'process': '⚙️'
+            }[type] || '📋';
+            
+            logLines.push(`[${timestamp}] ${prefix} ${message}`);
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            const logContainer = document.getElementById('log-container');
+            const logContent = document.getElementById('log-content');
+            logContainer.style.display = 'block';
+            logContent.innerHTML = logLines.map(line => `<div>${line}</div>`).join('');
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        async function carregarStatus() {
+            showLoading(true);
+            addLog('Carregando status do sistema...', 'process');
+            
+            try {
+                // Contar pedidos finalizados
+                const { count: pedidos, error: e1 } = await supabaseClient
+                    .from('pedidos')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'FINALIZADO');
+                
+                if (e1) throw e1;
+
+                // Contar movimentações
+                const { count: movs, error: e2 } = await supabaseClient
+                    .from('estoque_movimentacoes')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (e2) throw e2;
+
+                // Somar estoque
+                const { data: estoque, error: e3 } = await supabaseClient
+                    .from('vw_estoque_sabores')
+                    .select('quantidade');
+                
+                if (e3) throw e3;
+
+                const totalEstoque = estoque?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+                // Tentar verificar se existe backup (sem usar RPC)
+                let backupExists = false;
+                try {
+                    const { count: backupCount } = await supabaseClient
+                        .from('estoque_movimentacoes_backup')
+                        .select('*', { count: 'exact', head: true });
+                    backupExists = backupCount > 0;
+                } catch (err) {
+                    // Backup não existe ainda (normal na primeira vez)
+                    backupExists = false;
+                }
+
+                document.getElementById('total-pedidos').textContent = pedidos || 0;
+                document.getElementById('total-movimentacoes').textContent = movs || 0;
+                document.getElementById('total-estoque').textContent = totalEstoque.toFixed(0);
+                
+                if (backupExists) {
+                    document.getElementById('status-backup').innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Existe</span>';
+                } else {
+                    document.getElementById('status-backup').innerHTML = '<span class="text-yellow-600"><i class="fas fa-exclamation-triangle mr-1"></i>Criar antes de reprocessar!</span>';
+                }
+
+                document.getElementById('status-passo1').innerHTML = '<span class="text-green-600">✅ Status carregado com sucesso!</span>';
+                addLog(`Pedidos finalizados: ${pedidos}`, 'success');
+                addLog(`Movimentações atuais: ${movs}`, 'success');
+                addLog(`Estoque total: ${totalEstoque.toFixed(0)}`, 'success');
+                
+            } catch (error) {
+                handleError(error, 'Erro ao carregar status');
+                document.getElementById('status-passo1').innerHTML = '<span class="text-red-600">❌ Erro ao carregar</span>';
+                addLog('Erro ao carregar status: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function criarBackup() {
+            showLoading(true);
+            addLog('Criando backup das movimentações...', 'process');
+            
+            try {
+                const { error } = await supabaseClient.rpc('criar_backup_movimentacoes');
+                
+                if (error) throw error;
+
+                document.getElementById('status-passo2').innerHTML = '<span class="text-green-600">✅ Backup criado com sucesso!</span>';
+                document.getElementById('status-backup').innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Criado agora</span>';
+                addLog('Backup criado com sucesso!', 'success');
+                showToast('Backup criado com sucesso!', 'success');
+                
+            } catch (error) {
+                handleError(error, 'Erro ao criar backup');
+                document.getElementById('status-passo2').innerHTML = '<span class="text-red-600">❌ Erro ao criar backup</span>';
+                addLog('Erro ao criar backup: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function confirmarReprocessamento() {
+            document.getElementById('modal-confirmacao').classList.remove('hidden');
+            document.getElementById('modal-confirmacao').classList.add('flex');
+        }
+
+        function fecharModal() {
+            document.getElementById('modal-confirmacao').classList.add('hidden');
+            document.getElementById('modal-confirmacao').classList.remove('flex');
+        }
+
+        async function executarReprocessamento() {
+            fecharModal();
+            showLoading(true);
+            document.getElementById('loading-text').textContent = 'Reprocessando estoque... Isso pode demorar alguns minutos.';
+            
+            addLog('========================================', 'warning');
+            addLog('INICIANDO REPROCESSAMENTO DE ESTOQUE', 'warning');
+            addLog('========================================', 'warning');
+            
+            try {
+                // Executar reprocessamento
+                addLog('Executando procedure de reprocessamento...', 'process');
+                const { data, error } = await supabaseClient.rpc('reprocessar_estoque_completo');
+                
+                if (error) throw error;
+
+                document.getElementById('status-passo3').innerHTML = '<span class="text-green-600">✅ Reprocessamento concluído!</span>';
+                addLog('========================================', 'success');
+                addLog('REPROCESSAMENTO CONCLUÍDO COM SUCESSO!', 'success');
+                addLog('========================================', 'success');
+                
+                showToast('Estoque reprocessado com sucesso!', 'success');
+                
+                // Recarregar status
+                await carregarStatus();
+                
+            } catch (error) {
+                handleError(error, 'Erro ao reprocessar estoque');
+                document.getElementById('status-passo3').innerHTML = '<span class="text-red-600">❌ Erro no reprocessamento</span>';
+                addLog('ERRO CRÍTICO: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+                document.getElementById('loading-text').textContent = 'Processando...';
+            }
+        }
+
+        async function verificarResultado() {
+            showLoading(true);
+            addLog('Verificando resultado do reprocessamento...', 'process');
+            
+            try {
+                const { data, error } = await supabaseClient.rpc('verificar_consistencia_estoque');
+                
+                if (error) throw error;
+
+                const resultadoContainer = document.getElementById('resultado-container');
+                const resultadoContent = document.getElementById('resultado-content');
+                
+                let html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+                html += '<thead class="bg-gray-50"><tr>';
+                html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>';
+                html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sabor</th>';
+                html += '<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Estoque</th>';
+                html += '<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Entradas</th>';
+                html += '<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saídas</th>';
+                html += '<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Calculado</th>';
+                html += '<th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>';
+                html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data?.forEach(row => {
+                    const ok = row.estoque_final === row.estoque_calculado;
+                    html += '<tr class="' + (ok ? '' : 'bg-red-50') + '">';
+                    html += `<td class="px-4 py-3 text-sm">${row.produto}</td>`;
+                    html += `<td class="px-4 py-3 text-sm">${row.sabor}</td>`;
+                    html += `<td class="px-4 py-3 text-sm text-right font-semibold">${row.estoque_final || 0}</td>`;
+                    html += `<td class="px-4 py-3 text-sm text-right text-green-600">${row.total_entradas || 0}</td>`;
+                    html += `<td class="px-4 py-3 text-sm text-right text-red-600">${row.total_saidas || 0}</td>`;
+                    html += `<td class="px-4 py-3 text-sm text-right">${row.estoque_calculado || 0}</td>`;
+                    html += `<td class="px-4 py-3 text-center text-lg">${ok ? '✅' : '⚠️'}</td>`;
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                
+                resultadoContent.innerHTML = html;
+                resultadoContainer.style.display = 'block';
+                
+                document.getElementById('status-passo4').innerHTML = '<span class="text-green-600">✅ Verificação concluída!</span>';
+                addLog('Verificação concluída. Veja os resultados abaixo.', 'success');
+                
+                // Carregar detalhes dos pedidos processados
+                await carregarPedidosProcessados();
+                
+            } catch (error) {
+                handleError(error, 'Erro ao verificar resultado');
+                document.getElementById('status-passo4').innerHTML = '<span class="text-red-600">❌ Erro na verificação</span>';
+                addLog('Erro ao verificar: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Trocar abas
+        function trocarAba(aba) {
+            // Remover ativo de todos os botões e conteúdos
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            // Ativar botão e conteúdo selecionado
+            document.getElementById(`tab-${aba}`).classList.remove('border-transparent', 'text-gray-500');
+            document.getElementById(`tab-${aba}`).classList.add('border-blue-500', 'text-blue-600');
+            document.getElementById(`content-${aba}`).classList.remove('hidden');
+        }
+
+        // Carregar pedidos processados
+        async function carregarPedidosProcessados() {
+            try {
+                addLog('Carregando detalhes dos pedidos processados...', 'process');
+
+                // Buscar pedidos finalizados com seus itens
+                const { data: pedidos, error } = await supabaseClient
+                    .from('pedidos')
+                    .select(`
+                        *,
+                        fornecedor:fornecedores(nome),
+                        cliente:clientes(nome),
+                        itens:pedido_itens(quantidade)
+                    `)
+                    .eq('status', 'FINALIZADO')
+                    .order('data_finalizacao', { ascending: false });
+
+                if (error) throw error;
+
+                // Separar em compras e vendas
+                const compras = pedidos.filter(p => p.tipo_pedido === 'COMPRA');
+                const vendas = pedidos.filter(p => p.tipo_pedido === 'VENDA');
+
+                // Renderizar compras
+                renderPedidos(compras, 'compras');
+                
+                // Renderizar vendas
+                renderPedidos(vendas, 'vendas');
+
+                // Mostrar container
+                document.getElementById('pedidos-processados-container').style.display = 'block';
+                addLog(`Carregados ${compras.length} compras e ${vendas.length} vendas`, 'success');
+
+            } catch (error) {
+                console.error('Erro ao carregar pedidos:', error);
+                addLog('Erro ao carregar detalhes dos pedidos: ' + error.message, 'error');
+            }
+        }
+
+        function renderPedidos(pedidos, tipo) {
+            const tbody = document.getElementById(`tbody-${tipo}`);
+            
+            if (pedidos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Nenhum pedido encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pedidos.map(pedido => {
+                const quantidadeTotal = pedido.itens?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+                const numItens = pedido.itens?.length || 0;
+                const parceiro = tipo === 'compras' ? pedido.fornecedor?.nome : pedido.cliente?.nome;
+                const data = new Date(pedido.data_finalizacao || pedido.created_at).toLocaleDateString('pt-BR');
+
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ${pedido.numero}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${parceiro || '-'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${numItens} ${numItens === 1 ? 'item' : 'itens'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${tipo === 'compras' ? 'text-green-600' : 'text-red-600'}">
+                            ${tipo === 'compras' ? '+' : '-'}${quantidadeTotal}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${data}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Carregar status ao iniciar
+        (async () => {
+            await checkAuth();
+            document.getElementById('navbar').innerHTML = createNavbar();
+            document.getElementById('sidebar-container').innerHTML = createSidebar();
+            await initNavbar();
+            await initSidebar();
+            await carregarStatus();
+        })();
+    </script>
+</body>
+</html>

@@ -321,6 +321,28 @@ async function finalizarPedido(pedidoId) {
             return false;
         }
 
+        // 🔒 VALIDAÇÃO DE SESSÃO ATIVA
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            showToast('❌ Sua sessão expirou! Faça login novamente.', 'error', 5000);
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 2000);
+            return false;
+        }
+
+        // Verificar se o token ainda é válido
+        const tokenExpiresAt = session.expires_at * 1000;
+        const now = Date.now();
+        if (tokenExpiresAt <= now) {
+            showToast('❌ Sua sessão expirou! Faça login novamente.', 'error', 5000);
+            await supabase.auth.signOut();
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 2000);
+            return false;
+        }
+
         // Verificar se o pedido já está finalizado
         const { data: pedidoAtual } = await supabase
             .from('pedidos')
@@ -593,7 +615,7 @@ async function getEstatisticasPedidos() {
 // Excluir pedido (apenas RASCUNHO)
 async function deletePedido(pedidoId) {
     try {
-        showLoading(true);
+        console.log('🗑️ Iniciando exclusão do pedido:', pedidoId);
         
         // Verificar se o pedido está em RASCUNHO
         const { data: pedido, error: errorPedido } = await supabase
@@ -602,43 +624,66 @@ async function deletePedido(pedidoId) {
             .eq('id', pedidoId)
             .single();
             
-        if (errorPedido) throw errorPedido;
+        if (errorPedido) {
+            console.error('❌ Erro ao buscar pedido:', errorPedido);
+            throw errorPedido;
+        }
+        
+        console.log('📋 Pedido encontrado:', pedido);
         
         if (pedido.status !== 'RASCUNHO') {
             throw new Error('Apenas pedidos em RASCUNHO podem ser excluídos');
         }
         
         // Primeiro, excluir os itens do pedido
+        console.log('🗑️ Excluindo itens do pedido...');
         const { error: errorItens } = await supabase
             .from('pedido_itens')
             .delete()
             .eq('pedido_id', pedidoId);
             
-        if (errorItens) throw errorItens;
+        if (errorItens) {
+            console.error('❌ Erro ao excluir itens:', errorItens);
+            throw errorItens;
+        }
+        console.log('✅ Itens excluídos com sucesso');
         
         // Depois, excluir o pedido
-        const { error: errorDelete } = await supabase
+        console.log('🗑️ Excluindo pedido...');
+        const { data: deleteData, error: errorDelete } = await supabase
             .from('pedidos')
             .delete()
-            .eq('id', pedidoId);
+            .eq('id', pedidoId)
+            .select(); // Adicionar select() para confirmar exclusão
             
-        if (errorDelete) throw errorDelete;
+        if (errorDelete) {
+            console.error('❌ Erro ao excluir pedido:', errorDelete);
+            throw errorDelete;
+        }
         
+        console.log('✅ Resposta da exclusão:', deleteData);
+        
+        // Verificar se realmente excluiu
+        if (!deleteData || deleteData.length === 0) {
+            console.warn('⚠️ Nenhum registro foi excluído. Possível problema de RLS.');
+            throw new Error('Falha ao excluir o pedido. Verifique suas permissões.');
+        }
+        
+        console.log('✅ Pedido excluído com sucesso!');
         showToast(`${pedido.tipo_pedido === 'COMPRA' ? 'Pedido de compra' : 'Venda'} ${pedido.numero} excluído com sucesso!`, 'success');
         return true;
         
     } catch (error) {
+        console.error('❌ Erro completo na exclusão:', error);
         handleError(error, 'Erro ao excluir pedido');
         return false;
-    } finally {
-        showLoading(false);
     }
 }
 
 // Excluir item do pedido
 async function deleteItemPedido(itemId) {
     try {
-        showLoading(true);
+        console.log('🗑️ Iniciando exclusão do item:', itemId);
         
         // Buscar informações do item antes de excluir
         const { data: item, error: errorItem } = await supabase
@@ -647,7 +692,12 @@ async function deleteItemPedido(itemId) {
             .eq('id', itemId)
             .single();
             
-        if (errorItem) throw errorItem;
+        if (errorItem) {
+            console.error('❌ Erro ao buscar item:', errorItem);
+            throw errorItem;
+        }
+        
+        console.log('📋 Item encontrado:', item);
         
         // Verificar se o pedido está em RASCUNHO
         if (item.pedido.status !== 'RASCUNHO') {
@@ -655,20 +705,33 @@ async function deleteItemPedido(itemId) {
         }
         
         // Excluir o item
-        const { error: errorDelete } = await supabase
+        console.log('🗑️ Excluindo item...');
+        const { data: deleteData, error: errorDelete } = await supabase
             .from('pedido_itens')
             .delete()
-            .eq('id', itemId);
+            .eq('id', itemId)
+            .select(); // Adicionar select() para confirmar exclusão
             
-        if (errorDelete) throw errorDelete;
+        if (errorDelete) {
+            console.error('❌ Erro ao excluir item:', errorDelete);
+            throw errorDelete;
+        }
         
+        console.log('✅ Resposta da exclusão:', deleteData);
+        
+        // Verificar se realmente excluiu
+        if (!deleteData || deleteData.length === 0) {
+            console.warn('⚠️ Nenhum registro foi excluído. Possível problema de RLS.');
+            throw new Error('Falha ao excluir o item. Verifique suas permissões.');
+        }
+        
+        console.log('✅ Item excluído com sucesso!');
         showToast('Item removido com sucesso!', 'success');
         return true;
         
     } catch (error) {
+        console.error('❌ Erro completo na exclusão do item:', error);
         handleError(error, 'Erro ao remover item');
         return false;
-    } finally {
-        showLoading(false);
     }
 }

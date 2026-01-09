@@ -207,12 +207,13 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Anterior</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Novo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pedido / Cliente/Fornecedor</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-mov-produto" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                                <tr><td colspan="9" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -233,12 +234,13 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sabor</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pedido / Cliente/Fornecedor</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-mov-sabor" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                                <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -253,6 +255,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/services/produtos.js"></script>
@@ -596,7 +599,7 @@
             const tbody = document.getElementById('tbody-mov-produto');
             
             if (movimentacoes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
                 return;
             }
             
@@ -604,6 +607,19 @@
                 const tipoBadge = m.tipo === 'ENTRADA'
                     ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Entrada</span>'
                     : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Saída</span>';
+                
+                // Determinar pedido e fornecedor/cliente
+                let pedidoInfo = '-';
+                if (m.pedido) {
+                    const numero = m.pedido.numero || '-';
+                    const entidade = m.pedido.tipo_pedido === 'VENDA' 
+                        ? (m.pedido.cliente?.nome || 'Cliente não informado')
+                        : (m.pedido.fornecedor?.nome || 'Fornecedor não informado');
+                    pedidoInfo = `<div class="text-sm">
+                        <div class="font-medium text-blue-600">${numero}</div>
+                        <div class="text-gray-500 text-xs">${entidade}</div>
+                    </div>`;
+                }
                 
                 return `
                     <tr class="hover:bg-gray-50">
@@ -613,6 +629,7 @@
                         <td class="px-6 py-4 text-sm font-medium">${m.quantidade}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${m.estoque_anterior}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${m.estoque_novo}</td>
+                        <td class="px-6 py-4">${pedidoInfo}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${m.usuario?.full_name || '-'}</td>
                         <td class="px-6 py-4 text-sm text-gray-500">${m.observacao || '-'}</td>
                     </tr>
@@ -638,7 +655,7 @@
             const tbody = document.getElementById('tbody-mov-sabor');
             
             if (movimentacoes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação de sabor encontrada</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação de sabor encontrada</td></tr>';
                 return;
             }
             
@@ -660,6 +677,19 @@
                     ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Entrada</span>'
                     : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Saída</span>';
                 
+                // Determinar pedido e fornecedor/cliente
+                let pedidoInfo = '-';
+                if (m.pedido) {
+                    const numero = m.pedido.numero || '-';
+                    const entidade = m.pedido.tipo_pedido === 'VENDA' 
+                        ? (m.pedido.cliente?.nome || 'Cliente não informado')
+                        : (m.pedido.fornecedor?.nome || 'Fornecedor não informado');
+                    pedidoInfo = `<div class="text-sm">
+                        <div class="font-medium text-blue-600">${numero}</div>
+                        <div class="text-gray-500 text-xs">${entidade}</div>
+                    </div>`;
+                }
+                
                 return `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm text-gray-600">${formatDateTime(m.created_at)}</td>
@@ -667,6 +697,7 @@
                         <td class="px-6 py-4 text-sm text-gray-900">${m.produto?.nome || '-'}</td>
                         <td class="px-6 py-4 text-sm font-medium text-blue-600">${m.sabor_nome}</td>
                         <td class="px-6 py-4 text-sm font-medium">${m.quantidade}</td>
+                        <td class="px-6 py-4">${pedidoInfo}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${m.usuario?.full_name || '-'}</td>
                         <td class="px-6 py-4 text-sm text-gray-500">${m.observacao || '-'}</td>
                     </tr>

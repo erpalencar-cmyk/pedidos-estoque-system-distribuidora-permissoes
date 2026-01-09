@@ -128,6 +128,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/services/pedidos.js"></script>
@@ -158,27 +159,32 @@
         })();
 
         async function loadFornecedoresSelect() {
-            const fornecedores = await listFornecedores({});
-            
-            // Select do modal
-            const select = document.getElementById('pedido-fornecedor');
-            select.innerHTML = '<option value="">Selecione (opcional)...</option>';
-            fornecedores.forEach(f => {
-                const option = document.createElement('option');
-                option.value = f.id;
-                option.textContent = f.nome;
-                select.appendChild(option);
-            });
-            
-            // Select do filtro
-            const filterSelect = document.getElementById('filter-fornecedor');
-            filterSelect.innerHTML = '<option value="">Todos os fornecedores</option>';
-            fornecedores.forEach(f => {
-                const option = document.createElement('option');
-                option.value = f.id;
-                option.textContent = f.nome;
-                filterSelect.appendChild(option);
-            });
+            try {
+                showLoading(true);
+                const fornecedores = await listFornecedores({});
+                
+                // Select do modal
+                const select = document.getElementById('pedido-fornecedor');
+                select.innerHTML = '<option value="">Selecione (opcional)...</option>';
+                fornecedores.forEach(f => {
+                    const option = document.createElement('option');
+                    option.value = f.id;
+                    option.textContent = f.nome;
+                    select.appendChild(option);
+                });
+                
+                // Select do filtro
+                const filterSelect = document.getElementById('filter-fornecedor');
+                filterSelect.innerHTML = '<option value="">Todos os fornecedores</option>';
+                fornecedores.forEach(f => {
+                    const option = document.createElement('option');
+                    option.value = f.id;
+                    option.textContent = f.nome;
+                    filterSelect.appendChild(option);
+                });
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function loadPedidos() {
@@ -213,13 +219,13 @@
                 }
                 
                 if (dataInicio) {
-                    // Início do dia às 00:00:00 no fuso local
+                    // Criar data no horário local (adiciona T00:00:00 para forçar interpretação local)
                     const dataInicioObj = new Date(dataInicio + 'T00:00:00');
                     query = query.gte('created_at', dataInicioObj.toISOString());
                 }
                 
                 if (dataFim) {
-                    // Fim do dia às 23:59:59 no fuso local
+                    // Criar data no horário local (fim do dia)
                     const dataFimObj = new Date(dataFim + 'T23:59:59');
                     query = query.lte('created_at', dataFimObj.toISOString());
                 }
@@ -277,15 +283,20 @@
         document.getElementById('form-novo-pedido').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const pedido = {
-                fornecedor_id: document.getElementById('pedido-fornecedor').value || null,
-                observacoes: document.getElementById('pedido-observacoes').value || null
-            };
+            try {
+                showLoading(true);
+                const pedido = {
+                    fornecedor_id: document.getElementById('pedido-fornecedor').value || null,
+                    observacoes: document.getElementById('pedido-observacoes').value || null
+                };
 
-            const novoPedido = await createPedido(pedido);
-            if (novoPedido) {
-                closeModal('modal-novo-pedido');
-                redirect(`/pages/pedido-detalhe.html?id=${novoPedido.id}`);
+                const novoPedido = await createPedido(pedido);
+                if (novoPedido) {
+                    closeModal('modal-novo-pedido');
+                    redirect(`/pages/pedido-detalhe.html?id=${novoPedido.id}`);
+                }
+            } finally {
+                showLoading(false);
             }
         });
 

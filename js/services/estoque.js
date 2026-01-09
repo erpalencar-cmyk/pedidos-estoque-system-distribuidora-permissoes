@@ -11,7 +11,12 @@ async function listMovimentacoes(filters = {}) {
                 *,
                 produto:produtos(codigo, nome, unidade),
                 usuario:users(full_name),
-                pedido:pedidos(numero)
+                pedido:pedidos(
+                    numero,
+                    tipo_pedido,
+                    fornecedor:fornecedores(nome),
+                    cliente:clientes(nome)
+                )
             `)
             .order('created_at', { ascending: false })
             .limit(filters.limit || 100);

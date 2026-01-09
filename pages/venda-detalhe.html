@@ -379,6 +379,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/services/pedidos.js"></script>
@@ -443,15 +444,20 @@
 
         // Carregar marcas no select
         async function loadMarcasSelect() {
-            const marcas = await getMarcas();
-            const selectMarca = document.getElementById('item-marca');
-            selectMarca.innerHTML = '<option value="">Selecione a marca...</option>';
-            marcas.forEach(marca => {
-                const option = document.createElement('option');
-                option.value = marca;
-                option.textContent = marca;
-                selectMarca.appendChild(option);
-            });
+            try {
+                showLoading(true);
+                const marcas = await getMarcas();
+                const selectMarca = document.getElementById('item-marca');
+                selectMarca.innerHTML = '<option value="">Selecione a marca...</option>';
+                marcas.forEach(marca => {
+                    const option = document.createElement('option');
+                    option.value = marca;
+                    option.textContent = marca;
+                    selectMarca.appendChild(option);
+                });
+            } finally {
+                showLoading(false);
+            }
         }
 
         // Carregar produtos ao selecionar marca
@@ -517,31 +523,36 @@
                 return;
             }
             
-            // Pegar dados do produto selecionado
-            const selectProduto = document.getElementById('item-produto');
-            const option = selectProduto.options[selectProduto.selectedIndex];
-            produtoAtual = {
-                id: produtoId,
-                nome: option.textContent,
-                preco: parseFloat(option.dataset.preco || 0)
-            };
-            
-            const sabores = await getSaboresProduto(produtoId);
-            if (sabores.length === 0) {
-                showToast('Este produto não possui sabores cadastrados', 'warning');
-                areaAdicionar.classList.add('hidden');
-                return;
+            try {
+                showLoading(true);
+                // Pegar dados do produto selecionado
+                const selectProduto = document.getElementById('item-produto');
+                const option = selectProduto.options[selectProduto.selectedIndex];
+                produtoAtual = {
+                    id: produtoId,
+                    nome: option.textContent,
+                    preco: parseFloat(option.dataset.preco || 0)
+                };
+                
+                const sabores = await getSaboresProduto(produtoId);
+                if (sabores.length === 0) {
+                    showToast('Este produto não possui sabores cadastrados', 'warning');
+                    areaAdicionar.classList.add('hidden');
+                    return;
+                }
+                
+                // Ordenar sabores alfabeticamente
+                sabores.sort((a, b) => a.sabor.localeCompare(b.sabor));
+                
+                // Renderizar lista de sabores
+                await renderListaSabores(sabores);
+                
+                // Mostrar área e botão de salvar
+                areaAdicionar.classList.remove('hidden');
+                document.getElementById('btn-salvar-todos').classList.remove('hidden');
+            } finally {
+                showLoading(false);
             }
-            
-            // Ordenar sabores alfabeticamente
-            sabores.sort((a, b) => a.sabor.localeCompare(b.sabor));
-            
-            // Renderizar lista de sabores
-            await renderListaSabores(sabores);
-            
-            // Mostrar área e botão de salvar
-            areaAdicionar.classList.remove('hidden');
-            document.getElementById('btn-salvar-todos').classList.remove('hidden');
         }
 
         // Renderizar lista de sabores com campos de quantidade
@@ -800,17 +811,22 @@
         }
 
         async function loadVenda() {
-            venda = await getPedido(vendaId);
-            if (!venda) {
-                showToast('Venda não encontrada', 'error');
-                setTimeout(() => window.location.href = '/pages/vendas.html', 2000);
-                return;
+            try {
+                showLoading(true);
+                venda = await getPedido(vendaId);
+                if (!venda) {
+                    showToast('Venda não encontrada', 'error');
+                    setTimeout(() => window.location.href = '/pages/vendas.html', 2000);
+                    return;
+                }
+                
+                itens = await getItensPedido(vendaId);
+                renderVenda();
+                renderItens();
+                renderAcoes();
+            } finally {
+                showLoading(false);
             }
-            
-            itens = await getItensPedido(vendaId);
-            renderVenda();
-            renderItens();
-            renderAcoes();
         }
 
         function renderVenda() {
@@ -971,8 +987,13 @@
 
         window.removerItem = async function(itemId) {
             if (confirm('Deseja remover este item?')) {
-                const success = await deleteItemPedido(itemId);
-                if (success) await loadVenda();
+                try {
+                    showLoading(true);
+                    const success = await deleteItemPedido(itemId);
+                    if (success) await loadVenda();
+                } finally {
+                    showLoading(false);
+                }
             }
         };
 
@@ -1138,11 +1159,16 @@
             }
             
             if (confirm('Finalizar venda? O estoque será REDUZIDO automaticamente.')) {
-                const success = await finalizarPedido(vendaId);
-                if (success) {
-                    await loadVenda();
-                    // Abrir modal de pagamento
-                    abrirModalPagamento();
+                try {
+                    showLoading(true);
+                    const success = await finalizarPedido(vendaId);
+                    if (success) {
+                        await loadVenda();
+                        // Abrir modal de pagamento
+                        abrirModalPagamento();
+                    }
+                } finally {
+                    showLoading(false);
                 }
             }
         }
@@ -1253,10 +1279,15 @@
                 return;
             }
             
-            const success = await deletePedido(vendaId);
-            if (success) {
-                // Redirecionar para lista de vendas
-                window.location.href = 'vendas.html';
+            try {
+                showLoading(true);
+                const success = await deletePedido(vendaId);
+                if (success) {
+                    // Redirecionar para lista de vendas
+                    window.location.href = 'vendas.html';
+                }
+            } finally {
+                showLoading(false);
             }
         }
 

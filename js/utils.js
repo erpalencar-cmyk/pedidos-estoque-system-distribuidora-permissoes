@@ -20,11 +20,51 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
-// Mostrar loading
-function showLoading(show = true) {
+// Contador de operações ativas para evitar fechar loading prematuramente
+let activeLoadingOperations = 0;
+
+// Mostrar loading com controle de operações simultâneas
+function showLoading(show = true, operationId = null) {
+    const loadingEl = document.getElementById('loading');
+    if (!loadingEl) return;
+    
+    if (show) {
+        activeLoadingOperations++;
+        loadingEl.classList.remove('hidden');
+        // Garantir que o body não tenha scroll quando loading estiver ativo
+        document.body.style.overflow = 'hidden';
+    } else {
+        activeLoadingOperations = Math.max(0, activeLoadingOperations - 1);
+        
+        // Só esconde o loading quando não houver mais operações ativas
+        if (activeLoadingOperations === 0) {
+            loadingEl.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+    }
+}
+
+// Função para garantir que o loading seja sempre ocultado (uso em catch/finally)
+function hideLoading() {
+    activeLoadingOperations = 0;
     const loadingEl = document.getElementById('loading');
     if (loadingEl) {
-        loadingEl.classList.toggle('hidden', !show);
+        loadingEl.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Wrapper para executar operação com loading automático
+async function withLoading(operation, errorMessage = 'Erro ao executar operação') {
+    showLoading(true);
+    try {
+        return await operation();
+    } catch (error) {
+        console.error(errorMessage, error);
+        showToast(error.message || errorMessage, 'error');
+        throw error;
+    } finally {
+        showLoading(false);
     }
 }
 
