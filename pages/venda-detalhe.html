@@ -774,6 +774,10 @@
                 console.log('✅ Todos os sabores salvos com sucesso!');
                 showToast(`${saboresParaSalvar.length} sabor(es) adicionado(s) com sucesso!`, 'success');
                 
+                // ✅ RECALCULAR O TOTAL DO PEDIDO
+                console.log('🔄 Recalculando total da venda...');
+                await recalcularTotalPedido(vendaId);
+                
                 // Resetar modal
                 cancelarEFecharModal();
                 
@@ -1138,6 +1142,11 @@
                 }
 
                 console.log('✅ Item atualizado:', data);
+                
+                // ✅ RECALCULAR O TOTAL DO PEDIDO
+                console.log('🔄 Recalculando total da venda...');
+                await recalcularTotalPedido(vendaId);
+                
                 showToast('Item atualizado com sucesso!', 'success');
                 closeModal('modal-editar-item');
                 await loadVenda();

@@ -726,6 +726,11 @@ async function deleteItemPedido(itemId) {
         }
         
         console.log('✅ Item excluído com sucesso!');
+        
+        // ✅ RECALCULAR O TOTAL DO PEDIDO
+        console.log('🔄 Recalculando total do pedido...');
+        await recalcularTotalPedido(item.pedido_id);
+        
         showToast('Item removido com sucesso!', 'success');
         return true;
         
@@ -733,5 +738,46 @@ async function deleteItemPedido(itemId) {
         console.error('❌ Erro completo na exclusão do item:', error);
         handleError(error, 'Erro ao remover item');
         return false;
+    }
+}
+
+// Recalcular total do pedido
+async function recalcularTotalPedido(pedidoId) {
+    try {
+        console.log('📊 Recalculando total do pedido:', pedidoId);
+        
+        // Buscar todos os itens do pedido
+        const { data: itens, error: itensError } = await supabase
+            .from('pedido_itens')
+            .select('subtotal')
+            .eq('pedido_id', pedidoId);
+        
+        if (itensError) {
+            console.error('❌ Erro ao buscar itens:', itensError);
+            throw itensError;
+        }
+        
+        // Calcular total
+        const total = itens.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
+        console.log(`💰 Novo total calculado: R$ ${total.toFixed(2)} (${itens.length} itens)`);
+        
+        // Atualizar total no pedido
+        const { error: updateError } = await supabase
+            .from('pedidos')
+            .update({ total: total })
+            .eq('id', pedidoId);
+        
+        if (updateError) {
+            console.error('❌ Erro ao atualizar total:', updateError);
+            throw updateError;
+        }
+        
+        console.log('✅ Total do pedido atualizado com sucesso!');
+        return total;
+        
+    } catch (error) {
+        console.error('❌ Erro ao recalcular total do pedido:', error);
+        // Não lançar erro para não interromper o fluxo principal
+        return null;
     }
 }

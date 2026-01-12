@@ -520,6 +520,10 @@
                 console.log('✅ Todos os sabores salvos com sucesso!');
                 showToast(`${saboresParaSalvar.length} sabor(es) adicionado(s) com sucesso!`, 'success');
                 
+                // ✅ RECALCULAR O TOTAL DO PEDIDO
+                console.log('🔄 Recalculando total do pedido...');
+                await recalcularTotalPedido(pedidoId);
+                
                 // Resetar modal
                 cancelarEFecharModal();
                 
@@ -641,7 +645,12 @@
                 try {
                     showLoading(true);
                     const success = await removeItemPedido(itemId);
-                    if (success) await loadPedido();
+                    if (success) {
+                        // ✅ RECALCULAR O TOTAL DO PEDIDO
+                        console.log('🔄 Recalculando total do pedido...');
+                        await recalcularTotalPedido(pedidoId);
+                        await loadPedido();
+                    }
                 } finally {
                     showLoading(false);
                 }
@@ -724,6 +733,11 @@
                 }
 
                 console.log('✅ Item atualizado:', data);
+                
+                // ✅ RECALCULAR O TOTAL DO PEDIDO
+                console.log('🔄 Recalculando total do pedido...');
+                await recalcularTotalPedido(pedidoId);
+                
                 showToast('Item atualizado com sucesso!', 'success');
                 closeModal('modal-editar-item');
                 await loadPedido();
