@@ -48,7 +48,7 @@
                                     <tr>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Qtd</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estoque</th>
+                                        <th id="th-estoque" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estoque</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Preço Un.</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
@@ -1027,8 +1027,17 @@
         async function renderItens() {
             const tbody = document.getElementById('itens-tbody');
             
+            // Controlar visibilidade da coluna de estoque
+            const thEstoque = document.getElementById('th-estoque');
+            const mostrarEstoque = venda.status !== 'FINALIZADO';
+            
+            if (thEstoque) {
+                thEstoque.style.display = mostrarEstoque ? '' : 'none';
+            }
+            
             if (itens.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-gray-500 text-sm">Nenhum item adicionado</td></tr>';
+                const colspan = mostrarEstoque ? '6' : '5';
+                tbody.innerHTML = `<tr><td colspan="${colspan}" class="px-4 py-4 text-center text-gray-500 text-sm">Nenhum item adicionado</td></tr>`;
                 document.getElementById('venda-quantidade-total').textContent = '0 UN';
                 return;
             }
@@ -1092,6 +1101,9 @@
                     estoqueMensagem = 'OK';
                 }
                 
+                // Controlar visibilidade da coluna de estoque
+                const mostrarEstoque = venda.status !== 'FINALIZADO';
+                
                 return `
                     <tr class="border-t">
                         <td class="px-4 py-3">
@@ -1100,7 +1112,7 @@
                             <div class="text-xs text-gray-500">${item.produto?.codigo || ''}</div>
                         </td>
                         <td class="px-4 py-3">${item.quantidade} ${item.produto?.unidade || ''}</td>
-                        <td class="px-4 py-3 ${estoqueClass}">
+                        <td class="px-4 py-3 ${estoqueClass}" style="display: ${mostrarEstoque ? '' : 'none'}">
                             <div class="flex items-center gap-1">
                                 <span>${estoqueIcon}</span>
                                 <span>${estoqueAtual}</span>
