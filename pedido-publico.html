@@ -331,7 +331,7 @@
                                 </button>
                             ` : `
                                 <div class="flex space-x-2">
-                                    <input type="number" id="qtd-${produto.id}" min="0" max="${produto.estoque_atual}" value="0" class="w-20 px-2 py-2 border rounded-lg text-center">
+                                    <input type="number" id="qtd-${produto.id}" data-estoque="${produto.estoque_atual}" min="0" max="${produto.estoque_atual}" value="0" class="w-20 px-2 py-2 border rounded-lg text-center" oninput="validarQuantidadeProduto(this)">
                                     <button onclick="adicionarAoCarrinho('${produto.id}')" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
                                         Adicionar
                                     </button>
@@ -355,7 +355,7 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-500">Quantidade</label>
-                        <input type="number" id="qtd-sabor-${sabor.id}" data-sabor-id="${sabor.id}" data-produto-id="${produtoId}" min="0" max="${sabor.quantidade}" value="0" class="w-20 px-2 py-2 border rounded-lg text-center">
+                        <input type="number" id="qtd-sabor-${sabor.id}" data-sabor-id="${sabor.id}" data-produto-id="${produtoId}" data-estoque="${sabor.quantidade}" min="0" max="${sabor.quantidade}" value="0" class="w-20 px-2 py-2 border rounded-lg text-center" oninput="validarQuantidadeSabor(this)">
                     </div>
                 </div>
             `).join('');
@@ -393,6 +393,55 @@
                 if (e.target === modal) modal.remove();
             };
             document.body.appendChild(modal);
+        }
+
+        // Validar quantidade em tempo real
+        function validarQuantidadeProduto(input) {
+            const estoque = parseInt(input.dataset.estoque) || 0;
+            let valor = parseInt(input.value) || 0;
+            
+            // Não permitir valores negativos
+            if (valor < 0) {
+                input.value = 0;
+                input.classList.remove('border-red-500', 'border-2');
+                return;
+            }
+            
+            // Limitar ao estoque disponível
+            if (valor > estoque) {
+                input.value = estoque;
+                // Deixar campo vermelho
+                input.classList.add('border-red-500', 'border-2');
+                // Mostrar mensagem de aviso
+                showToast(`⚠️ Máximo disponível: ${estoque} unidades`, 'warning');
+            } else {
+                // Remover vermelho se valor for válido
+                input.classList.remove('border-red-500', 'border-2');
+            }
+        }
+
+        function validarQuantidadeSabor(input) {
+            const estoque = parseInt(input.dataset.estoque) || 0;
+            let valor = parseInt(input.value) || 0;
+            
+            // Não permitir valores negativos
+            if (valor < 0) {
+                input.value = 0;
+                input.classList.remove('border-red-500', 'border-2');
+                return;
+            }
+            
+            // Limitar ao estoque disponível
+            if (valor > estoque) {
+                input.value = estoque;
+                // Deixar campo vermelho
+                input.classList.add('border-red-500', 'border-2');
+                // Mostrar mensagem de aviso
+                showToast(`⚠️ Máximo disponível: ${estoque} unidades`, 'warning');
+            } else {
+                // Remover vermelho se valor for válido
+                input.classList.remove('border-red-500', 'border-2');
+            }
         }
 
         function adicionarAoCarrinho(produtoId) {
@@ -898,10 +947,12 @@
 
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 left-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white ${
                 type === 'success' ? 'bg-green-600' : 
-                type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                type === 'error' ? 'bg-red-600' : 
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-600'
             }`;
+            toast.style.zIndex = '99999';
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
