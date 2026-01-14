@@ -386,8 +386,11 @@ async function validarEstoquePrePedido(prePedidoId) {
 
 /**
  * Gerar pedido de venda a partir do pré-pedido
+ * @param {string} prePedidoId - ID do pré-pedido
+ * @param {string} clienteId - ID do cliente
+ * @param {string} observacoesEstoque - Observações sobre problemas de estoque (opcional)
  */
-async function gerarPedidoVenda(prePedidoId, clienteId) {
+async function gerarPedidoVenda(prePedidoId, clienteId, observacoesEstoque = '') {
     try {
         const user = await getCurrentUser();
         
@@ -398,11 +401,9 @@ async function gerarPedidoVenda(prePedidoId, clienteId) {
             throw new Error('Pré-pedido já foi processado');
         }
 
-        // 2. Validar estoque
+        // 2. Validar estoque (não bloqueia mais, apenas informa)
         const validacao = await validarEstoquePrePedido(prePedidoId);
-        if (!validacao.valido) {
-            throw new Error('Estoque insuficiente para um ou mais itens');
-        }
+        // Removido o throw de erro - permite gerar mesmo com estoque insuficiente
 
         // 3. Gerar número do pedido (formato: VENDA-YYYYMMDD-XXXXX)
         const hoje = new Date();
@@ -428,11 +429,16 @@ async function gerarPedidoVenda(prePedidoId, clienteId) {
         const numeroPedido = `VENDA-${ano}${mes}${dia}-${String(sequencial).padStart(5, '0')}`;
 
         // 4. Criar pedido de venda
-        const observacoes = `Gerado a partir do pré-pedido ${prePedido.numero}\n` +
+        let observacoes = `Gerado a partir do pré-pedido ${prePedido.numero}\n` +
                           `Solicitante: ${prePedido.nome_solicitante}` +
                           (prePedido.email_contato ? `\nEmail: ${prePedido.email_contato}` : '') +
                           (prePedido.telefone_contato ? `\nTelefone: ${prePedido.telefone_contato}` : '') +
-                          (prePedido.observacoes ? `\n\nObservações: ${prePedido.observacoes}` : '');
+                          (prePedido.observacoes ? `\n\nObservações do Cliente: ${prePedido.observacoes}` : '');
+        
+        // Adicionar observações sobre estoque insuficiente
+        if (observacoesEstoque) {
+            observacoes += observacoesEstoque;
+        }
 
         const { data: pedido, error: errorPedido } = await supabase
             .from('pedidos')
