@@ -18,10 +18,10 @@ async function enviarPDFWhatsApp(vendaId, numeroDestino) {
 
         // Buscar dados da venda
         const { data: venda, error: vendaError } = await supabase
-            .from('pedidos')
+            .from('vendas')
             .select(`
                 *,
-                solicitante:users!pedidos_solicitante_id_fkey(full_name),
+                operador:users!vendas_operador_id_fkey(full_name),
                 cliente:clientes(nome, whatsapp)
             `)
             .eq('id', vendaId)
@@ -60,12 +60,11 @@ async function enviarPDFWhatsApp(vendaId, numeroDestino) {
 async function gerarPDFVenda(vendaId) {
     // Buscar dados completos da venda
     const { data: venda, error: vendaError } = await supabase
-        .from('pedidos')
+        .from('vendas')
         .select(`
             *,
-            solicitante:users!pedidos_solicitante_id_fkey(full_name),
-            aprovador:users!pedidos_aprovador_id_fkey(full_name),
-            cliente:clientes(nome, cpf_cnpj, tipo, contato, whatsapp, endereco, cidade, estado)
+            operador:users!vendas_operador_id_fkey(full_name),
+            cliente:clientes(nome, contato, whatsapp, endereco, cidade, estado)
         `)
         .eq('id', vendaId)
         .single();
@@ -74,9 +73,9 @@ async function gerarPDFVenda(vendaId) {
 
     // Buscar itens
     const { data: itens, error: itensError } = await supabase
-        .from('pedido_itens')
-        .select('*, produto:produtos(codigo, nome, unidade)')
-        .eq('pedido_id', vendaId)
+        .from('vendas_itens')
+        .select('*, produto:produtos(codigo, nome)')
+        .eq('venda_id', vendaId)
         .order('created_at', { ascending: true });
 
     if (itensError) throw itensError;

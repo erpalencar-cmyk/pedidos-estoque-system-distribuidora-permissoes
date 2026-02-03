@@ -580,41 +580,44 @@
                 
                 // Carregar vendas finalizadas com itens
                 const { data: vendas, error: errorVendas } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
                         cliente:clientes(nome),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name)
+                        operador:users!vendas_operador_id_fkey(full_name)
                     `)
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
+                    .eq('status_venda', 'FINALIZADA')
                     .order('created_at', { ascending: false });
                 
                 if (errorVendas) throw errorVendas;
                 
                 // Buscar itens de cada venda
                 vendasFinalizadas = await Promise.all(vendas.map(async p => {
-                    const itens = await getItensPedido(p.id);
+                    const { data: itens } = await supabase
+                        .from('vendas_itens')
+                        .select('*')
+                        .eq('venda_id', p.id);
                     return { ...p, itens };
                 }));
 
                 // Carregar compras finalizadas com itens
                 const { data: compras, error: errorCompras } = await supabase
-                    .from('pedidos')
+                    .from('pedidos_compra')
                     .select(`
                         *,
                         fornecedor:fornecedores(nome),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name)
+                        solicitante:users!pedidos_compra_solicitante_id_fkey(full_name)
                     `)
-                    .eq('tipo_pedido', 'COMPRA')
-                    .eq('status', 'FINALIZADO')
                     .order('created_at', { ascending: false });
                 
                 if (errorCompras) throw errorCompras;
                 
                 // Buscar itens de cada compra
                 comprasFinalizadas = await Promise.all(compras.map(async p => {
-                    const itens = await getItensPedido(p.id);
+                    const { data: itens } = await supabase
+                        .from('pedido_compra_itens')
+                        .select('*')
+                        .eq('pedido_compra_id', p.id);
                     return { ...p, itens };
                 }));
                 

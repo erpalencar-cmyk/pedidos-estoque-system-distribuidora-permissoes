@@ -8,7 +8,7 @@ async function getClientes() {
         const { data, error } = await supabase
             .from('clientes')
             .select('*')
-            .eq('active', true)
+            .eq('ativo', true)
             .order('nome');
 
         if (error) throw error;
@@ -109,7 +109,7 @@ async function searchClientes(termo) {
         const { data, error } = await supabase
             .from('clientes')
             .select('*')
-            .eq('active', true)
+            .eq('ativo', true)
             .or(`nome.ilike.%${termo}%,cpf_cnpj.ilike.%${termo}%`)
             .order('nome')
             .limit(10);

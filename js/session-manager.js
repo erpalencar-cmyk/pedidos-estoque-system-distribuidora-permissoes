@@ -343,11 +343,11 @@ class SessionManager {
                 try {
                     const { data: userData, error: userError } = await window.supabase
                         .from('users')
-                        .select('active')
+                        .select('ativo')
                         .eq('id', session.user.id)
                         .single();
                     
-                    if (userError || !userData || !userData.active) {
+                    if (userError || !userData || !userData.ativo) {
                         console.warn('⚠️  Usuário não está mais ativo, redirecionando para login...');
                         await this.performLogout('usuario-inativo');
                         return;

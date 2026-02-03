@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnóstico Rápido - PDV</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .box { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #ccc; }
+        .ok { border-left-color: #22c55e; background: #f0fdf4; }
+        .erro { border-left-color: #ef4444; background: #fef2f2; }
+        .teste { border-left-color: #3b82f6; background: #f0f9ff; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 14px; }
+        .run { background: #3b82f6; color: white; border: none; border-radius: 4px; }
+        .run:hover { background: #2563eb; }
+        pre { background: #1f2937; color: #10b981; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        h1 { color: #1f2937; }
+        h2 { color: #3b82f6; font-size: 16px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnóstico Rápido PDV - Caixa Aberta</h1>
+    
+    <div class="box teste">
+        <h2>Passo 1: Verificar Autenticação</h2>
+        <button class="run" onclick="testarAuth()">Verificar Auth</button>
+        <pre id="resultado-auth"></pre>
+    </div>
+
+    <div class="box teste">
+        <h2>Passo 2: Buscar Caixa Aberta no Banco</h2>
+        <button class="run" onclick="testarCaixaAberta()">Buscar Caixa Aberta</button>
+        <pre id="resultado-caixa"></pre>
+    </div>
+
+    <div class="box teste">
+        <h2>Passo 3: Verificar PDVSystem</h2>
+        <button class="run" onclick="testarPDVSystem()">Verificar PDVSystem</button>
+        <pre id="resultado-pdv"></pre>
+    </div>
+
+    <div class="box teste">
+        <h2>Passo 4: Verificar Última Inserção (últimas 5 linhas de caixa_sessoes)</h2>
+        <button class="run" onclick="testarUltimaInsercao()">Ver Últimas Inserções</button>
+        <pre id="resultado-insercao"></pre>
+    </div>
+
+    <div class="box teste">
+        <h2>Passo 5: Testar Completo - Abrir Nova Caixa</h2>
+        <button class="run" onclick="testarAbridorCompleto()">Teste Completo</button>
+        <pre id="resultado-completo"></pre>
+    </div>
+
+    <script>
+        // Importar Supabase
+        const SUPABASE_URL = 'https://akmlpfqvdzhqfpzhkojj.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrbWxwZnF2ZHpocWZwemhrb2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMyOTcwODAsImV4cCI6MTg5MDQyNzA4MH0.EwOvnQ_0x7jKV-l_PZFX-KKEGeUPYQTKbVj9fVhHOGg';
+
+        const { createClient } = supabase;
+        const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function log(id, msg, tipo = 'info') {
+            const el = document.getElementById(id);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = tipo === 'erro' ? '❌' : tipo === 'ok' ? '✅' : 'ℹ️';
+            el.textContent += `[${timestamp}] ${prefix} ${msg}\n`;
+            el.parentElement.className = 'box ' + (tipo === 'erro' ? 'erro' : tipo === 'ok' ? 'ok' : 'teste');
+        }
+
+        async function testarAuth() {
+            const el = 'resultado-auth';
+            document.getElementById(el).textContent = '';
+            
+            try {
+                const { data: { user }, error } = await client.auth.getUser();
+                if (error) throw error;
+                
+                if (!user) {
+                    log(el, 'Não autenticado!', 'erro');
+                    return;
+                }
+
+                log(el, `✅ Autenticado como: ${user.email}`, 'ok');
+                log(el, `ID: ${user.id}`, 'ok');
+                
+            } catch (e) {
+                log(el, `Erro: ${e.message}`, 'erro');
+            }
+        }
+
+        async function testarCaixaAberta() {
+            const el = 'resultado-caixa';
+            document.getElementById(el).textContent = '';
+            
+            try {
+                const { data: { user } } = await client.auth.getUser();
+                if (!user) {
+                    log(el, 'Não autenticado!', 'erro');
+                    return;
+                }
+
+                log(el, `Buscando caixas abertas para: ${user.id}`, 'info');
+
+                // Buscar caixa aberta
+                const { data, error } = await client
+                    .from('caixa_sessoes')
+                    .select('*, caixas(numero, nome)')
+                    .eq('operador_id', user.id)
+                    .is('data_fechamento', null)
+                    .order('data_abertura', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    log(el, 'Nenhuma caixa aberta encontrada', 'erro');
+                    
+                    // Buscar TODAS as sessões desse operador
+                    const { data: todas } = await client
+                        .from('caixa_sessoes')
+                        .select('id, operador_id, data_abertura, data_fechamento')
+                        .eq('operador_id', user.id)
+                        .order('data_abertura', { ascending: false })
+                        .limit(10);
+                    
+                    if (todas && todas.length > 0) {
+                        log(el, `Mas encontrei ${todas.length} sessões totais (todas fechadas):`, 'info');
+                        todas.forEach((s, i) => {
+                            const status = s.data_fechamento ? 'FECHADA' : 'ABERTA';
+                            log(el, `  ${i+1}. ${s.id.substring(0,8)}... - ${status}`, 'info');
+                        });
+                    }
+                    return;
+                }
+
+                const caixa = data[0];
+                log(el, `✅ Caixa encontrada!`, 'ok');
+                log(el, `Número: ${caixa.caixas?.numero || 'N/A'}`, 'ok');
+                log(el, `Nome: ${caixa.caixas?.nome || 'N/A'}`, 'ok');
+                log(el, `Operador: ${caixa.operador_id}`, 'ok');
+                log(el, `Aberta em: ${new Date(caixa.data_abertura).toLocaleString('pt-BR')}`, 'ok');
+
+            } catch (e) {
+                log(el, `Erro: ${e.message}`, 'erro');
+            }
+        }
+
+        async function testarPDVSystem() {
+            const el = 'resultado-pdv';
+            document.getElementById(el).textContent = '';
+            
+            try {
+                if (typeof PDVSystem === 'undefined') {
+                    log(el, 'PDVSystem não definido (precisa estar em pdv.html)', 'erro');
+                    return;
+                }
+
+                log(el, `PDVSystem.aberto: ${PDVSystem.aberto}`, PDVSystem.aberto ? 'ok' : 'erro');
+                log(el, `PDVSystem.caixaAtual: ${JSON.stringify(PDVSystem.caixaAtual)}`, 'info');
+                log(el, `PDVSystem.movimentacaoAtual: ${JSON.stringify(PDVSystem.movimentacaoAtual)}`, 'info');
+
+            } catch (e) {
+                log(el, `Erro: ${e.message}`, 'erro');
+            }
+        }
+
+        async function testarUltimaInsercao() {
+            const el = 'resultado-insercao';
+            document.getElementById(el).textContent = '';
+            
+            try {
+                const { data, error } = await client
+                    .from('caixa_sessoes')
+                    .select('id, operador_id, data_abertura, data_fechamento, caixas(numero, nome)')
+                    .order('data_abertura', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    log(el, 'Nenhum registro encontrado', 'erro');
+                    return;
+                }
+
+                log(el, `Encontradas ${data.length} últimas sessões:`, 'ok');
+                data.forEach((s, i) => {
+                    const status = s.data_fechamento ? '🔴 FECHADA' : '🟢 ABERTA';
+                    const operador = s.operador_id ? s.operador_id.substring(0, 8) + '...' : 'NULL ❌';
+                    log(el, `${i+1}. Caixa ${s.caixas?.numero} - Op: ${operador} - ${status}`, 'info');
+                });
+
+            } catch (e) {
+                log(el, `Erro: ${e.message}`, 'erro');
+            }
+        }
+
+        async function testarAbridorCompleto() {
+            const el = 'resultado-completo';
+            document.getElementById(el).textContent = '';
+            
+            try {
+                log(el, '=== TESTE COMPLETO DE ABRIR CAIXA ===', 'info');
+                
+                // Step 1: Auth
+                const { data: { user }, error: authError } = await client.auth.getUser();
+                if (authError || !user) throw new Error('Falha na autenticação');
+                log(el, `✅ Auth OK: ${user.id.substring(0,8)}...`, 'ok');
+
+                // Step 2: Buscar caixa para abrir
+                const { data: caixas, error: caixaError } = await client
+                    .from('caixas')
+                    .select('*')
+                    .eq('status', 'ativo')
+                    .limit(1);
+                
+                if (caixaError || !caixas || caixas.length === 0) throw new Error('Nenhuma caixa disponível');
+                const caixa = caixas[0];
+                log(el, `✅ Caixa encontrada: ${caixa.numero} - ${caixa.nome}`, 'ok');
+
+                // Step 3: Inserir sessão
+                const agora = new Date().toISOString();
+                const { data: inserted, error: insertError } = await client
+                    .from('caixa_sessoes')
+                    .insert([{
+                        caixa_id: caixa.id,
+                        operador_id: user.id,
+                        data_abertura: agora,
+                        saldo_inicial: 0
+                    }])
+                    .select();
+
+                if (insertError) throw insertError;
+                if (!inserted || inserted.length === 0) throw new Error('Insert retornou vazio');
+                
+                log(el, `✅ Sessão inserida: ${inserted[0].id.substring(0,8)}...`, 'ok');
+                log(el, `   operador_id: ${inserted[0].operador_id}`, 'ok');
+                log(el, `   data_abertura: ${inserted[0].data_abertura}`, 'ok');
+
+                // Step 4: Verificar se foi inserida
+                const { data: verificacao } = await client
+                    .from('caixa_sessoes')
+                    .select('*')
+                    .eq('id', inserted[0].id);
+
+                if (!verificacao || verificacao.length === 0) {
+                    log(el, '❌ Sessão foi inserida mas NÃO consegue ler! Problema de RLS?', 'erro');
+                    return;
+                }
+
+                log(el, `✅ Verificação OK - Sessão está salva corretamente`, 'ok');
+                log(el, `✅ TESTE COMPLETO PASSOU!`, 'ok');
+
+            } catch (e) {
+                log(el, `❌ Erro: ${e.message}`, 'erro');
+            }
+        }
+
+        // Executar auth automaticamente
+        window.addEventListener('load', () => {
+            testarAuth();
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</body>
+</html>

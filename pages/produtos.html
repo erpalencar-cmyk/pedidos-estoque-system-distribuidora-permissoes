@@ -279,25 +279,36 @@
 
                 <!-- TAB: DADOS FISCAIS -->
                 <div id="tab-fiscal" class="tab-content hidden space-y-4">
+                    <!-- Legenda de Limites de Caracteres -->
+                    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                        <p class="text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-info-circle text-blue-600 mr-2"></i>Limites de Caracteres:</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
+                            <div><strong>NCM:</strong> 10 caracteres</div>
+                            <div><strong>CEST:</strong> 10 caracteres</div>
+                            <div><strong>CFOP:</strong> 10 caracteres</div>
+                            <div><strong>CST:</strong> 10 caracteres</div>
+                        </div>
+                    </div>
+                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">NCM <span class="text-xs text-gray-500">(Nomenclatura Comum do Mercosul)</span></label>
-                            <input type="text" id="produto-ncm" placeholder="Ex: 12345678" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">NCM <span class="text-xs text-gray-500">(Nomenclatura Comum do Mercosul - 10 char)</span></label>
+                            <input type="text" id="produto-ncm" maxlength="10" placeholder="Ex: 1234567890" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Código de classificação fiscal do produto</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">CEST <span class="text-xs text-gray-500">(Substituição Tributária)</span></label>
-                            <input type="text" id="produto-cest" placeholder="Ex: 12345678" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">CEST <span class="text-xs text-gray-500">(Substituição Tributária - 10 char)</span></label>
+                            <input type="text" id="produto-cest" maxlength="10" placeholder="Ex: 1234567890" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Código de substituição tributária</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">CFOP Venda <span class="text-xs text-gray-500">(Op. Fiscal)</span></label>
-                            <input type="text" id="produto-cfop-venda" value="5102" placeholder="Ex: 5102" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">CFOP Venda <span class="text-xs text-gray-500">(Op. Fiscal - 10 char)</span></label>
+                            <input type="text" id="produto-cfop-venda" maxlength="10" value="5102" placeholder="Ex: 5102" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Padrão: 5102 - Venda para consumidor final</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">CFOP Compra <span class="text-xs text-gray-500">(Op. Fiscal)</span></label>
-                            <input type="text" id="produto-cfop-compra" value="1102" placeholder="Ex: 1102" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">CFOP Compra <span class="text-xs text-gray-500">(Op. Fiscal - 10 char)</span></label>
+                            <input type="text" id="produto-cfop-compra" maxlength="10" value="1102" placeholder="Ex: 1102" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Padrão: 1102 - Compra para revenda</p>
                         </div>
                         <div>
@@ -460,202 +471,6 @@
     <script src="../components/modal.js"></script>
 
     <!-- Modal Produto -->
-    <div id="modal-produto" class="modal-backdrop hidden">
-        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center px-6 py-4 border-b sticky top-0 bg-white">
-                <h3 id="modal-title" class="text-lg font-semibold text-gray-900">Novo Produto</h3>
-                <button onclick="closeModal('modal-produto')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <form id="form-produto" class="px-6 py-4">
-                <input type="hidden" id="produto-id">
-                
-                <!-- Abas de Formulário -->
-                <div class="border-b border-gray-200 mb-4">
-                    <nav class="-mb-px flex space-x-8">
-                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-blue-600 text-blue-600 font-medium" data-tab="tab-basico">
-                            Dados Básicos
-                        </button>
-                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="tab-estoque">
-                            Estoque
-                        </button>
-                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="tab-precos">
-                            Preços
-                        </button>
-                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="tab-fiscal">
-                            Dados Fiscais
-                        </button>
-                    </nav>
-                </div>
-
-                <!-- TAB: DADOS BÁSICOS -->
-                <div id="tab-basico" class="tab-content">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome*</label>
-                            <input type="text" id="produto-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Código*</label>
-                            <input type="text" id="produto-codigo" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Código de Barras</label>
-                            <input type="text" id="produto-codigo-barras" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
-                            <div class="flex gap-2">
-                                <select id="produto-categoria" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">Selecione uma categoria</option>
-                                </select>
-                                <button type="button" onclick="openModalNovaCategoria()" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" title="Adicionar nova categoria">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
-                            <div class="flex gap-2">
-                                <select id="produto-marca" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">Selecione uma marca</option>
-                                </select>
-                                <button type="button" onclick="openModalNovaMarca()" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" title="Adicionar nova marca">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidade</label>
-                            <select id="produto-unidade" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                                <option value="UN">Unidade</option>
-                                <option value="KG">Kg</option>
-                                <option value="L">Litro</option>
-                                <option value="M">Metro</option>
-                                <option value="CX">Caixa</option>
-                                <option value="PCT">Pacote</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Volume (ml)</label>
-                            <input type="number" id="produto-volume" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Embalagem</label>
-                            <input type="text" id="produto-embalagem" placeholder="Ex: Caixa com 12" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade por Embalagem</label>
-                            <input type="number" id="produto-qtd-embalagem" min="1" value="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                            <textarea id="produto-descricao" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB: ESTOQUE -->
-                <div id="tab-estoque" class="tab-content hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Estoque Atual</label>
-                            <input type="number" id="produto-estoque" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Estoque Mínimo</label>
-                            <input type="number" id="produto-estoque-minimo" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Estoque Máximo</label>
-                            <input type="number" id="produto-estoque-maximo" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Localização</label>
-                            <input type="text" id="produto-localizacao" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Controla Validade?</label>
-                            <select id="produto-controla-validade" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                                <option value="true">Sim</option>
-                                <option value="false">Não</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Dias de Alerta (Validade)</label>
-                            <input type="number" id="produto-dias-alerta" min="1" value="30" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB: PREÇOS -->
-                <div id="tab-precos" class="tab-content hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Preço de Compra</label>
-                            <input type="number" id="produto-preco-compra" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Preço de Venda*</label>
-                            <input type="number" id="produto-preco-venda" step="0.01" min="0" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Margem (%)</label>
-                            <input type="number" id="produto-margem" step="0.01" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB: DADOS FISCAIS -->
-                <div id="tab-fiscal" class="tab-content hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">NCM <span class="text-xs text-gray-500">(Nomenclatura Comum do Mercosul)</span></label>
-                            <input type="text" id="produto-ncm" placeholder="Ex: 12345678" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Código de classificação fiscal do produto</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CEST <span class="text-xs text-gray-500">(Código Especificador da Substituição Tributária)</span></label>
-                            <input type="text" id="produto-cest" placeholder="Ex: 12345678" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Código de substituição tributária</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CFOP Venda <span class="text-xs text-gray-500">(Classificação Fiscal de Operação)</span></label>
-                            <input type="text" id="produto-cfop-venda" value="5102" placeholder="Ex: 5102" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Código da operação de venda (padrão: 5102 - Venda para consumidor final)</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CFOP Compra <span class="text-xs text-gray-500">(Classificação Fiscal de Operação)</span></label>
-                            <input type="text" id="produto-cfop-compra" value="1102" placeholder="Ex: 1102" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Código da operação de compra (padrão: 1102 - Compra para revenda)</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CST ICMS <span class="text-xs text-gray-500">(Código de Situação Tributária)</span></label>
-                            <input type="text" id="produto-cst-icms" placeholder="Ex: 00" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Situação tributária do ICMS</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CST PIS <span class="text-xs text-gray-500">(Código de Situação Tributária)</span></label>
-                            <input type="text" id="produto-cst-pis" placeholder="Ex: 01" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Situação tributária do PIS</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CST COFINS <span class="text-xs text-gray-500">(Código de Situação Tributária)</span></label>
-                            <input type="text" id="produto-cst-cofins" placeholder="Ex: 01" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">Situação tributária do COFINS</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex justify-end space-x-3 mt-6 sticky bottom-0 bg-white py-3 border-t">
-                    <button type="button" onclick="closeModal('modal-produto')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg"><div class="spinner mx-auto"></div><p class="mt-4 text-gray-700">Carregando...</p></div>
     </div>
@@ -867,6 +682,11 @@
             const precoCompraInput = document.getElementById('produto-preco-compra');
             const precoVendaInput = document.getElementById('produto-preco-venda');
 
+            // Calcular em tempo real enquanto digita
+            precoCompraInput?.addEventListener('input', calcularMargem);
+            precoVendaInput?.addEventListener('input', calcularMargem);
+            
+            // Também no change (quando sai do campo)
             precoCompraInput?.addEventListener('change', calcularMargem);
             precoVendaInput?.addEventListener('change', calcularMargem);
         }
@@ -876,14 +696,77 @@
             const precoVenda = parseFloat(document.getElementById('produto-preco-venda').value) || 0;
 
             let margem = 0;
-            if (precoCompra > 0) {
+            if (precoCompra > 0 && precoVenda > 0) {
+                // Fórmula: ((Preço Venda - Preço Compra) / Preço Compra) * 100
                 margem = ((precoVenda - precoCompra) / precoCompra) * 100;
             }
 
-            document.getElementById('produto-margem').value = margem.toFixed(2);
+            const margemField = document.getElementById('produto-margem');
+            if (margemField) {
+                margemField.value = margem.toFixed(2);
+                // Mudar cor conforme margem
+                if (margem >= 50) {
+                    margemField.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-green-600';
+                } else if (margem >= 30) {
+                    margemField.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-yellow-600';
+                } else if (margem > 0) {
+                    margemField.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-orange-600';
+                } else {
+                    margemField.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-600';
+                }
+            }
         }
 
         // ======== CÓDIGO AUTOMÁTICO ========
+        async function generateProductCode(marcaId) {
+            try {
+                // Se não houver marca, usar padrão
+                let prefix = 'PRD';
+                
+                if (marcaId) {
+                    // Buscar abreviação da marca
+                    const { data: marca, error: erroMarca } = await window.supabase
+                        .from('marcas')
+                        .select('nome, sigla')
+                        .eq('id', marcaId)
+                        .single();
+                    
+                    if (marca && marca.sigla) {
+                        prefix = marca.sigla.substring(0, 3).toUpperCase();
+                    } else if (marca) {
+                        prefix = marca.nome.substring(0, 3).toUpperCase();
+                    }
+                }
+                
+                // Buscar o próximo número sequencial
+                const { data: produtos, error: erroCount } = await window.supabase
+                    .from('produtos')
+                    .select('codigo')
+                    .like('codigo', `${prefix}%`)
+                    .order('codigo', { ascending: false })
+                    .limit(1);
+                
+                let nextNumber = 1001;
+                if (produtos && produtos.length > 0) {
+                    // Extrair número do último código
+                    const lastCode = produtos[0].codigo;
+                    const numberPart = parseInt(lastCode.substring(prefix.length)) || 1000;
+                    nextNumber = numberPart + 1;
+                }
+                
+                // Gerar código no formato: PREFIX + 4 dígitos
+                // Exemplo: ABC1001, PRD1005, XYZ2000
+                const codigo = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+                
+                return codigo;
+            } catch (error) {
+                console.error('❌ Erro ao gerar código:', error);
+                // Fallback: gerar código genérico com timestamp
+                const timestamp = Date.now().toString().slice(-8);
+                return `PRD${timestamp}`;
+            }
+        }
+
         async function gerarCodigoAutomatico() {
             try {
                 const marcaId = document.getElementById('produto-marca').value || null;
@@ -969,7 +852,7 @@
                     categoria:categorias(nome),
                     marca:marcas(nome)
                 `)
-                .eq('active', true)
+                .eq('ativo', true)
                 .order('nome');
             
             if (error) throw error;
@@ -1089,10 +972,10 @@
                     <td class="px-6 py-4 text-sm font-semibold text-gray-900">R$ ${(p.preco_venda || 0).toFixed(2)}</td>
                     <td class="px-6 py-4 text-sm">
                         <div class="flex items-center space-x-1">
-                            <button onclick="editProduto(${p.id})" class="btn-action px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition flex items-center gap-1">
+                            <button onclick="editProduto('${p.id}')" class="btn-action px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition flex items-center gap-1">
                                 <i class="fas fa-edit"></i><span class="hidden sm:inline">Editar</span>
                             </button>
-                            <button onclick="deleteProdutoConfirm(${p.id})" class="btn-action px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition flex items-center gap-1">
+                            <button onclick="deleteProdutoConfirm('${p.id}')" class="btn-action px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition flex items-center gap-1">
                                 <i class="fas fa-trash"></i><span class="hidden sm:inline">Excluir</span>
                             </button>
                         </div>
@@ -1197,47 +1080,117 @@
         async function saveProduto() {
             const id = document.getElementById('produto-id').value;
             
+            // ============ VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ============
+            const erros = [];
+            
+            const nome = document.getElementById('produto-nome')?.value?.trim();
+            if (!nome) erros.push('Nome do produto (aba: Dados Básicos)');
+            
+            const codigo = document.getElementById('produto-codigo')?.value?.trim();
+            if (!codigo) erros.push('Código do produto (aba: Dados Básicos)');
+            
+            const precoVendaInput = document.getElementById('produto-preco-venda')?.value?.trim();
+            const precoVenda = parseFloat(precoVendaInput) || 0;
+            if (!precoVendaInput || precoVenda <= 0) erros.push('Preço de venda > 0 (aba: Preços)');
+            
+            // Se há erros, mostra modal
+            if (erros.length > 0) {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4">
+                        <div class="bg-red-600 text-white p-4 rounded-t-lg">
+                            <h3 class="text-lg font-bold flex items-center gap-2">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Campos Obrigatórios Faltando
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-gray-700 mb-4">Preencha os seguintes campos:</p>
+                            <ul class="space-y-2">
+                                ${erros.map((err, i) => `
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-red-600 font-bold">${i+1}.</span>
+                                        <span class="text-gray-700">${err}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end">
+                            <button 
+                                onclick="this.closest('.fixed').remove()"
+                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            >
+                                Entendi
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Clica na primeira aba
+                const btnAba = document.querySelector('[data-tab="tab-basico"]');
+                if (btnAba) btnAba.click();
+                return;
+            }
+            
+            // ============ MONTAR DADOS ============
             const data = {
-                nome: document.getElementById('produto-nome').value,
-                codigo: document.getElementById('produto-codigo').value,
-                codigo_barras: document.getElementById('produto-codigo-barras').value || null,
-                categoria_id: document.getElementById('produto-categoria').value || null,
-                marca_id: document.getElementById('produto-marca').value || null,
-                unidade: document.getElementById('produto-unidade').value,
-                volume_ml: parseFloat(document.getElementById('produto-volume').value) || null,
-                embalagem: document.getElementById('produto-embalagem').value || null,
-                quantidade_embalagem: parseInt(document.getElementById('produto-qtd-embalagem').value) || 1,
-                descricao: document.getElementById('produto-descricao').value || null,
-                estoque_atual: parseFloat(document.getElementById('produto-estoque').value) || 0,
-                estoque_minimo: parseFloat(document.getElementById('produto-estoque-minimo').value) || 0,
-                estoque_maximo: parseFloat(document.getElementById('produto-estoque-maximo').value) || 0,
-                localizacao: document.getElementById('produto-localizacao').value || null,
-                controla_validade: document.getElementById('produto-controla-validade').value === 'true',
-                dias_alerta_validade: parseInt(document.getElementById('produto-dias-alerta').value) || 30,
-                preco_custo: parseFloat(document.getElementById('produto-preco-compra').value) || 0,
-                preco_venda: parseFloat(document.getElementById('produto-preco-venda').value) || 0,
-                ncm: document.getElementById('produto-ncm').value || null,
-                cest: document.getElementById('produto-cest').value || null,
-                cfop_venda: document.getElementById('produto-cfop-venda').value || '5102',
-                cfop_compra: document.getElementById('produto-cfop-compra').value || '1102',
-                cst_icms: document.getElementById('produto-cst-icms').value || null,
-                cst_pis: document.getElementById('produto-cst-pis').value || null,
-                cst_cofins: document.getElementById('produto-cst-cofins').value || null
+                nome: nome,
+                codigo: codigo,
+                sku: codigo, // SKU usa o mesmo valor do código
+                categoria_id: document.getElementById('produto-categoria')?.value || null,
+                unidade: document.getElementById('produto-unidade')?.value || 'UN',
+                descricao: document.getElementById('produto-descricao')?.value || null,
+                estoque_atual: parseFloat(document.getElementById('produto-estoque')?.value) || 0,
+                estoque_minimo: parseFloat(document.getElementById('produto-estoque-minimo')?.value) || 0,
+                estoque_maximo: parseFloat(document.getElementById('produto-estoque-maximo')?.value) || 0,
+                controla_validade: document.getElementById('produto-controla-validade')?.value === 'true',
+                dias_alerta_validade: parseInt(document.getElementById('produto-dias-alerta')?.value) || 30,
+                preco_custo: parseFloat(document.getElementById('produto-preco-compra')?.value) || 0,
+                preco_venda: precoVenda
             };
-
-            // Validação
-            if (!data.nome.trim()) {
-                showToast('Nome do produto é obrigatório', 'error');
-                return;
-            }
-            if (!data.codigo.trim()) {
-                showToast('Código do produto é obrigatório', 'error');
-                return;
-            }
-            if (data.preco_venda <= 0) {
-                showToast('Preço de venda deve ser maior que zero', 'error');
-                return;
-            }
+            
+            // Campos opcionais - só adiciona se tiverem valor
+            const codigoBarras = document.getElementById('produto-codigo-barras')?.value?.trim();
+            if (codigoBarras) data.codigo_barras = codigoBarras;
+            
+            const marcaId = document.getElementById('produto-marca')?.value;
+            if (marcaId) data.marca_id = marcaId;
+            
+            const volumeMl = parseFloat(document.getElementById('produto-volume')?.value);
+            if (volumeMl) data.volume_ml = volumeMl;
+            
+            const embalagem = document.getElementById('produto-embalagem')?.value?.trim();
+            if (embalagem) data.embalagem = embalagem;
+            
+            const qtdEmbalagem = parseInt(document.getElementById('produto-qtd-embalagem')?.value);
+            if (qtdEmbalagem > 1) data.quantidade_embalagem = qtdEmbalagem;
+            
+            const localizacao = document.getElementById('produto-localizacao')?.value?.trim();
+            if (localizacao) data.localizacao = localizacao;
+            
+            // Campos fiscais - apenas os que existem na tabela
+            const ncm = document.getElementById('produto-ncm')?.value?.trim();
+            if (ncm) data.ncm = ncm;
+            
+            const cest = document.getElementById('produto-cest')?.value?.trim();
+            if (cest) data.cest = cest;
+            
+            const cfopVenda = document.getElementById('produto-cfop-venda')?.value?.trim();
+            if (cfopVenda) data.cfop_venda = cfopVenda;
+            
+            const cfopCompra = document.getElementById('produto-cfop-compra')?.value?.trim();
+            if (cfopCompra) data.cfop_compra = cfopCompra;
+            
+            const cstIcms = document.getElementById('produto-cst-icms')?.value?.trim();
+            if (cstIcms) data.cst_icms = cstIcms;
+            
+            const cstPis = document.getElementById('produto-cst-pis')?.value?.trim();
+            if (cstPis) data.cst_pis = cstPis;
+            
+            const cstCofins = document.getElementById('produto-cst-cofins')?.value?.trim();
+            if (cstCofins) data.cst_cofins = cstCofins;
 
             try {
                 showLoading(true);
@@ -1245,17 +1198,18 @@
 
                 if (id) {
                     result = await updateProduto(id, data);
-                    showToast('Produto atualizado com sucesso!', 'success');
+                    showToast('✅ Produto atualizado com sucesso!', 'success');
                 } else {
                     result = await createProduto(data);
-                    showToast('Produto criado com sucesso!', 'success');
+                    showToast('✅ Produto criado com sucesso!', 'success');
                 }
 
                 closeModal('modal-produto');
                 await loadProdutos();
             } catch (error) {
-                console.error('Erro ao salvar produto:', error);
-                showToast('Erro ao salvar produto', 'error');
+                console.error('❌ Erro ao salvar produto:', error);
+                const msg = error.message || 'Erro desconhecido';
+                showToast('❌ Erro:\n' + msg, 'error');
             } finally {
                 showLoading(false);
             }
@@ -1333,6 +1287,62 @@
             document.getElementById('modal-title').textContent = 'Novo Produto';
             document.getElementById('form-produto').reset();
         }
+
+        // ======== VALIDAÇÃO DE LIMITE DE CARACTERES ========
+        function setupCharacterLimitListeners() {
+            const fieldsWithLimits = [
+                { id: 'produto-ncm', maxLength: 10, label: 'NCM' },
+                { id: 'produto-cest', maxLength: 10, label: 'CEST' },
+                { id: 'produto-cfop-venda', maxLength: 10, label: 'CFOP Venda' },
+                { id: 'produto-cfop-compra', maxLength: 10, label: 'CFOP Compra' }
+            ];
+
+            fieldsWithLimits.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.addEventListener('input', function() {
+                        const currentLength = this.value.length;
+                        const remaining = field.maxLength - currentLength;
+                        
+                        // Feedback visual
+                        if (remaining < 2 && currentLength > 0) {
+                            this.classList.add('border-yellow-400', 'border-2');
+                            this.classList.remove('border-gray-300', 'border');
+                        } else if (currentLength === field.maxLength) {
+                            this.classList.add('border-red-400', 'border-2');
+                            this.classList.remove('border-gray-300', 'border');
+                        } else {
+                            this.classList.remove('border-yellow-400', 'border-red-400', 'border-2');
+                            this.classList.add('border-gray-300', 'border');
+                        }
+                    });
+                }
+            });
+        }
+
+        // Inicializar listeners quando o modal for aberto
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(setupCharacterLimitListeners, 500);
+            
+            // Adicionar listener ao formulário de produtos
+            const formProduto = document.getElementById('form-produto');
+            if (formProduto) {
+                formProduto.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    saveProduto();
+                });
+            }
+            
+            // Adicionar listeners para as abas
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabId = this.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+        });
     </script>
 </body>
 </html>

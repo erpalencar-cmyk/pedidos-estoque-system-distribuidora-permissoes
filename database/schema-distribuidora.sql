@@ -937,7 +937,7 @@ SELECT
     (p.estoque_minimo - p.estoque_atual) * p.preco_custo as valor_reposicao
 FROM produtos p
 LEFT JOIN categorias c ON p.categoria_id = c.id
-WHERE p.active = true 
+WHERE p.ativo = true 
   AND p.estoque_atual <= p.estoque_minimo
 ORDER BY deficit DESC;
 
@@ -1047,7 +1047,7 @@ SELECT
     p.margem_lucro
 FROM produtos p
 LEFT JOIN categorias c ON p.categoria_id = c.id
-WHERE p.active = true
+WHERE p.ativo = true
   AND p.estoque_atual > 0
 ORDER BY valor_custo_total DESC;
 

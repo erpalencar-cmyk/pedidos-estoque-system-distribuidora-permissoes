@@ -8,11 +8,11 @@ async function listFornecedores(filters = {}) {
         let query = window.supabase
             .from('fornecedores')
             .select('*')
-            .eq('active', true)
-            .order('razao_social');
+            .eq('ativo', true)
+            .order('nome');
 
         if (filters.search) {
-            query = query.or(azao_social.ilike.%js\services\fornecedores.js.bak{filters.search}%,nome_fantasia.ilike.%js\services\fornecedores.js.bak{filters.search}%,cnpj.ilike.%js\services\fornecedores.js.bak{filters.search}%);
+            query = query.or(`nome.ilike.%${filters.search}%,cnpj.ilike.%${filters.search}%`);
         }
 
         const { data, error } = await query;
@@ -109,7 +109,7 @@ async function deleteFornecedor(id) {
         
         const { error } = await window.supabase
             .from('fornecedores')
-            .update({ active: false })
+            .update({ ativo: false })
             .eq('id', id);
 
         if (error) throw error;

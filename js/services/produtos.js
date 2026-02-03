@@ -8,7 +8,7 @@ async function listProdutos(filters = {}) {
         let query = window.supabase
             .from('produtos')
             .select('*')
-            .eq('active', true)
+            .eq('ativo', true)
             .order('nome');
 
         if (filters.categoria) {
@@ -52,8 +52,8 @@ async function getProduto(id) {
 async function createProduto(produto) {
     try {
         // Gerar código automático se não existir
-        if (!produto.codigo) {
-            produto.codigo = await generateProductCode(produto.marca_id);
+        if (!produto.sku) {
+            produto.sku = await generateProductCode(produto.marca_id);
         }
         
         const { data, error } = await window.supabase
@@ -97,7 +97,7 @@ async function deleteProduto(id) {
     try {
         const { error } = await window.supabase
             .from('produtos')
-            .update({ active: false })
+            .update({ ativo: false })
             .eq('id', id);
 
         if (error) throw error;
@@ -118,7 +118,7 @@ async function getProdutosEstoqueBaixo() {
         const { data, error } = await window.supabase
             .from('produtos')
             .select('*')
-            .eq('active', true)
+            .eq('ativo', true)
             .order('estoque_atual');
 
         if (error) throw error;
@@ -138,7 +138,7 @@ async function getCategorias() {
         const { data, error } = await window.supabase
             .from('categorias')
             .select('*')
-            .eq('active', true);
+            .eq('ativo', true);
 
         if (error) throw error;
 
@@ -175,9 +175,9 @@ async function generateProductCode(marcaId) {
         
         const { data, error } = await window.supabase
             .from('produtos')
-            .select('codigo')
-            .like('codigo', `${prefixo}-%`)
-            .order('codigo', { ascending: false })
+            .select('sku')
+            .like('sku', `${prefixo}-%`)
+            .order('sku', { ascending: false })
             .limit(1);
 
         if (error) throw error;
@@ -186,7 +186,7 @@ async function generateProductCode(marcaId) {
         
         if (data && data.length > 0) {
             // Extrair número do último código (formato: XXX-0001)
-            const lastCode = data[0].codigo;
+            const lastCode = data[0].sku;
             const match = lastCode.match(/-(\d+)$/);
             if (match) {
                 nextNumber = parseInt(match[1]) + 1;
@@ -372,7 +372,7 @@ async function getProdutosPorMarca(marca) {
             .from('produtos')
             .select('*')
             .eq('marca', marca)
-            .eq('active', true)
+            .eq('ativo', true)
             .order('nome');
 
         if (error) throw error;

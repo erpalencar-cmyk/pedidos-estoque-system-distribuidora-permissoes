@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Tela de Finalização</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold mb-6">
+                <i class="fas fa-credit-card text-green-600 mr-2"></i>Teste - Tela de Finalização
+            </h1>
+
+            <div class="space-y-4">
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                    <p class="text-sm text-gray-600">Instruções:</p>
+                    <ul class="list-disc list-inside text-sm text-gray-700 mt-2">
+                        <li>Clique no botão abaixo para abrir a tela de finalização</li>
+                        <li>Digite um valor no campo "Valor Recebido"</li>
+                        <li>Verifique se o troco é atualizado em tempo real</li>
+                        <li>Clique em "Confirmar" para finalizar (verificará os dados no console)</li>
+                    </ul>
+                </div>
+
+                <button 
+                    id="btn-testar" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-arrow-right"></i>Abrir Tela de Finalização
+                </button>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-gray-700 mb-2">
+                        <i class="fas fa-terminal mr-2"></i>Console de Debug
+                    </h3>
+                    <div id="console-output" class="bg-black text-green-400 p-3 rounded font-mono text-xs max-h-64 overflow-auto">
+                        <div>$ Aguardando testes...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simular sistema PDV
+        class PDVTest {
+            static totaisAtual = { total: 150.50 };
+
+            static async exibirTelaFinalizacao() {
+                console('🔵 Abrindo modal de finalização...');
+                const total = this.totaisAtual.total;
+                
+                // Criar elementos
+                const overlay = document.createElement('div');
+                overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                
+                const container = document.createElement('div');
+                container.className = 'bg-white p-6 rounded-lg max-w-md w-full mx-4';
+                
+                // Construir HTML manualmente
+                container.innerHTML = `
+                    <h3 class="text-xl font-bold mb-4">Finalizar Venda</h3>
+                    <p class="text-gray-600 mb-4">Total: <strong>R$ ${total.toFixed(2)}</strong></p>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Forma de Pagamento</label>
+                        <select id="forma-pagamento" class="w-full border rounded px-3 py-2">
+                            <option value="DINHEIRO">Dinheiro</option>
+                            <option value="PIX">PIX</option>
+                            <option value="CARTAO_DEBITO">Cartão Débito</option>
+                            <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                            <option value="PRAZO">A Prazo</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Valor Recebido</label>
+                        <input type="number" id="valor-pago" class="w-full border rounded px-3 py-2" value="${total.toFixed(2)}" step="0.01" min="0">
+                    </div>
+
+                    <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                        <div class="text-sm">Troco: <strong id="troco-valor" class="text-blue-600 font-bold">R$ 0.00</strong></div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button id="btn-cancelar" class="flex-1 px-4 py-2 border rounded hover:bg-gray-100">Cancelar</button>
+                        <button id="btn-confirmar" class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Confirmar</button>
+                    </div>
+                `;
+                
+                overlay.appendChild(container);
+                document.body.appendChild(overlay);
+
+                // Agora buscar os elementos (já estão no DOM)
+                const valorPagoInput = container.querySelector('#valor-pago');
+                const trocoValor = container.querySelector('#troco-valor');
+                const formaPagamento = container.querySelector('#forma-pagamento');
+                const btnCancelar = container.querySelector('#btn-cancelar');
+                const btnConfirmar = container.querySelector('#btn-confirmar');
+
+                console('✅ Elementos encontrados');
+
+                // Função para calcular e atualizar troco
+                const atualizarTroco = (e) => {
+                    const valorPago = parseFloat(valorPagoInput.value) || 0;
+                    const troco = valorPago - total;
+                    trocoValor.textContent = `R$ ${troco.toFixed(2)}`;
+                    
+                    console(`💰 Cálculo: R$ ${valorPago.toFixed(2)} - R$ ${total.toFixed(2)} = R$ ${troco.toFixed(2)}`);
+                    
+                    // Mudar cor conforme o troco
+                    if (troco < -0.01) {
+                        trocoValor.className = 'text-red-600 font-bold text-sm';
+                    } else if (Math.abs(troco) < 0.01) {
+                        trocoValor.className = 'text-green-600 font-bold text-sm';
+                    } else {
+                        trocoValor.className = 'text-blue-600 font-bold text-sm';
+                    }
+                };
+
+                // Inicializar troco
+                atualizarTroco();
+                console('🔄 Troco inicial calculado');
+
+                // Listeners para eventos
+                valorPagoInput.addEventListener('change', atualizarTroco);
+                valorPagoInput.addEventListener('keyup', atualizarTroco);
+                valorPagoInput.addEventListener('input', atualizarTroco);
+                console('✅ Listeners adicionados ao input');
+
+                // Cancelar venda
+                btnCancelar.addEventListener('click', (e) => {
+                    console('❌ Cancelar clicado');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    overlay.remove();
+                });
+
+                // Confirmar pagamento
+                btnConfirmar.addEventListener('click', (e) => {
+                    console('✅ Confirmar clicado');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const forma = formaPagamento.value;
+                    const valorPago = parseFloat(valorPagoInput.value);
+
+                    console(`💳 Dados da venda: Forma=${forma}, Valor Recebido=R$ ${valorPago.toFixed(2)}`);
+
+                    if (!forma) {
+                        alert('Selecione uma forma de pagamento!');
+                        return;
+                    }
+
+                    if (isNaN(valorPago) || valorPago < 0) {
+                        alert('Digite um valor válido!');
+                        return;
+                    }
+
+                    // Fechar overlay
+                    overlay.remove();
+                    console('🎉 Venda finalizada com sucesso!');
+                });
+
+                // Fechar ao clicar no overlay
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.remove();
+                    }
+                });
+
+                // Focus no input para facilitar digitação
+                valorPagoInput.focus();
+                valorPagoInput.select();
+            }
+        }
+
+        // Sistema de console customizado
+        const consoleLogs = [];
+        const consoleDiv = document.getElementById('console-output');
+
+        function console(msg) {
+            consoleLogs.push(msg);
+            const line = document.createElement('div');
+            line.textContent = msg;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Event listener
+        document.getElementById('btn-testar').addEventListener('click', () => {
+            consoleLogs.length = 0;
+            consoleDiv.innerHTML = '';
+            PDVTest.exibirTelaFinalizacao();
+        });
+    </script>
+</body>
+</html>

@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
+CREATE INDEX IF NOT EXISTS idx_users_ativo ON users(ativo);
 
 -- =====================================================
 -- 2. TABELA DE PRODUTOS
@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_produtos_codigo ON produtos(codigo);
 CREATE INDEX IF NOT EXISTS idx_produtos_nome ON produtos(nome);
 CREATE INDEX IF NOT EXISTS idx_produtos_marca ON produtos(marca);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON produtos(categoria);
-CREATE INDEX IF NOT EXISTS idx_produtos_active ON produtos(active);
+CREATE INDEX IF NOT EXISTS idx_produtos_ativo ON produtos(ativo);
 
 -- =====================================================
 -- 3. TABELA DE SABORES DE PRODUTOS
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS fornecedores (
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_fornecedores_nome ON fornecedores(nome);
 CREATE INDEX IF NOT EXISTS idx_fornecedores_cpf_cnpj ON fornecedores(cpf_cnpj);
-CREATE INDEX IF NOT EXISTS idx_fornecedores_active ON fornecedores(active);
+CREATE INDEX IF NOT EXISTS idx_fornecedores_ativo ON fornecedores(ativo);
 
 -- =====================================================
 -- 5. TABELA DE CLIENTES
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj ON clientes(cpf_cnpj);
-CREATE INDEX IF NOT EXISTS idx_clientes_active ON clientes(active);
+CREATE INDEX IF NOT EXISTS idx_clientes_ativo ON clientes(ativo);
 CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
 
 -- =====================================================
@@ -885,7 +885,7 @@ SELECT
     p.*,
     (p.estoque_minimo - p.estoque_atual) as deficit
 FROM produtos p
-WHERE p.active = true 
+WHERE p.ativo = true 
 AND p.estoque_atual <= p.estoque_minimo
 ORDER BY deficit DESC;
 
@@ -909,7 +909,7 @@ SELECT
     END as status_estoque
 FROM produtos p
 LEFT JOIN produto_sabores ps ON p.id = ps.produto_id
-WHERE p.active = true AND ps.ativo = true
+WHERE p.ativo = true AND ps.ativo = true
 ORDER BY p.marca, p.nome, ps.sabor;
 
 -- View: Produtos públicos (para pré-pedidos)
@@ -929,7 +929,7 @@ SELECT
         ELSE 'OK'
     END as status_estoque
 FROM produtos p
-WHERE p.active = true
+WHERE p.ativo = true
   AND p.estoque_atual > 0
 ORDER BY p.marca, p.nome;
 
@@ -953,7 +953,7 @@ SELECT
 FROM produto_sabores s
 INNER JOIN produtos p ON p.id = s.produto_id
 WHERE s.ativo = true
-  AND p.active = true
+  AND p.ativo = true
   AND s.quantidade > 0
 ORDER BY p.marca, p.nome, s.sabor;
 

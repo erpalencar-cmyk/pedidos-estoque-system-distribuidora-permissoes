@@ -9,14 +9,8 @@ async function listMovimentacoes(filters = {}) {
             .from('estoque_movimentacoes')
             .select(`
                 *,
-                produto:produtos(codigo, nome, unidade),
-                usuario:users(full_name),
-                pedido:pedidos(
-                    numero,
-                    tipo_pedido,
-                    fornecedor:fornecedores(nome),
-                    cliente:clientes(nome)
-                )
+                produto:produtos(id, codigo, nome, unidade_medida_padrao),
+                usuario:users(full_name)
             `)
             .order('created_at', { ascending: false })
             .limit(filters.limit || 100);
@@ -25,12 +19,8 @@ async function listMovimentacoes(filters = {}) {
             query = query.eq('produto_id', filters.produto_id);
         }
 
-        if (filters.tipo) {
-            query = query.eq('tipo', filters.tipo);
-        }
-
-        if (filters.pedido_id) {
-            query = query.eq('pedido_id', filters.pedido_id);
+        if (filters.tipo_movimento) {
+            query = query.eq('tipo_movimento', filters.tipo_movimento);
         }
 
         const { data, error } = await query;
@@ -132,7 +122,7 @@ async function getRelatorioEstoque() {
         const { data, error } = await supabase
             .from('produtos')
             .select('*')
-            .eq('active', true)
+            .eq('ativo', true)
             .order('nome');
 
         if (error) throw error;

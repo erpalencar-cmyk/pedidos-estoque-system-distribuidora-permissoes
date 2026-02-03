@@ -498,7 +498,7 @@ SELECT
     MAX(p.created_at) as ultima_compra
 FROM fornecedores f
 LEFT JOIN pedidos p ON p.fornecedor_id = f.id AND p.tipo_pedido = 'COMPRA'
-WHERE f.active = true
+WHERE f.ativo = true
 GROUP BY f.id, f.nome, f.cpf_cnpj, f.avaliacao, f.prazo_medio_entrega;
 
 -- =====================================================
@@ -535,7 +535,7 @@ BEGIN
         p.cst_icms,
         p.aliquota_icms
     FROM produtos p
-    WHERE p.active = true
+    WHERE p.ativo = true
       AND (p.codigo_barras = p_codigo 
            OR p.codigo_barras_embalagem = p_codigo
            OR p.codigo = p_codigo)

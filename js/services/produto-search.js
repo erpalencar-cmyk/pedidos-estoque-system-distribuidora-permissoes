@@ -213,7 +213,7 @@ const ProdutoSearch = {
                     <div class="flex-1">
                         <h4 class="font-medium text-gray-900">${produto.nome}</h4>
                         <div class="text-sm text-gray-500 space-y-1">
-                            ${produto.codigo ? `<p>Código: ${produto.codigo}</p>` : ''}
+                            ${produto.sku ? `<p>SKU: ${produto.sku}</p>` : ''}
                             ${produto.codigo_barras ? `<p>Código de Barras: ${produto.codigo_barras}</p>` : ''}
                             <p>Unidade: ${produto.unidade} | Estoque: ${produto.estoque_atual}</p>
                         </div>

@@ -22,7 +22,7 @@
                 <h2 class="text-3xl font-bold text-gray-900">
                     <i class="fas fa-warehouse mr-3 text-orange-600"></i>Gerenciamento de Estoque
                 </h2>
-                <p class="text-gray-600 mt-2">Controle completo de estoque por produto e sabor</p>
+                <p class="text-gray-600 mt-2">Controle de estoque por produto e lote</p>
             </div>
 
             <!-- Cards de Totais -->
@@ -30,14 +30,12 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600">Sabores em Estoque</p>
-                            <p id="card-total-sabores" class="text-2xl font-bold text-orange-600">0</p>
-                            <p class="text-xs text-gray-500 mt-1">Total de sabores cadastrados</p>
+                            <p class="text-sm text-gray-600">Produtos em Estoque</p>
+                            <p id="card-total-produtos" class="text-2xl font-bold text-orange-600">0</p>
+                            <p class="text-xs text-gray-500 mt-1">Total de produtos</p>
                         </div>
                         <div class="bg-orange-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                            </svg>
+                            <i class="fas fa-boxes text-orange-600 text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -45,14 +43,12 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600">Valor Total Compra</p>
-                            <p id="card-total-compra" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
-                            <p class="text-xs text-gray-500 mt-1">Investimento em estoque</p>
+                            <p class="text-sm text-gray-600">Valor Total Estoque</p>
+                            <p id="card-total-valor" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+                            <p class="text-xs text-gray-500 mt-1">Custo total</p>
                         </div>
                         <div class="bg-blue-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
+                            <i class="fas fa-dollar-sign text-blue-600 text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -60,14 +56,12 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600">Valor Total Venda</p>
-                            <p id="card-total-venda" class="text-2xl font-bold text-green-600">R$ 0,00</p>
-                            <p class="text-xs text-gray-500 mt-1">Valor potencial de venda</p>
+                            <p class="text-sm text-gray-600">Lotes Cadastrados</p>
+                            <p id="card-total-lotes" class="text-2xl font-bold text-green-600">0</p>
+                            <p class="text-xs text-gray-500 mt-1">Lotes rastreados</p>
                         </div>
                         <div class="bg-green-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                            <i class="fas fa-list text-green-600 text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -75,14 +69,12 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600">Margem de Lucro</p>
-                            <p id="card-margem-lucro" class="text-2xl font-bold text-purple-600">R$ 0,00</p>
-                            <p id="card-margem-percentual" class="text-xs text-gray-500 mt-1">0%</p>
+                            <p class="text-sm text-gray-600">Produtos Baixos</p>
+                            <p id="card-produtos-baixos" class="text-2xl font-bold text-red-600">0</p>
+                            <p class="text-xs text-gray-500 mt-1">Abaixo do mínimo</p>
                         </div>
-                        <div class="bg-purple-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                            </svg>
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -94,76 +86,61 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
-                        <select id="filter-marca" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarProdutosFiltro()">
+                        <select id="filter-marca" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="aplicarFiltros()">
                             <option value="">Todas as marcas</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Produto</label>
-                        <select id="filter-produto" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarSaboresFiltro()" disabled>
-                            <option value="">Todos os produtos</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Sabor</label>
-                        <select id="filter-sabor" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="aplicarFiltros()" disabled>
-                            <option value="">Todos os sabores</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+                        <select id="filter-categoria" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="aplicarFiltros()">
+                            <option value="">Todas as categorias</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Situação</label>
                         <select id="filter-situacao" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="aplicarFiltros()">
                             <option value="">Todas</option>
-                            <option value="OK">OK</option>
-                            <option value="BAIXO">Estoque Baixo</option>
                             <option value="ZERADO">Zerado</option>
-                            <option value="BAIXO,OK">Baixo e OK</option>
+                            <option value="BAIXO">Baixo</option>
+                            <option value="OK">OK</option>
                         </select>
                     </div>
-                </div>
-                <div class="mt-4 flex space-x-2">
-                    <button onclick="aplicarFiltros()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                        🔍 Filtrar
-                    </button>
-                    <button onclick="limparFiltros()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
-                        🔄 Limpar
-                    </button>
-                    <button onclick="exportarExcel()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
-                        📊 Exportar Excel
-                    </button>
-                    <button onclick="exportarPDF()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
-                        📄 Exportar PDF
-                    </button>
-                    <button onclick="exportarPDFSimplificado()" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
-                        📋 PDF Simplificado
-                    </button>
+                    <div class="flex items-end gap-2">
+                        <button onclick="limparFiltros()" class="flex-1 px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                            <i class="fas fa-redo mr-2"></i>Limpar
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Tabs -->
+            <!-- Tabs de Estoque -->
             <div class="bg-white rounded-lg shadow">
                 <div class="border-b border-gray-200">
-                    <nav class="flex -mb-px">
+                    <nav class="flex overflow-x-auto">
                         <button onclick="switchTab('estoque-produto')" id="tab-estoque-produto" class="tab-button active py-4 px-6 font-medium text-sm border-b-2 border-blue-600 text-blue-600">
                             📦 Estoque por Produto
                         </button>
-                        <button onclick="switchTab('estoque-sabor')" id="tab-estoque-sabor" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            🍓 Estoque por Sabor
+                        <button onclick="switchTab('estoque-lote')" id="tab-estoque-lote" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                            📋 Estoque por Lote
                         </button>
                         <button onclick="switchTab('mov-produto')" id="tab-mov-produto" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            📊 Movimentações Produto
+                            📊 Movimentações
                         </button>
-                        <button onclick="switchTab('mov-sabor')" id="tab-mov-sabor" class="tab-button py-4 px-6 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            📈 Movimentações Sabor
-                        </button>
+                        <div class="ml-auto flex gap-2 items-center pr-6">
+                            <button onclick="exportarExcel()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">
+                                <i class="fas fa-download mr-2"></i>Excel
+                            </button>
+                            <button onclick="exportarPDF()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm">
+                                <i class="fas fa-file-pdf mr-2"></i>PDF
+                            </button>
+                        </div>
                     </nav>
                 </div>
 
                 <!-- Tab Content: Estoque por Produto -->
                 <div id="content-estoque-produto" class="tab-content p-6">
-                    <div class="mb-4 flex justify-between items-center">
+                    <div class="mb-4">
                         <h3 class="text-lg font-semibold">Estoque Geral por Produto</h3>
-                        <button onclick="exportarCSV('produto')" class="text-green-600 hover:text-green-800 text-sm">📥 Exportar CSV</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -171,25 +148,27 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marca</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estoque Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estoque Atual</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estoque Mínimo</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Situação</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qtd Sabores</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preço Custo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor Total</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-estoque-produto" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                                <tr><td colspan="10" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Tab Content: Estoque por Sabor -->
-                <div id="content-estoque-sabor" class="tab-content p-6 hidden">
-                    <div class="mb-4 flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Estoque Detalhado por Sabor</h3>
-                        <button onclick="exportarCSV('sabor')" class="text-green-600 hover:text-green-800 text-sm">📥 Exportar CSV</button>
+                <!-- Tab Content: Estoque por Lote -->
+                <div id="content-estoque-lote" class="tab-content p-6 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold">Estoque Detalhado por Lote</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -197,26 +176,25 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marca</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sabor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lote</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Situação</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preço Compra</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preço Venda</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margem</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fabricação</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vencimento</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Localização</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-estoque-sabor" class="bg-white divide-y divide-gray-200">
+                            <tbody id="tbody-estoque-lote" class="bg-white divide-y divide-gray-200">
                                 <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Tab Content: Movimentações Produto -->
+                <!-- Tab Content: Movimentações -->
                 <div id="content-mov-produto" class="tab-content p-6 hidden">
-                    <div class="mb-4 flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Movimentações por Produto</h3>
-                        <button onclick="exportarCSV('mov-produto')" class="text-green-600 hover:text-green-800 text-sm">📥 Exportar CSV</button>
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold">Histórico de Movimentações</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -226,42 +204,13 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Anterior</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Novo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pedido / Cliente/Fornecedor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Referência</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-mov-produto" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="9" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tab Content: Movimentações Sabor -->
-                <div id="content-mov-sabor" class="tab-content p-6 hidden">
-                    <div class="mb-4 flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Movimentações por Sabor</h3>
-                        <button onclick="exportarCSV('mov-sabor')" class="text-green-600 hover:text-green-800 text-sm">📥 Exportar CSV</button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sabor</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pedido / Cliente/Fornecedor</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-mov-sabor" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                                <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -271,7 +220,10 @@
     </main>
 
     <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg"><div class="spinner mx-auto"></div><p class="mt-4 text-gray-700">Carregando...</p></div>
+        <div class="bg-white p-6 rounded-lg">
+            <div class="spinner mx-auto"></div>
+            <p class="mt-4 text-gray-700">Carregando...</p>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -286,12 +238,11 @@
     
     <script>
         let todosProdutos = [];
-        let todosSabores = [];
+        let todosLotes = [];
         let todasMovimentacoes = [];
         let filtroAtual = {
             marca: '',
-            produto: '',
-            sabor: '',
+            categoria: '',
             situacao: ''
         };
 
@@ -304,6 +255,7 @@
                 await initSidebar();
                 
                 await carregarMarcasFiltro();
+                await carregarCategoriasFiltro();
                 await carregarDados();
             } catch (error) {
                 console.error('Erro ao inicializar estoque:', error);
@@ -318,91 +270,47 @@
             select.innerHTML = '<option value="">Todas as marcas</option>';
             marcas.forEach(marca => {
                 const option = document.createElement('option');
-                option.value = marca;
-                option.textContent = marca;
+                option.value = marca.nome;
+                option.textContent = marca.nome;
                 select.appendChild(option);
             });
         }
 
-        async function carregarProdutosFiltro() {
-            const marca = document.getElementById('filter-marca').value;
-            const selectProduto = document.getElementById('filter-produto');
-            const selectSabor = document.getElementById('filter-sabor');
-            
-            // Resetar selects
-            selectProduto.innerHTML = '<option value="">Todos os produtos</option>';
-            selectSabor.innerHTML = '<option value="">Todos os sabores</option>';
-            selectSabor.disabled = true;
-            
-            if (!marca) {
-                selectProduto.disabled = true;
-                aplicarFiltros();
-                return;
+        async function carregarCategoriasFiltro() {
+            try {
+                const { data: categorias, error } = await supabase
+                    .from('categorias')
+                    .select('id, nome')
+                    .eq('ativo', true)
+                    .order('nome');
+                
+                if (error) throw error;
+                
+                const select = document.getElementById('filter-categoria');
+                select.innerHTML = '<option value="">Todas as categorias</option>';
+                categorias.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.nome;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar categorias:', error);
             }
-            
-            const produtos = todosProdutos.filter(p => p.marca === marca);
-            produtos.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p.id;
-                option.textContent = p.nome;
-                selectProduto.appendChild(option);
-            });
-            
-            selectProduto.disabled = false;
-            aplicarFiltros();
-        }
-
-        async function carregarSaboresFiltro() {
-            const produtoId = document.getElementById('filter-produto').value;
-            const selectSabor = document.getElementById('filter-sabor');
-            
-            selectSabor.innerHTML = '<option value="">Todos os sabores</option>';
-            
-            if (!produtoId) {
-                selectSabor.disabled = true;
-                aplicarFiltros();
-                return;
-            }
-            
-            // Buscar sabores diretamente da view para ter consistência
-            const { data: sabores, error } = await supabase
-                .from('vw_estoque_sabores')
-                .select('sabor_id, sabor')
-                .eq('produto_id', produtoId)
-                .order('sabor');
-            
-            if (error) {
-                console.error('Erro ao buscar sabores:', error);
-                return;
-            }
-            
-            sabores.forEach(s => {
-                const option = document.createElement('option');
-                option.value = s.sabor_id;
-                option.textContent = s.sabor;
-                selectSabor.appendChild(option);
-            });
-            
-            selectSabor.disabled = false;
-            aplicarFiltros();
         }
 
         function limparFiltros() {
             document.getElementById('filter-marca').value = '';
-            document.getElementById('filter-produto').value = '';
-            document.getElementById('filter-produto').disabled = true;
-            document.getElementById('filter-sabor').value = '';
-            document.getElementById('filter-sabor').disabled = true;
+            document.getElementById('filter-categoria').value = '';
             document.getElementById('filter-situacao').value = '';
             
-            filtroAtual = { marca: '', produto: '', sabor: '', situacao: '' };
+            filtroAtual = { marca: '', categoria: '', situacao: '' };
             aplicarFiltros();
         }
 
         function aplicarFiltros() {
             filtroAtual.marca = document.getElementById('filter-marca').value;
-            filtroAtual.produto = document.getElementById('filter-produto').value;
-            filtroAtual.sabor = document.getElementById('filter-sabor').value;
+            filtroAtual.categoria = document.getElementById('filter-categoria').value;
             filtroAtual.situacao = document.getElementById('filter-situacao').value;
             
             renderizarTabAtiva();
@@ -410,62 +318,53 @@
         }
 
         function calcularTotaisEstoque() {
-            let totalCompra = 0;
-            let totalVenda = 0;
-            let totalSabores = 0; // Contar quantidade de sabores
+            let totalProdutos = 0;
+            let totalValor = 0;
+            let totalLotes = 0;
+            let produtosBaixos = 0;
             
-            // Calcular com base nos sabores em estoque
-            todosSabores.forEach(sabor => {
-                const produto = todosProdutos.find(p => p.id === sabor.produto_id);
-                if (!produto) return;
+            todosProdutos.forEach(p => {
+                if (filtroAtual.marca && p.marca !== filtroAtual.marca) return;
+                if (filtroAtual.categoria && p.categoria_id !== filtroAtual.categoria) return;
                 
-                // Aplicar filtros
-                if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
-                if (filtroAtual.produto && produto.id !== filtroAtual.produto) return;
-                if (filtroAtual.sabor && sabor.sabor_id !== filtroAtual.sabor) return;
+                totalProdutos++;
+                const valorTotal = (p.estoque_atual || 0) * (p.preco_custo || 0);
+                totalValor += valorTotal;
                 
-                // Somar a quantidade em estoque deste sabor
-                const quantidade = sabor.quantidade || 0;
-                totalSabores += quantidade;
-                const precoCompra = produto.preco_compra || 0;
-                const precoVenda = produto.preco_venda || 0;
+                const lotesProduct = todosLotes.filter(l => l.produto_id === p.id && l.ativo);
+                totalLotes += lotesProduct.length;
                 
-                totalCompra += quantidade * precoCompra;
-                totalVenda += quantidade * precoVenda;
+                if ((p.estoque_atual || 0) <= (p.estoque_minimo || 0)) {
+                    produtosBaixos++;
+                }
             });
             
-            const margemLucro = totalVenda - totalCompra;
-            const margemPercentual = totalCompra > 0 ? (margemLucro / totalCompra * 100) : 0;
-            
-            // Atualizar cards
-            document.getElementById('card-total-sabores').textContent = totalSabores;
-            document.getElementById('card-total-compra').textContent = formatCurrency(totalCompra);
-            document.getElementById('card-total-venda').textContent = formatCurrency(totalVenda);
-            document.getElementById('card-margem-lucro').textContent = formatCurrency(margemLucro);
-            document.getElementById('card-margem-percentual').textContent = `${margemPercentual.toFixed(1)}% de margem`;
+            document.getElementById('card-total-produtos').textContent = totalProdutos;
+            document.getElementById('card-total-valor').textContent = formatCurrency(totalValor);
+            document.getElementById('card-total-lotes').textContent = totalLotes;
+            document.getElementById('card-produtos-baixos').textContent = produtosBaixos;
         }
 
         async function carregarDados() {
             showLoading(true);
             try {
-                // Carregar produtos
                 todosProdutos = await listProdutos();
                 
-                // Carregar todos os sabores
-                const { data: sabores, error } = await supabase
-                    .from('vw_estoque_sabores')
-                    .select('*')
-                    .order('marca, produto, sabor');
+                const { data: lotes, error: erroLotes } = await supabase
+                    .from('produto_lotes')
+                    .select('*, produto:produtos(id, nome, marca_id, marca:marcas(id, nome))')
+                    .eq('ativo', true)
+                    .order('created_at', { ascending: false });
                 
-                if (error) throw error;
-                todosSabores = sabores || [];
+                if (erroLotes) throw erroLotes;
+                todosLotes = lotes || [];
                 
-                // Carregar movimentações
                 todasMovimentacoes = await listMovimentacoes({ limit: 500 });
                 
                 renderizarTabAtiva();
                 calcularTotaisEstoque();
             } catch (error) {
+                console.error('❌ Erro ao carregar dados:', error);
                 handleError(error, 'Erro ao carregar dados');
             } finally {
                 showLoading(false);
@@ -473,7 +372,6 @@
         }
 
         function switchTab(tabName) {
-            // Atualizar botões
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active', 'border-blue-600', 'text-blue-600');
                 btn.classList.add('border-transparent', 'text-gray-500');
@@ -481,7 +379,6 @@
             document.getElementById(`tab-${tabName}`).classList.add('active', 'border-blue-600', 'text-blue-600');
             document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
             
-            // Atualizar conteúdo
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
@@ -497,14 +394,11 @@
                 case 'estoque-produto':
                     renderEstoqueProduto();
                     break;
-                case 'estoque-sabor':
-                    renderEstoqueSabor();
+                case 'estoque-lote':
+                    renderEstoqueLote();
                     break;
                 case 'mov-produto':
-                    renderMovimentacoesProduto();
-                    break;
-                case 'mov-sabor':
-                    renderMovimentacoesSabor();
+                    renderMovimentacoes();
                     break;
             }
         }
@@ -512,239 +406,123 @@
         function renderEstoqueProduto() {
             let produtos = [...todosProdutos];
             
-            // Aplicar filtros
             if (filtroAtual.marca) {
                 produtos = produtos.filter(p => p.marca === filtroAtual.marca);
             }
-            if (filtroAtual.produto) {
-                produtos = produtos.filter(p => p.id === filtroAtual.produto);
+            if (filtroAtual.categoria) {
+                produtos = produtos.filter(p => p.categoria_id === filtroAtual.categoria);
             }
             if (filtroAtual.situacao) {
-                // Suportar múltiplos status separados por vírgula
-                const situacoes = filtroAtual.situacao.split(',');
-                produtos = produtos.filter(p => {
-                    const situacao = getSituacaoEstoque(p).tipo;
-                    return situacoes.includes(situacao);
-                });
+                produtos = produtos.filter(p => getSituacaoEstoque(p).tipo === filtroAtual.situacao);
             }
             
             const tbody = document.getElementById('tbody-estoque-produto');
             
             if (produtos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhum produto encontrado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-4 text-center text-gray-500">Nenhum produto encontrado</td></tr>';
                 return;
             }
             
             tbody.innerHTML = produtos.map(p => {
                 const situacao = getSituacaoEstoque(p);
-                const qtdSabores = todosSabores.filter(s => s.produto_id === p.id).length;
-                return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${p.codigo}</td>
-                        <td class="px-6 py-4 text-sm text-gray-700">${p.marca || '-'}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${p.nome}</td>
-                        <td class="px-6 py-4 text-sm"><span class="font-semibold ${situacao.color}">${p.estoque_atual} ${p.unidade}</span></td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${p.estoque_minimo} ${p.unidade}</td>
-                        <td class="px-6 py-4 text-sm">${situacao.badge}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${qtdSabores} sabor${qtdSabores != 1 ? 'es' : ''}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderEstoqueSabor() {
-            let sabores = [...todosSabores];
-            
-            // Recalcular status para incluir ZERADO
-            sabores = sabores.map(s => ({
-                ...s,
-                status_estoque: s.quantidade === 0 ? 'ZERADO' : 
-                               (s.quantidade <= s.estoque_minimo ? 'BAIXO' : 'OK')
-            }));
-            
-            // Aplicar filtros
-            if (filtroAtual.marca) {
-                sabores = sabores.filter(s => s.marca === filtroAtual.marca);
-            }
-            if (filtroAtual.produto) {
-                sabores = sabores.filter(s => s.produto_id === filtroAtual.produto);
-            }
-            if (filtroAtual.sabor) {
-                sabores = sabores.filter(s => s.sabor_id === filtroAtual.sabor);
-            }
-            if (filtroAtual.situacao) {
-                // Suportar múltiplos status separados por vírgula
-                const situacoes = filtroAtual.situacao.split(',');
-                sabores = sabores.filter(s => situacoes.includes(s.status_estoque));
-            }
-            
-            const tbody = document.getElementById('tbody-estoque-sabor');
-            
-            if (sabores.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhum sabor encontrado</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = sabores.map(s => {
-                let situacao, badge;
-                if (s.status_estoque === 'ZERADO') {
-                    situacao = 'text-gray-600';
-                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Zerado</span>';
-                } else if (s.status_estoque === 'BAIXO') {
-                    situacao = 'text-red-600';
-                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Baixo</span>';
-                } else {
-                    situacao = 'text-green-600';
-                    badge = '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">OK</span>';
-                }
-                const margem = s.preco_venda && s.preco_compra 
-                    ? ((s.preco_venda - s.preco_compra) / s.preco_compra * 100).toFixed(1) + '%'
-                    : '-';
+                const valorTotal = (p.estoque_atual || 0) * (p.preco_custo || 0);
                 
                 return `
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm text-gray-700">${s.marca || '-'}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${s.produto_nome || s.produto || '-'}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-blue-600">${s.sabor}</td>
-                        <td class="px-6 py-4 text-sm"><span class="font-semibold ${situacao}">${s.quantidade}</span></td>
-                        <td class="px-6 py-4 text-sm">${badge}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${formatCurrency(s.preco_compra || 0)}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${formatCurrency(s.preco_venda || 0)}</td>
-                        <td class="px-6 py-4 text-sm text-green-600">${margem}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${p.codigo || '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${p.marca || '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${p.categoria_nome || '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900 font-medium">${p.nome}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${p.unidade_medida_padrao || 'UN'}</td>
+                        <td class="px-6 py-4 text-sm"><span class="font-semibold ${situacao.color}">${(p.estoque_atual || 0).toFixed(2)}</span></td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${(p.estoque_minimo || 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 text-sm">${situacao.badge}</td>
+                        <td class="px-6 py-4 text-sm">${formatCurrency(p.preco_custo || 0)}</td>
+                        <td class="px-6 py-4 text-sm font-medium">${formatCurrency(valorTotal)}</td>
                     </tr>
                 `;
             }).join('');
         }
 
-        async function renderMovimentacoesProduto() {
+        function renderEstoqueLote() {
+            let lotes = [...todosLotes];
+            
+            if (filtroAtual.marca) {
+                lotes = lotes.filter(l => l.produto?.marca?.nome === filtroAtual.marca);
+            }
+            
+            const tbody = document.getElementById('tbody-estoque-lote');
+            
+            if (lotes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhum lote encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = lotes.map(l => {
+                const status = l.data_vencimento && new Date(l.data_vencimento) < new Date()
+                    ? '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Vencido</span>'
+                    : '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Ativo</span>';
+                
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm text-gray-700">${l.produto?.marca?.nome || '-'}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${l.produto?.nome || '-'}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-blue-600">${l.numero_lote}</td>
+                        <td class="px-6 py-4 text-sm"><span class="font-semibold text-green-600">${(l.quantidade || 0).toFixed(2)}</span></td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${l.data_fabricacao ? new Date(l.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${l.data_vencimento ? new Date(l.data_vencimento).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td class="px-6 py-4 text-sm">${status}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${l.localizacao || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderMovimentacoes() {
             let movimentacoes = [...todasMovimentacoes];
             
-            // Aplicar filtros
             if (filtroAtual.marca) {
                 const produtosIds = todosProdutos.filter(p => p.marca === filtroAtual.marca).map(p => p.id);
                 movimentacoes = movimentacoes.filter(m => produtosIds.includes(m.produto_id));
-            }
-            if (filtroAtual.produto) {
-                movimentacoes = movimentacoes.filter(m => m.produto_id === filtroAtual.produto);
             }
             
             const tbody = document.getElementById('tbody-mov-produto');
             
             if (movimentacoes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
                 return;
             }
             
             tbody.innerHTML = movimentacoes.map(m => {
-                const tipoBadge = m.tipo === 'ENTRADA'
+                const tipoBadge = m.tipo_movimento === 'ENTRADA'
                     ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Entrada</span>'
                     : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Saída</span>';
-                
-                // Determinar pedido e fornecedor/cliente
-                let pedidoInfo = '-';
-                if (m.pedido) {
-                    const numero = m.pedido.numero || '-';
-                    const entidade = m.pedido.tipo_pedido === 'VENDA' 
-                        ? (m.pedido.cliente?.nome || 'Cliente não informado')
-                        : (m.pedido.fornecedor?.nome || 'Fornecedor não informado');
-                    pedidoInfo = `<div class="text-sm">
-                        <div class="font-medium text-blue-600">${numero}</div>
-                        <div class="text-gray-500 text-xs">${entidade}</div>
-                    </div>`;
-                }
                 
                 return `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm text-gray-600">${formatDateTime(m.created_at)}</td>
                         <td class="px-6 py-4 text-sm">${tipoBadge}</td>
                         <td class="px-6 py-4 text-sm text-gray-900">${m.produto?.nome || '-'}</td>
-                        <td class="px-6 py-4 text-sm font-medium">${m.quantidade}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${m.estoque_anterior}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${m.estoque_novo}</td>
-                        <td class="px-6 py-4">${pedidoInfo}</td>
+                        <td class="px-6 py-4 text-sm font-medium">${(m.quantidade || 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${m.referencia_tipo || '-'}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${m.usuario?.full_name || '-'}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">${m.observacao || '-'}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        async function renderMovimentacoesSabor() {
-            let movimentacoes = todasMovimentacoes.filter(m => m.sabor_id !== null);
-            
-            // Aplicar filtros
-            if (filtroAtual.marca) {
-                const produtosIds = todosProdutos.filter(p => p.marca === filtroAtual.marca).map(p => p.id);
-                movimentacoes = movimentacoes.filter(m => produtosIds.includes(m.produto_id));
-            }
-            if (filtroAtual.produto) {
-                movimentacoes = movimentacoes.filter(m => m.produto_id === filtroAtual.produto);
-            }
-            if (filtroAtual.sabor) {
-                movimentacoes = movimentacoes.filter(m => m.sabor_id === filtroAtual.sabor);
-            }
-            
-            const tbody = document.getElementById('tbody-mov-sabor');
-            
-            if (movimentacoes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhuma movimentação de sabor encontrada</td></tr>';
-                return;
-            }
-            
-            // Buscar informações dos sabores
-            const movimentacoesComSabor = await Promise.all(movimentacoes.map(async m => {
-                if (m.sabor_id) {
-                    const { data: sabor } = await supabase
-                        .from('produto_sabores')
-                        .select('sabor')
-                        .eq('id', m.sabor_id)
-                        .single();
-                    m.sabor_nome = sabor?.sabor || '-';
-                }
-                return m;
-            }));
-            
-            tbody.innerHTML = movimentacoesComSabor.map(m => {
-                const tipoBadge = m.tipo === 'ENTRADA'
-                    ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Entrada</span>'
-                    : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Saída</span>';
-                
-                // Determinar pedido e fornecedor/cliente
-                let pedidoInfo = '-';
-                if (m.pedido) {
-                    const numero = m.pedido.numero || '-';
-                    const entidade = m.pedido.tipo_pedido === 'VENDA' 
-                        ? (m.pedido.cliente?.nome || 'Cliente não informado')
-                        : (m.pedido.fornecedor?.nome || 'Fornecedor não informado');
-                    pedidoInfo = `<div class="text-sm">
-                        <div class="font-medium text-blue-600">${numero}</div>
-                        <div class="text-gray-500 text-xs">${entidade}</div>
-                    </div>`;
-                }
-                
-                return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm text-gray-600">${formatDateTime(m.created_at)}</td>
-                        <td class="px-6 py-4 text-sm">${tipoBadge}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${m.produto?.nome || '-'}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-blue-600">${m.sabor_nome}</td>
-                        <td class="px-6 py-4 text-sm font-medium">${m.quantidade}</td>
-                        <td class="px-6 py-4">${pedidoInfo}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${m.usuario?.full_name || '-'}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">${m.observacao || '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${m.motivo || '-'}</td>
                     </tr>
                 `;
             }).join('');
         }
 
         function getSituacaoEstoque(produto) {
-            if (produto.estoque_atual === 0) {
+            const estoque = produto.estoque_atual || 0;
+            const minimo = produto.estoque_minimo || 0;
+            
+            if (estoque === 0) {
                 return {
                     tipo: 'ZERADO',
                     badge: '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Zerado</span>',
                     color: 'text-red-600'
                 };
-            } else if (produto.estoque_atual <= produto.estoque_minimo) {
+            } else if (estoque <= minimo) {
                 return {
                     tipo: 'BAIXO',
                     badge: '<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Baixo</span>',
@@ -759,15 +537,6 @@
             }
         }
 
-        function exportarCSV(tipo) {
-            // TODO: Implementar exportação CSV
-            showToast('Funcionalidade de exportação em desenvolvimento', 'info');
-        }
-
-        // ========================================
-        // FUNÇÕES DE EXPORTAÇÃO
-        // ========================================
-
         function exportarExcel() {
             const activeTab = document.querySelector('.tab-button.active').id.replace('tab-', '');
             const timestamp = new Date().toLocaleString('pt-BR').replace(/[/:]/g, '-');
@@ -779,22 +548,18 @@
                     dados = obterDadosEstoqueProduto();
                     nomeArquivo = `Estoque_Produto_${timestamp}.xlsx`;
                     break;
-                case 'estoque-sabor':
-                    dados = obterDadosEstoqueSabor();
-                    nomeArquivo = `Estoque_Sabor_${timestamp}.xlsx`;
+                case 'estoque-lote':
+                    dados = obterDadosEstoqueLote();
+                    nomeArquivo = `Estoque_Lote_${timestamp}.xlsx`;
                     break;
                 case 'mov-produto':
-                    dados = obterDadosMovimentacoesProduto();
-                    nomeArquivo = `Movimentacoes_Produto_${timestamp}.xlsx`;
-                    break;
-                case 'mov-sabor':
-                    dados = obterDadosMovimentacoesSabor();
-                    nomeArquivo = `Movimentacoes_Sabor_${timestamp}.xlsx`;
+                    dados = obterDadosMovimentacoes();
+                    nomeArquivo = `Movimentacoes_${timestamp}.xlsx`;
                     break;
             }
 
             if (dados.length === 0) {
-                showToast('Nenhum dado para exportar', 'warning');
+                alert('Nenhum dado para exportar');
                 return;
             }
 
@@ -802,7 +567,6 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Dados');
             XLSX.writeFile(wb, nomeArquivo);
-            showToast('Arquivo Excel exportado com sucesso!', 'success');
         }
 
         function exportarPDF() {
@@ -812,47 +576,32 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            // Cabeçalho
-            doc.setFontSize(18);
+            doc.setFontSize(16);
             doc.text('Gerenciamento de Estoque', 14, 15);
-            doc.setFontSize(10);
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
             doc.text(`Gerado em: ${timestamp}`, 14, 22);
+            doc.setTextColor(0, 0, 0);
 
-            // Filtros aplicados
-            let filtros = [];
-            if (filtroAtual.marca) filtros.push(`Marca: ${document.getElementById('filter-marca').selectedOptions[0].text}`);
-            if (filtroAtual.produto) filtros.push(`Produto: ${document.getElementById('filter-produto').selectedOptions[0].text}`);
-            if (filtroAtual.sabor) filtros.push(`Sabor: ${document.getElementById('filter-sabor').selectedOptions[0].text}`);
-            if (filtroAtual.situacao) filtros.push(`Situação: ${filtroAtual.situacao}`);
-            
-            if (filtros.length > 0) {
-                doc.setFontSize(9);
-                doc.text(`Filtros: ${filtros.join(' | ')}`, 14, 28);
-            }
-
-            let startY = filtros.length > 0 ? 35 : 28;
+            let startY = 28;
 
             switch(activeTab) {
                 case 'estoque-produto':
                     exportarTabelaPDF(doc, 'Estoque por Produto', obterDadosEstoqueProdutoTabela(), startY);
                     break;
-                case 'estoque-sabor':
-                    exportarTabelaPDF(doc, 'Estoque por Sabor', obterDadosEstoqueSaborTabela(), startY);
+                case 'estoque-lote':
+                    exportarTabelaPDF(doc, 'Estoque por Lote', obterDadosEstoqueLoteTabela(), startY);
                     break;
                 case 'mov-produto':
-                    exportarTabelaPDF(doc, 'Movimentações por Produto', obterDadosMovimentacoesProdutoTabela(), startY);
-                    break;
-                case 'mov-sabor':
-                    exportarTabelaPDF(doc, 'Movimentações por Sabor', obterDadosMovimentacoesSaborTabela(), startY);
+                    exportarTabelaPDF(doc, 'Movimentações', obterDadosMovimentacoesTabela(), startY);
                     break;
             }
 
             doc.save(`Estoque_${new Date().toISOString().split('T')[0]}.pdf`);
-            showToast('PDF exportado com sucesso!', 'success');
         }
 
         function exportarTabelaPDF(doc, titulo, dados, startY) {
-            doc.setFontSize(12);
+            doc.setFontSize(11);
             doc.text(titulo, 14, startY);
 
             doc.autoTable({
@@ -861,38 +610,34 @@
                 body: dados.rows,
                 theme: 'grid',
                 headStyles: { fillColor: [59, 130, 246] },
-                styles: { fontSize: 7 }
+                styles: { fontSize: 8 }
             });
         }
 
-        // Funções auxiliares para obter dados
         function obterDadosEstoqueProduto() {
-            let produtosFiltrados = todosProdutos.filter(p => {
-                if (filtroAtual.marca && p.marca !== filtroAtual.marca) return false;
-                if (filtroAtual.produto && p.id !== filtroAtual.produto) return false;
-                
-                const situacao = getSituacaoEstoque(p);
-                if (filtroAtual.situacao) {
-                    // Suportar múltiplos status separados por vírgula
-                    const situacoes = filtroAtual.situacao.split(',');
-                    if (!situacoes.includes(situacao.tipo)) return false;
-                }
-                
-                return true;
-            });
+            let produtos = [...todosProdutos];
+            
+            if (filtroAtual.marca) {
+                produtos = produtos.filter(p => p.marca === filtroAtual.marca);
+            }
+            if (filtroAtual.categoria) {
+                produtos = produtos.filter(p => p.categoria_id === filtroAtual.categoria);
+            }
 
-            return produtosFiltrados.map(p => {
-                const sabores = todosSabores.filter(s => s.produto_id === p.id);
+            return produtos.map(p => {
                 const situacao = getSituacaoEstoque(p);
+                const valorTotal = (p.estoque_atual || 0) * (p.preco_custo || 0);
                 
                 return {
                     'Código': p.codigo || '-',
                     'Marca': p.marca || '-',
+                    'Categoria': p.categoria_nome || '-',
                     'Produto': p.nome,
-                    'Estoque Total': p.estoque_atual,
-                    'Estoque Mínimo': p.estoque_minimo,
+                    'Estoque Atual': (p.estoque_atual || 0).toFixed(2),
+                    'Estoque Mínimo': (p.estoque_minimo || 0).toFixed(2),
                     'Situação': situacao.tipo,
-                    'Qtd Sabores': sabores.length
+                    'Preço Custo': `R$ ${(p.preco_custo || 0).toFixed(2)}`,
+                    'Valor Total': `R$ ${valorTotal.toFixed(2)}`
                 };
             });
         }
@@ -900,125 +645,64 @@
         function obterDadosEstoqueProdutoTabela() {
             const dados = obterDadosEstoqueProduto();
             return {
-                headers: ['Código', 'Marca', 'Produto', 'Estoque', 'Mínimo', 'Situação', 'Sabores'],
-                rows: dados.map(d => [d.Código, d.Marca, d.Produto, d['Estoque Total'], d['Estoque Mínimo'], d.Situação, d['Qtd Sabores']])
+                headers: ['Código', 'Marca', 'Categoria', 'Produto', 'Est. Atual', 'Est. Mín', 'Sit', 'P. Custo', 'Val Total'],
+                rows: dados.map(d => [
+                    d.Código, d.Marca, d.Categoria, d.Produto, 
+                    d['Estoque Atual'], d['Estoque Mínimo'], d.Situação, 
+                    d['Preço Custo'], d['Valor Total']
+                ])
             };
         }
 
-        function obterDadosEstoqueSabor() {
-            // Não aplicar filtros aqui, pegar todos os sabores disponíveis
-            let saboresFiltrados = todosSabores.map(s => ({
-                ...s,
-                status_estoque: s.quantidade === 0 ? 'ZERADO' : 
-                               (s.quantidade <= s.estoque_minimo ? 'BAIXO' : 'OK')
-            })).filter(s => {
-                // Remover filtro de ativo - a view já traz apenas sabores ativos
-                const produto = todosProdutos.find(p => p.id === s.produto_id);
-                if (!produto) return false;
-                
-                if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return false;
-                if (filtroAtual.produto && s.produto_id !== filtroAtual.produto) return false;
-                if (filtroAtual.sabor && s.id !== filtroAtual.sabor) return false;
-                if (filtroAtual.situacao) {
-                    // Suportar múltiplos status separados por vírgula
-                    const situacoes = filtroAtual.situacao.split(',');
-                    if (!situacoes.includes(s.status_estoque)) return false;
-                }
-                
-                return true;
-            });
+        function obterDadosEstoqueLote() {
+            let lotes = [...todosLotes];
+            
+            if (filtroAtual.marca) {
+                lotes = lotes.filter(l => l.produto?.marca === filtroAtual.marca);
+            }
 
-            return saboresFiltrados.map(s => {
-                const produto = todosProdutos.find(p => p.id === s.produto_id);
-                const margemBruta = s.preco_venda && s.preco_compra
-                    ? ((s.preco_venda - s.preco_compra) / s.preco_compra * 100)
-                    : 0;
-                
-                return {
-                    'Marca': produto?.marca || s.marca || '-',
-                    'Produto': s.produto_nome || s.produto || produto?.nome || '-',
-                    'Sabor': s.sabor || '-',
-                    'Quantidade': s.quantidade || 0,
-                    'Situação': s.status_estoque || '-',
-                    'Preço Compra': s.preco_compra ? `R$ ${s.preco_compra.toFixed(2)}` : '-',
-                    'Preço Venda': s.preco_venda ? `R$ ${s.preco_venda.toFixed(2)}` : '-',
-                    'Margem %': margemBruta.toFixed(1) + '%'
-                };
-            });
-        }
-
-        function obterDadosEstoqueSaborTabela() {
-            const dados = obterDadosEstoqueSabor();
-            return {
-                headers: ['Marca', 'Produto', 'Sabor', 'Qtd', 'Situação', 'P. Compra', 'P. Venda', 'Margem'],
-                rows: dados.map(d => [d.Marca, d.Produto, d.Sabor, d.Quantidade, d.Situação, d['Preço Compra'], d['Preço Venda'], d['Margem %']])
-            };
-        }
-
-        function obterDadosMovimentacoesProduto() {
-            let movsFiltradas = todasMovimentacoes.filter(m => {
-                const produto = todosProdutos.find(p => p.id === m.produto_id);
-                if (!produto) return false;
-                
-                if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return false;
-                if (filtroAtual.produto && m.produto_id !== filtroAtual.produto) return false;
-                
-                return true;
-            });
-
-            return movsFiltradas.map(m => ({
-                'Data': formatDateTime(m.created_at),
-                'Tipo': m.tipo,
-                'Produto': m.produto?.nome || '-',
-                'Quantidade': m.quantidade,
-                'Estoque Anterior': m.estoque_anterior,
-                'Estoque Novo': m.estoque_novo,
-                'Usuário': m.usuario?.full_name || '-',
-                'Observação': m.observacao || '-'
+            return lotes.map(l => ({
+                'Marca': l.produto?.marca?.nome || '-',
+                'Produto': l.produto?.nome || '-',
+                'Lote': l.numero_lote,
+                'Quantidade': (l.quantidade || 0).toFixed(2),
+                'Fabricação': l.data_fabricacao ? new Date(l.data_fabricacao).toLocaleDateString('pt-BR') : '-',
+                'Vencimento': l.data_vencimento ? new Date(l.data_vencimento).toLocaleDateString('pt-BR') : '-',
+                'Localização': l.localizacao || '-'
             }));
         }
 
-        function obterDadosMovimentacoesProdutoTabela() {
-            const dados = obterDadosMovimentacoesProduto();
+        function obterDadosEstoqueLoteTabela() {
+            const dados = obterDadosEstoqueLote();
             return {
-                headers: ['Data', 'Tipo', 'Produto', 'Qtd', 'Est. Ant.', 'Est. Novo', 'Usuário', 'Obs'],
-                rows: dados.map(d => [d.Data, d.Tipo, d.Produto, d.Quantidade, d['Estoque Anterior'], d['Estoque Novo'], d.Usuário, d.Observação])
+                headers: ['Marca', 'Produto', 'Lote', 'Qtd', 'Fabricação', 'Vencimento', 'Local'],
+                rows: dados.map(d => [d.Marca, d.Produto, d.Lote, d.Quantidade, d.Fabricação, d.Vencimento, d.Localização])
             };
         }
 
-        function obterDadosMovimentacoesSabor() {
-            let movsFiltradas = todasMovimentacoes.filter(m => {
-                if (!m.sabor_id) return false;
-                
-                const produto = todosProdutos.find(p => p.id === m.produto_id);
-                if (!produto) return false;
-                
-                if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return false;
-                if (filtroAtual.produto && m.produto_id !== filtroAtual.produto) return false;
-                if (filtroAtual.sabor && m.sabor_id !== filtroAtual.sabor) return false;
-                
-                return true;
-            });
+        function obterDadosMovimentacoes() {
+            let movs = [...todasMovimentacoes];
+            
+            if (filtroAtual.marca) {
+                const produtosIds = todosProdutos.filter(p => p.marca === filtroAtual.marca).map(p => p.id);
+                movs = movs.filter(m => produtosIds.includes(m.produto_id));
+            }
 
-            return movsFiltradas.map(m => {
-                const saborInfo = todosSabores.find(s => s.id === m.sabor_id);
-                return {
-                    'Data': formatDateTime(m.created_at),
-                    'Tipo': m.tipo,
-                    'Produto': m.produto?.nome || '-',
-                    'Sabor': saborInfo?.sabor || '-',
-                    'Quantidade': m.quantidade,
-                    'Usuário': m.usuario?.full_name || '-',
-                    'Observação': m.observacao || '-'
-                };
-            });
+            return movs.map(m => ({
+                'Data': formatDateTime(m.created_at),
+                'Tipo': m.tipo_movimento,
+                'Produto': m.produto?.nome || '-',
+                'Quantidade': (m.quantidade || 0).toFixed(2),
+                'Motivo': m.motivo || '-',
+                'Usuário': m.usuario?.full_name || '-'
+            }));
         }
 
-        function obterDadosMovimentacoesSaborTabela() {
-            const dados = obterDadosMovimentacoesSabor();
+        function obterDadosMovimentacoesTabela() {
+            const dados = obterDadosMovimentacoes();
             return {
-                headers: ['Data', 'Tipo', 'Produto', 'Sabor', 'Qtd', 'Usuário', 'Obs'],
-                rows: dados.map(d => [d.Data, d.Tipo, d.Produto, d.Sabor, d.Quantidade, d.Usuário, d.Observação])
+                headers: ['Data', 'Tipo', 'Produto', 'Qtd', 'Motivo', 'Usuário'],
+                rows: dados.map(d => [d.Data, d.Tipo, d.Produto, d.Quantidade, d.Motivo, d.Usuário])
             };
         }
 
@@ -1026,196 +710,8 @@
             return new Date(date).toLocaleString('pt-BR');
         }
 
-        // ========================================
-        // EXPORTAÇÃO PDF SIMPLIFICADO
-        // ========================================
-
-        function exportarPDFSimplificado() {
-            const activeTab = document.querySelector('.tab-button.active').id.replace('tab-', '');
-            const timestamp = new Date().toLocaleString('pt-BR');
-            
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            // Cabeçalho
-            doc.setFontSize(18);
-            doc.text('Gerenciamento de Estoque - Simplificado', 14, 15);
-            doc.setFontSize(10);
-            doc.text(`Gerado em: ${timestamp}`, 14, 22);
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text('(Sem preços de compra e margens)', 14, 27);
-            doc.setTextColor(0, 0, 0);
-
-            // Filtros aplicados
-            let filtros = [];
-            if (filtroAtual.marca) filtros.push(`Marca: ${document.getElementById('filter-marca').selectedOptions[0].text}`);
-            if (filtroAtual.produto) filtros.push(`Produto: ${document.getElementById('filter-produto').selectedOptions[0].text}`);
-            if (filtroAtual.sabor) filtros.push(`Sabor: ${document.getElementById('filter-sabor').selectedOptions[0].text}`);
-            if (filtroAtual.situacao) filtros.push(`Situação: ${filtroAtual.situacao}`);
-            
-            if (filtros.length > 0) {
-                doc.setFontSize(9);
-                doc.text(`Filtros: ${filtros.join(' | ')}`, 14, 33);
-            }
-
-            let startY = filtros.length > 0 ? 40 : 33;
-
-            switch(activeTab) {
-                case 'estoque-produto':
-                    exportarPDFPorMarcaProduto(doc, startY);
-                    break;
-                case 'estoque-sabor':
-                    exportarPDFPorMarcaProduto(doc, startY);
-                    break;
-                case 'mov-produto':
-                    exportarTabelaPDFSimplificado(doc, 'Movimentações por Produto', obterDadosMovimentacoesProdutoTabela(), startY);
-                    break;
-                case 'mov-sabor':
-                    exportarTabelaPDFSimplificado(doc, 'Movimentações por Sabor', obterDadosMovimentacoesSaborTabela(), startY);
-                    break;
-            }
-
-            doc.save(`Estoque_Simplificado_${new Date().toISOString().split('T')[0]}.pdf`);
-            showToast('PDF simplificado exportado com sucesso!', 'success');
-        }
-
-        function exportarPDFPorMarcaProduto(doc, startY) {
-            // Obter dados de sabores filtrados
-            const dados = obterDadosEstoqueSabor();
-            
-            if (dados.length === 0) {
-                doc.setFontSize(10);
-                doc.text('Nenhum dado para exibir', 14, startY);
-                return;
-            }
-
-            // Agrupar por marca e produto
-            const dadosAgrupados = {};
-            
-            dados.forEach(item => {
-                const marca = item.Marca || 'Sem Marca';
-                const produto = item.Produto || 'Sem Produto';
-                
-                if (!dadosAgrupados[marca]) {
-                    dadosAgrupados[marca] = {};
-                }
-                
-                if (!dadosAgrupados[marca][produto]) {
-                    dadosAgrupados[marca][produto] = [];
-                }
-                
-                dadosAgrupados[marca][produto].push(item);
-            });
-
-            let currentY = startY;
-            const pageHeight = doc.internal.pageSize.height;
-
-            // Iterar sobre marcas
-            Object.keys(dadosAgrupados).sort().forEach(marca => {
-                // Verificar se precisa de nova página
-                if (currentY > pageHeight - 40) {
-                    doc.addPage();
-                    currentY = 20;
-                }
-
-                // Título da Marca
-                doc.setFontSize(14);
-                doc.setTextColor(147, 51, 234); // Purple
-                doc.setFont(undefined, 'bold');
-                doc.text(`MARCA: ${marca.toUpperCase()}`, 14, currentY);
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
-                currentY += 8;
-
-                // Iterar sobre produtos da marca
-                Object.keys(dadosAgrupados[marca]).sort().forEach(produto => {
-                    const sabores = dadosAgrupados[marca][produto];
-                    
-                    // Verificar se precisa de nova página
-                    if (currentY > pageHeight - 50) {
-                        doc.addPage();
-                        currentY = 20;
-                    }
-
-                    // Título do Produto
-                    doc.setFontSize(11);
-                    doc.setTextColor(59, 130, 246); // Blue
-                    doc.setFont(undefined, 'bold');
-                    doc.text(`> ${produto}`, 20, currentY);
-                    doc.setFont(undefined, 'normal');
-                    doc.setTextColor(0, 0, 0);
-                    currentY += 5;
-
-                    // Tabela de sabores
-                    const rows = sabores.map(s => [
-                        s.Sabor,
-                        s.Quantidade.toString(),
-                        s.Situação,
-                        s['Preço Venda']
-                    ]);
-
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Sabor', 'Quantidade', 'Situação', 'Preço Venda']],
-                        body: rows,
-                        theme: 'striped',
-                        headStyles: { 
-                            fillColor: [243, 244, 246],
-                            textColor: [55, 65, 81],
-                            fontSize: 8,
-                            fontStyle: 'bold'
-                        },
-                        styles: { 
-                            fontSize: 8,
-                            cellPadding: 2
-                        },
-                        margin: { left: 20 },
-                        tableWidth: 'auto',
-                        columnStyles: {
-                            0: { cellWidth: 60 },
-                            1: { cellWidth: 25, halign: 'center' },
-                            2: { cellWidth: 25, halign: 'center' },
-                            3: { cellWidth: 30, halign: 'right' }
-                        }
-                    });
-
-                    currentY = doc.lastAutoTable.finalY + 8;
-                });
-
-                currentY += 3; // Espaço entre marcas
-            });
-        }
-
-        function exportarTabelaPDFSimplificado(doc, titulo, dados, startY) {
-            doc.setFontSize(12);
-            doc.text(titulo, 14, startY);
-
-            doc.autoTable({
-                startY: startY + 5,
-                head: [dados.headers],
-                body: dados.rows,
-                theme: 'grid',
-                headStyles: { fillColor: [147, 51, 234] }, // Purple
-                styles: { fontSize: 7 }
-            });
-        }
-
-        function obterDadosEstoqueProdutoSimplificado() {
-            const dados = obterDadosEstoqueProduto();
-            return {
-                headers: ['Código', 'Marca', 'Produto', 'Estoque', 'Mínimo', 'Situação', 'Sabores'],
-                rows: dados.map(d => [d.Código, d.Marca, d.Produto, d['Estoque Total'], d['Estoque Mínimo'], d.Situação, d['Qtd Sabores']])
-            };
-        }
-
-        function obterDadosEstoqueSaborSimplificado() {
-            const dados = obterDadosEstoqueSabor();
-            // Remove preço de compra e margem, mantém apenas preço de venda
-            return {
-                headers: ['Marca', 'Produto', 'Sabor', 'Qtd', 'Situação', 'P. Venda'],
-                rows: dados.map(d => [d.Marca, d.Produto, d.Sabor, d.Quantidade, d.Situação, d['Preço Venda']])
-            };
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
         }
     </script>
 </body>

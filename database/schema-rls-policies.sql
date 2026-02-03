@@ -33,23 +33,23 @@ DROP POLICY IF EXISTS "Usuários podem se cadastrar" ON users;
 DROP POLICY IF EXISTS "Apenas ADMIN pode gerenciar usuários" ON users;
 DROP POLICY IF EXISTS "Apenas ADMIN pode deletar usuários" ON users;
 
--- Todos podem ver usuários ativos
-CREATE POLICY "Usuários podem ver outros usuários ativos"
+-- IMPORTANTE: Política permissiva para usuários poderem ler seus próprios dados ou usuários ativos
+CREATE POLICY "Usuários autenticados podem ler"
     ON users FOR SELECT
     TO authenticated
-    USING (active = true);
+    USING (
+        -- Pode ver seus próprios dados (mesmo inativos)
+        auth.uid() = id
+        OR
+        -- Ou pode ver outros usuários ativos
+        ativo = true
+    );
 
--- Usuários podem ver seus próprios dados (mesmo inativos)
-CREATE POLICY "Usuários podem ver seus próprios dados"
-    ON users FOR SELECT
-    TO authenticated
-    USING (auth.uid() = id);
-
--- Permitir auto-cadastro (active=false até aprovação do ADMIN)
+-- Permitir auto-cadastro (ativo=false até aprovação do ADMIN)
 CREATE POLICY "Usuários podem se cadastrar"
     ON users FOR INSERT
     TO authenticated
-    WITH CHECK (auth.uid() = id AND active = false);
+    WITH CHECK (auth.uid() = id);
 
 -- Apenas ADMIN pode atualizar usuários
 CREATE POLICY "Apenas ADMIN pode gerenciar usuários"
@@ -86,7 +86,7 @@ DROP POLICY IF EXISTS "Apenas ADMIN pode deletar produtos" ON produtos;
 CREATE POLICY "Usuários podem ver produtos ativos"
     ON produtos FOR SELECT
     TO authenticated
-    USING (active = true);
+    USING (ativo = true);
 
 -- ADMIN e COMPRADOR podem criar produtos
 CREATE POLICY "ADMIN e COMPRADOR podem criar produtos"
@@ -174,7 +174,7 @@ DROP POLICY IF EXISTS "Apenas ADMIN pode deletar fornecedores" ON fornecedores;
 CREATE POLICY "Usuários podem ver fornecedores ativos"
     ON fornecedores FOR SELECT
     TO authenticated
-    USING (active = true);
+    USING (ativo = true);
 
 -- ADMIN e COMPRADOR podem criar fornecedores
 CREATE POLICY "ADMIN e COMPRADOR podem criar fornecedores"
@@ -222,7 +222,7 @@ DROP POLICY IF EXISTS "Apenas ADMIN pode deletar clientes" ON clientes;
 CREATE POLICY "Usuários podem ver clientes ativos"
     ON clientes FOR SELECT
     TO authenticated
-    USING (active = true);
+    USING (ativo = true);
 
 -- ADMIN, COMPRADOR e VENDEDOR podem criar clientes
 CREATE POLICY "ADMIN e COMPRADOR podem criar clientes"

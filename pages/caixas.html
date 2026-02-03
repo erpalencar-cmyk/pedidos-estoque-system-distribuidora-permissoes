@@ -438,7 +438,7 @@
                     .select(`
                         *,
                         caixas(numero, nome),
-                        users(full_name)
+                        operador_users:operador_id(full_name, email)
                     `)
                     .order('data_abertura', { ascending: false })
                     .limit(50);
@@ -451,10 +451,12 @@
                     return;
                 }
 
-                tbody.innerHTML = sessoes.map(s => `
+                tbody.innerHTML = sessoes.map(s => {
+                    const nomeOperador = s.operador_users?.full_name || s.operador_users?.email || 'Desconhecido';
+                    return `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm text-gray-900">${s.caixas.numero} - ${s.caixas.nome}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${s.users.full_name}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${nomeOperador}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${formatDateTime(s.data_abertura)}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${s.data_fechamento ? formatDateTime(s.data_fechamento) : '-'}</td>
                         <td class="px-6 py-4 text-sm">
@@ -466,7 +468,8 @@
                             ${!s.data_fechamento ? `<button onclick="fecharSessao('${s.id}')" class="text-red-600 hover:text-red-800">Fechar</button>` : ''}
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
 
             } catch (error) {
                 console.error('Erro ao carregar sessões:', error);

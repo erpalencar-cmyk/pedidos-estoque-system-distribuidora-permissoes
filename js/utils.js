@@ -165,7 +165,7 @@ async function checkAuth() {
         // Verificar se o usuário está ativo na tabela users
         const { data: userData, error } = await window.supabase
             .from('users')
-            .select('active')
+            .select('ativo')
             .eq('id', session.user.id)
             .single();
 
@@ -181,7 +181,7 @@ async function checkAuth() {
         }
 
         // Se o usuário não estiver ativo, fazer logout e redirecionar
-        if (!userData || !userData.active) {
+        if (!userData || !userData.ativo) {
             try {
                 await window.supabase.auth.signOut();
             } catch (e) {

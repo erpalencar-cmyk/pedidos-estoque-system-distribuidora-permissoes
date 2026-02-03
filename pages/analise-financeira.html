@@ -419,7 +419,7 @@
                 const { data: prods } = await supabase
                     .from('produtos')
                     .select('*, categoria:categorias(nome)')
-                    .eq('active', true);
+                    .eq('ativo', true);
                 produtos = prods || [];
                 
                 // Popular filtro de marcas
@@ -435,24 +435,24 @@
                     .from('vendas')
                     .select(`
                         *,
-                        itens:venda_itens(*, produto:produtos(id, nome, codigo, marca, preco_custo, categoria_id))
+                        vendas_itens(*, produto:produtos(id, nome, codigo, marca, preco_custo, categoria_id))
                     `)
-                    .eq('status', 'FINALIZADA')
-                    .order('data_venda', { ascending: false });
+                    .eq('status_venda', 'FINALIZADA')
+                    .order('created_at', { ascending: false });
                 vendas = vendasData || [];
 
                 // Carregar contas a pagar (pagas no período)
                 const { data: cpData } = await supabase
                     .from('contas_pagar')
                     .select('*')
-                    .eq('status', 'PAGO');
+                    .eq('status_pagamento', 'PAGO');
                 contasPagar = cpData || [];
 
                 // Carregar contas a receber (recebidas no período)
                 const { data: crData } = await supabase
                     .from('contas_receber')
                     .select('*')
-                    .eq('status', 'RECEBIDO');
+                    .eq('status_pagamento', 'RECEBIDO');
                 contasReceber = crData || [];
 
                 calcularResumo();
@@ -494,10 +494,10 @@
             
             // Filtro de data
             if (filtroAtual.dataInicio) {
-                resultado = resultado.filter(v => v.data_venda >= filtroAtual.dataInicio);
+                resultado = resultado.filter(v => v.created_at >= filtroAtual.dataInicio);
             }
             if (filtroAtual.dataFim) {
-                resultado = resultado.filter(v => v.data_venda <= filtroAtual.dataFim + 'T23:59:59');
+                resultado = resultado.filter(v => v.created_at <= filtroAtual.dataFim + 'T23:59:59');
             }
             
             return resultado;
@@ -583,7 +583,7 @@
             const vendasPorDia = {};
             
             vendasFiltradas.forEach(venda => {
-                const data = venda.data_venda?.split('T')[0];
+                const data = venda.created_at?.split('T')[0];
                 if (!data) return;
                 
                 if (!vendasPorDia[data]) vendasPorDia[data] = 0;
@@ -768,12 +768,12 @@
             const dadosPorDia = {};
             
             vendasFiltradas.forEach(venda => {
-                const data = venda.data_venda?.split('T')[0];
+                const data = venda.created_at?.split('T')[0];
                 if (!data) return;
                 
                 if (!dadosPorDia[data]) dadosPorDia[data] = { receita: 0, custo: 0 };
                 
-                (venda.itens || []).forEach(item => {
+                (venda.vendas_itens || []).forEach(item => {
                     const produto = item.produto;
                     if (!produto) return;
                     
@@ -1014,7 +1014,7 @@
             // Vendas (entradas)
             filtrarVendas().forEach(venda => {
                 movimentacoes.push({
-                    data: venda.data_venda,
+                    data: venda.created_at,
                     tipo: 'ENTRADA',
                     descricao: `Venda ${venda.numero}`,
                     entrada: venda.total || 0,

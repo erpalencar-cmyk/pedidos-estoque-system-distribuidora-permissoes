@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Troubleshooting - PDV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold mb-2">
+                <i class="fas fa-book mr-2 text-blue-600"></i>Guia de Troubleshooting - PDV
+            </h1>
+            <p class="text-gray-600">Se a página PDV mostra caixa aberto quando não deveria</p>
+        </div>
+
+        <!-- Problema 1 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-start">
+                <div class="text-4xl mr-4">❌</div>
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold mb-2">Problema: Mostra "Caixa 1 - CAIXA 1" com cadeado ABERTO</h2>
+                    <p class="text-gray-600 mb-4">Mesmo quando você não tem nenhum caixa aberto</p>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-600 mb-4">
+                        <p class="text-red-800 font-semibold mb-2">Causas Possíveis:</p>
+                        <ul class="text-red-800 space-y-1 ml-4 list-disc">
+                            <li>Há uma sessão aberta no banco DE VERDADE (talvez de outro login)</li>
+                            <li>Sessão não foi fechada corretamente anteriormente</li>
+                            <li>Dados corrompidos no banco de dados</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                        <p class="text-blue-800 font-semibold mb-3">Como Verificar:</p>
+                        <ol class="text-blue-800 space-y-2 ml-4 list-decimal">
+                            <li>
+                                <strong>Abra o Diagnóstico:</strong>
+                                <a href="./diagnostico-caixa.html" class="text-blue-600 hover:underline font-semibold">
+                                    → Clique aqui para diagnosticar
+                                </a>
+                            </li>
+                            <li>
+                                <strong>Interprete o resultado:</strong>
+                                <ul class="ml-4 mt-2 space-y-1 list-circle text-sm">
+                                    <li>Se mostra "✅ Situação CORRETA" → O problema está no JavaScript</li>
+                                    <li>Se mostra "⚠️ Sessão Encontrada" → Há SESSION REAL no banco, é normal mostrar caixa aberto</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solução 1: Se há sessão real -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-start">
+                <div class="text-4xl mr-4">⚠️</div>
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold mb-2">Solução 1: Se há uma SESSÃO REAL no banco</h2>
+                    <p class="text-gray-600 mb-4">Se o diagnóstico mostra "⚠️ Sessão Encontrada"</p>
+                    
+                    <div class="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-600">
+                        <p class="text-orange-800 font-semibold mb-2">Isso significa:</p>
+                        <p class="text-orange-800">Existe uma caixa_sessoes com status='ABERTO' para seu usuário no banco</p>
+                        <p class="text-orange-800 mt-2">A página PDV está mostrando CORRETAMENTE que você tem um caixa aberto!</p>
+                    </div>
+
+                    <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-600 mt-4">
+                        <p class="text-green-800 font-semibold mb-2">Para resolver:</p>
+                        <ol class="text-green-800 space-y-2 ml-4 list-decimal">
+                            <li>
+                                <strong>Feche o caixa pela interface:</strong>
+                                <ul class="ml-4 mt-1 text-sm">
+                                    <li>1. Vá para a página PDV</li>
+                                    <li>2. Clique no botão "Fechar Caixa" (vermelho)</li>
+                                    <li>3. Confirme o fechamento</li>
+                                    <li>4. Recarregue a página (F5)</li>
+                                    <li>5. Agora deve exibir o modal de "Abrir Caixa"</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>OU feche direto no Supabase:</strong>
+                                <ul class="ml-4 mt-1 text-sm">
+                                    <li>1. Acesse: <a href="https://supabase.com" class="text-green-600 hover:underline">https://supabase.com</a></li>
+                                    <li>2. Vá para sua project</li>
+                                    <li>3. Table Editor → caixa_sessoes</li>
+                                    <li>4. Encontre registros com status='ABERTO'</li>
+                                    <li>5. Mude status para 'FECHADO' ou DELETE</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solução 2: Se não há sessão mas mostra aberto -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-start">
+                <div class="text-4xl mr-4">🐛</div>
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold mb-2">Solução 2: Se NENHUMA sessão existe mas mostra aberto</h2>
+                    <p class="text-gray-600 mb-4">Se o diagnóstico mostra "✅ Situação CORRETA" mas a PDV mostra caixa aberto</p>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                        <p class="text-red-800 font-semibold mb-2">Isso significa:</p>
+                        <p class="text-red-800">Há um BUG no JavaScript - dados stale ou cache</p>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600 mt-4">
+                        <p class="text-blue-800 font-semibold mb-2">Para resolver:</p>
+                        <ol class="text-blue-800 space-y-2 ml-4 list-decimal">
+                            <li>
+                                <strong>Limpe o cache do navegador:</strong>
+                                <ul class="ml-4 mt-1 text-sm">
+                                    <li>Chrome/Firefox: Ctrl+Shift+Delete (Windows) ou Cmd+Shift+Delete (Mac)</li>
+                                    <li>Selecione: "Cookies e outros dados"</li>
+                                    <li>Selecione: "Limpar dados"</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Abra o console (F12) → Console:</strong>
+                                <ul class="ml-4 mt-1 text-sm">
+                                    <li>Veja os logs com emojis 🔍 ⭕ ✅ ❌</li>
+                                    <li>Procure por: "⭕ Nenhum caixa aberto"</li>
+                                    <li>Se aparecer, o JavaScript detectou corretamente</li>
+                                    <li>Recarregue (F5) → Deve exibir modal</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Se ainda não funcionar:</strong>
+                                <ul class="ml-4 mt-1 text-sm">
+                                    <li>Feche o navegador completamente</li>
+                                    <li>Abra novamente</li>
+                                    <li>Acesse: <a href="./diagnostico-caixa.html" class="text-blue-600 hover:underline">Diagnóstico</a> novamente</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-check-square mr-2 text-green-600"></i>Checklist de Verificação
+            </h2>
+            
+            <div class="space-y-3">
+                <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input type="checkbox" class="mr-3 w-4 h-4">
+                    <span>Abri o diagnóstico e verifiquei o estado das sessões</span>
+                </label>
+                <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input type="checkbox" class="mr-3 w-4 h-4">
+                    <span>Verifiquei o console (F12) → Console Tab</span>
+                </label>
+                <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input type="checkbox" class="mr-3 w-4 h-4">
+                    <span>Se tinha sessão aberta, cliquei "Fechar Caixa"</span>
+                </label>
+                <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input type="checkbox" class="mr-3 w-4 h-4">
+                    <span>Recarreguei a página (F5) após fechar caixa</span>
+                </label>
+                <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input type="checkbox" class="mr-3 w-4 h-4">
+                    <span>Limpei o cache do navegador se necessário</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Ações Rápidas -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-rocket mr-2 text-blue-600"></i>Ações Rápidas
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="./diagnostico-caixa.html" class="block p-4 bg-blue-50 rounded-lg border-2 border-blue-600 hover:bg-blue-100 text-center">
+                    <div class="text-3xl mb-2">🔍</div>
+                    <p class="font-semibold text-blue-900">Abrir Diagnóstico</p>
+                    <p class="text-sm text-blue-700">Verificar estado das sessões</p>
+                </a>
+
+                <a href="./pages/pdv.html" class="block p-4 bg-green-50 rounded-lg border-2 border-green-600 hover:bg-green-100 text-center">
+                    <div class="text-3xl mb-2">🛒</div>
+                    <p class="font-semibold text-green-900">Abrir PDV</p>
+                    <p class="text-sm text-green-700">Página de vendas</p>
+                </a>
+
+                <a href="./pages/caixas.html" class="block p-4 bg-purple-50 rounded-lg border-2 border-purple-600 hover:bg-purple-100 text-center">
+                    <div class="text-3xl mb-2">💰</div>
+                    <p class="font-semibold text-purple-900">Gerenciar Caixas</p>
+                    <p class="text-sm text-purple-700">Fechar/Abrir caixas</p>
+                </a>
+
+                <button onclick="location.reload()" class="block p-4 bg-gray-50 rounded-lg border-2 border-gray-600 hover:bg-gray-100 text-center cursor-pointer">
+                    <div class="text-3xl mb-2">🔄</div>
+                    <p class="font-semibold text-gray-900">Recarregar Página</p>
+                    <p class="text-sm text-gray-700">F5 do navegador</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-600 text-sm mb-8">
+            <p>Última atualização: 03/02/2026 - Sistema PDV v1.0</p>
+        </div>
+
+    </div>
+</body>
+</html>

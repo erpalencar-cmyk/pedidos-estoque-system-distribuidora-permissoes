@@ -413,16 +413,16 @@ async function gerarPedidoVenda(prePedidoId, clienteId, observacoesEstoque = '')
         
         // Buscar último número do dia
         const { data: ultimoPedido } = await supabase
-            .from('pedidos')
-            .select('numero')
-            .like('numero', `VENDA-${ano}${mes}${dia}-%`)
-            .order('numero', { ascending: false })
+            .from('vendas')
+            .select('numero_nf')
+            .like('numero_nf', `VENDA-${ano}${mes}${dia}-%`)
+            .order('numero_nf', { ascending: false })
             .limit(1)
             .single();
         
         let sequencial = 1;
-        if (ultimoPedido && ultimoPedido.numero) {
-            const partes = ultimoPedido.numero.split('-');
+        if (ultimoPedido && ultimoPedido.numero_nf) {
+            const partes = ultimoPedido.numero_nf.split('-');
             sequencial = parseInt(partes[partes.length - 1]) + 1;
         }
         
@@ -441,13 +441,12 @@ async function gerarPedidoVenda(prePedidoId, clienteId, observacoesEstoque = '')
         }
 
         const { data: pedido, error: errorPedido } = await supabase
-            .from('pedidos')
+            .from('vendas')
             .insert({
-                numero: numeroPedido,
-                tipo_pedido: 'VENDA',
-                solicitante_id: user.id,
+                numero_nf: numeroPedido,
+                operador_id: user.id,
                 cliente_id: clienteId,
-                status: 'RASCUNHO',
+                status_venda: 'RASCUNHO',
                 observacoes: observacoes
             })
             .select()
@@ -457,15 +456,14 @@ async function gerarPedidoVenda(prePedidoId, clienteId, observacoesEstoque = '')
 
         // 5. Copiar itens para o pedido (incluindo sabor_id se houver)
         const itensPedido = prePedido.pre_pedido_itens.map(item => ({
-            pedido_id: pedido.id,
+            venda_id: pedido.id,
             produto_id: item.produto_id,
-            sabor_id: item.sabor_id || null,
             quantidade: item.quantidade,
             preco_unitario: item.preco_unitario
         }));
 
         const { error: errorItens } = await supabase
-            .from('pedido_itens')
+            .from('vendas_itens')
             .insert(itensPedido);
         
         if (errorItens) throw errorItens;

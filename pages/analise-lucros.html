@@ -424,21 +424,23 @@
                 
                 // Carregar vendas finalizadas com itens
                 const { data: pedidos, error } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
                         cliente:clientes(nome),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name)
+                        operador:users!vendas_operador_id_fkey(full_name)
                     `)
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
+                    .eq('status_venda', 'FINALIZADA')
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
                 
                 // Buscar itens de cada pedido
                 vendasFinalizadas = await Promise.all(pedidos.map(async p => {
-                    const itens = await getItensPedido(p.id);
+                    const { data: itens } = await supabase
+                        .from('vendas_itens')
+                        .select('*')
+                        .eq('venda_id', p.id);
                     return { ...p, itens };
                 }));
                 
@@ -927,11 +929,9 @@
         async function carregarValoresPendentes() {
             try {
                 const { data, error } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select('valor_pendente')
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
-                    .in('pagamento_status', ['PENDENTE', 'PARCIAL']);
+                    .neq('status_fiscal', 'PAGO');
                 
                 if (error) throw error;
                 

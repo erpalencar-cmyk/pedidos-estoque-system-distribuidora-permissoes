@@ -11,11 +11,10 @@ async function imprimirPedidoCompra(pedidoId) {
 
         // Buscar dados do pedido
         const { data: pedido, error: pedidoError } = await supabase
-            .from('pedidos')
+            .from('pedidos_compra')
             .select(`
                 *,
-                solicitante:users!pedidos_solicitante_id_fkey(full_name),
-                aprovador:users!pedidos_aprovador_id_fkey(full_name),
+                solicitante:users!pedidos_compra_solicitante_id_fkey(full_name),
                 fornecedor:fornecedores(nome, cnpj, whatsapp, endereco)
             `)
             .eq('id', pedidoId)
@@ -25,9 +24,9 @@ async function imprimirPedidoCompra(pedidoId) {
 
         // Buscar itens do pedido
         const { data: itens, error: itensError } = await supabase
-            .from('pedido_itens')
-            .select('*, produto:produtos(id, codigo, nome, unidade, marca), sabor:produto_sabores(sabor)')
-            .eq('pedido_id', pedidoId)
+            .from('pedido_compra_itens')
+            .select('*, produto:produtos(id, codigo, nome)')
+            .eq('pedido_compra_id', pedidoId)
             .order('created_at', { ascending: true });
 
         if (itensError) throw itensError;
@@ -66,12 +65,11 @@ async function imprimirPedidoVenda(pedidoId) {
 
         // Buscar dados do pedido
         const { data: pedido, error: pedidoError } = await supabase
-            .from('pedidos')
+            .from('vendas')
             .select(`
                 *,
-                solicitante:users!pedidos_solicitante_id_fkey(full_name),
-                aprovador:users!pedidos_aprovador_id_fkey(full_name),
-                cliente:clientes(nome, cpf_cnpj, tipo, contato, whatsapp, endereco, cidade, estado)
+                operador:users!vendas_operador_id_fkey(full_name),
+                cliente:clientes(nome, contato, whatsapp, endereco, cidade, estado)
             `)
             .eq('id', pedidoId)
             .single();
@@ -80,9 +78,9 @@ async function imprimirPedidoVenda(pedidoId) {
 
         // Buscar itens do pedido
         const { data: itens, error: itensError } = await supabase
-            .from('pedido_itens')
-            .select('*, produto:produtos(id, codigo, nome, unidade, marca), sabor:produto_sabores(sabor)')
-            .eq('pedido_id', pedidoId)
+            .from('vendas_itens')
+            .select('*, produto:produtos(id, codigo, nome)')
+            .eq('venda_id', pedidoId)
             .order('created_at', { ascending: true });
 
         if (itensError) throw itensError;

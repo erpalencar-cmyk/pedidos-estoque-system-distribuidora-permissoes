@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpeza de Dados - Caixa Sessões</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold mb-2">
+                <i class="fas fa-broom mr-2 text-red-600"></i>Limpeza de Dados Corrompidos
+            </h1>
+            <p class="text-gray-600">Removendo registros com operador_id = NULL</p>
+        </div>
+
+        <!-- Problema -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>Problema Identificado
+            </h2>
+            
+            <div class="space-y-3">
+                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p class="text-red-800 font-semibold">Na tabela caixa_sessoes há registros com operador_id = NULL</p>
+                </div>
+                
+                <div class="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-600">
+                    <p class="text-orange-800">Isso causa:</p>
+                    <ul class="text-orange-800 ml-4 mt-2 space-y-1 list-disc">
+                        <li>Dados corrompidos no banco</li>
+                        <li>Inconsistência entre telas</li>
+                        <li>PDV mostrando caixa aberto quando não deveria</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solução -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-check-circle mr-2 text-green-600"></i>Solução: Executar Script SQL
+            </h2>
+            
+            <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-600 mb-4">
+                <p class="text-green-800 font-semibold mb-2">Este script vai:</p>
+                <ul class="text-green-800 ml-4 space-y-1 list-disc">
+                    <li>✓ Identificar registros com operador_id = NULL</li>
+                    <li>✓ DELETAR registros corrompidos</li>
+                    <li>✓ Corrigir status inválidos</li>
+                    <li>✓ Validar integridade dos dados</li>
+                </ul>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                <p class="text-blue-800 font-semibold mb-3">Como Executar:</p>
+                <ol class="text-blue-800 space-y-2 ml-4 list-decimal">
+                    <li><strong>Acesse o Supabase:</strong> https://supabase.com</li>
+                    <li><strong>Vá para sua Project</strong></li>
+                    <li><strong>SQL Editor</strong> (menu esquerdo)</li>
+                    <li><strong>Click em "+ New Query"</strong></li>
+                    <li><strong>Cole o script abaixo</strong> inteiro</li>
+                    <li><strong>Click em "Run"</strong> (Ctrl+Enter)</li>
+                    <li><strong>Aguarde completar</strong></li>
+                    <li><strong>Verifique o resultado</strong> no console</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Script -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-code mr-2 text-purple-600"></i>Script SQL
+            </h2>
+            
+            <div class="bg-gray-900 p-4 rounded-lg mb-4">
+                <pre class="text-gray-100 font-mono text-sm overflow-x-auto">-- Script para limpar dados corrompidos em caixa_sessoes
+-- Remove registros com operador_id NULL ou status inválido
+
+-- Passo 1: Verificar quantos registros corrompidos existem
+SELECT COUNT(*) as registros_com_operador_null 
+FROM caixa_sessoes 
+WHERE operador_id IS NULL;
+
+-- Passo 2: Ver os registros corrompidos
+SELECT id, caixa_id, operador_id, status, data_abertura, data_fechamento
+FROM caixa_sessoes 
+WHERE operador_id IS NULL
+ORDER BY data_abertura DESC;
+
+-- Passo 3: DELETAR registros com operador_id NULL
+DELETE FROM caixa_sessoes 
+WHERE operador_id IS NULL;
+
+-- Passo 4: Verificar se há outros registros inválidos
+SELECT COUNT(*) as registros_status_invalido
+FROM caixa_sessoes 
+WHERE status NOT IN ('ABERTO', 'FECHADO');
+
+-- Passo 5: Corrigir registros com status inválido
+UPDATE caixa_sessoes 
+SET status = 'FECHADO' 
+WHERE status NOT IN ('ABERTO', 'FECHADO');
+
+-- Passo 6: Corrigir registros ABERTO que têm data_fechamento
+UPDATE caixa_sessoes 
+SET status = 'FECHADO' 
+WHERE status = 'ABERTO' AND data_fechamento IS NOT NULL;
+
+-- Passo 7: Verificação final
+SELECT 
+    COUNT(*) as total_registros,
+    SUM(CASE WHEN status = 'ABERTO' THEN 1 ELSE 0 END) as abertos,
+    SUM(CASE WHEN status = 'FECHADO' THEN 1 ELSE 0 END) as fechados,
+    SUM(CASE WHEN operador_id IS NULL THEN 1 ELSE 0 END) as operador_null
+FROM caixa_sessoes;
+
+SELECT 'Limpeza concluída com sucesso!' as resultado;</pre>
+            </div>
+
+            <button onclick="copiarScript()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
+                <i class="fas fa-copy mr-2"></i>Copiar Script
+            </button>
+        </div>
+
+        <!-- O que fazer depois -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-arrow-right mr-2 text-blue-600"></i>Depois de Executar
+            </h2>
+            
+            <div class="space-y-3">
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p class="text-blue-800 font-semibold">1. Recarregue a página PDV (F5)</p>
+                </div>
+                
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p class="text-blue-800 font-semibold">2. Verifique o console (F12 → Console)</p>
+                    <p class="text-blue-800 text-sm mt-1">Procure por: "⭕ Nenhum caixa aberto para este operador"</p>
+                </div>
+                
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p class="text-blue-800 font-semibold">3. Se status ficar VERMELHO + Modal aparece</p>
+                    <p class="text-blue-800 text-sm mt-1">✅ Problema Resolvido!</p>
+                </div>
+
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-600">
+                    <p class="text-green-800 font-semibold">4. Abra um novo caixa para testar</p>
+                    <p class="text-green-800 text-sm mt-1">Status deve mudar para VERDE + botão "Fechar Caixa"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verificação no Supabase -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-eye mr-2 text-purple-600"></i>Verificação Rápida no Supabase
+            </h2>
+            
+            <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-600">
+                <p class="text-purple-800 font-semibold mb-2">Antes de limpar, você pode visualizar:</p>
+                <ol class="text-purple-800 space-y-2 ml-4 list-decimal text-sm">
+                    <li>Table Editor → caixa_sessoes</li>
+                    <li>Procure por linhas onde "operador_id" = vazio/NULL</li>
+                    <li>Veja quantas existem</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Avisos -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-warning mr-2 text-orange-600"></i>Avisos Importantes
+            </h2>
+            
+            <div class="space-y-2">
+                <div class="bg-orange-50 p-3 rounded-lg border-l-4 border-orange-600 text-orange-800 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Este script DELETE dados. Tenha certeza de que são dados corrompidos!
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg border-l-4 border-orange-600 text-orange-800 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Considere fazer BACKUP antes de executar
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg border-l-4 border-orange-600 text-orange-800 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>O script é idempotente (seguro para re-executar)
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="./pages/pdv.html" class="block p-4 bg-blue-50 rounded-lg border-2 border-blue-600 hover:bg-blue-100 text-center">
+                <div class="text-3xl mb-2">🛒</div>
+                <p class="font-semibold text-blue-900">Volta para PDV</p>
+                <p class="text-sm text-blue-700">Testar após limpar</p>
+            </a>
+
+            <button onclick="window.open('https://supabase.com', '_blank')" class="block p-4 bg-green-50 rounded-lg border-2 border-green-600 hover:bg-green-100 text-center cursor-pointer">
+                <div class="text-3xl mb-2">🚀</div>
+                <p class="font-semibold text-green-900">Abrir Supabase</p>
+                <p class="text-sm text-green-700">Executar script</p>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        function copiarScript() {
+            const script = `-- Script para limpar dados corrompidos em caixa_sessoes
+-- Remove registros com operador_id NULL ou status inválido
+
+-- Passo 1: Verificar quantos registros corrompidos existem
+SELECT COUNT(*) as registros_com_operador_null 
+FROM caixa_sessoes 
+WHERE operador_id IS NULL;
+
+-- Passo 2: Ver os registros corrompidos
+SELECT id, caixa_id, operador_id, status, data_abertura, data_fechamento
+FROM caixa_sessoes 
+WHERE operador_id IS NULL
+ORDER BY data_abertura DESC;
+
+-- Passo 3: DELETAR registros com operador_id NULL
+DELETE FROM caixa_sessoes 
+WHERE operador_id IS NULL;
+
+-- Passo 4: Verificar se há outros registros inválidos
+SELECT COUNT(*) as registros_status_invalido
+FROM caixa_sessoes 
+WHERE status NOT IN ('ABERTO', 'FECHADO');
+
+-- Passo 5: Corrigir registros com status inválido
+UPDATE caixa_sessoes 
+SET status = 'FECHADO' 
+WHERE status NOT IN ('ABERTO', 'FECHADO');
+
+-- Passo 6: Corrigir registros ABERTO que têm data_fechamento
+UPDATE caixa_sessoes 
+SET status = 'FECHADO' 
+WHERE status = 'ABERTO' AND data_fechamento IS NOT NULL;
+
+-- Passo 7: Verificação final
+SELECT 
+    COUNT(*) as total_registros,
+    SUM(CASE WHEN status = 'ABERTO' THEN 1 ELSE 0 END) as abertos,
+    SUM(CASE WHEN status = 'FECHADO' THEN 1 ELSE 0 END) as fechados,
+    SUM(CASE WHEN operador_id IS NULL THEN 1 ELSE 0 END) as operador_null
+FROM caixa_sessoes;
+
+SELECT 'Limpeza concluída com sucesso!' as resultado;`;
+
+            navigator.clipboard.writeText(script).then(() => {
+                alert('✅ Script copiado para a área de transferência!\n\nAgora:\n1. Abra o Supabase\n2. SQL Editor → New Query\n3. Cole (Ctrl+V)\n4. Execute (Ctrl+Enter)');
+            }).catch(() => {
+                alert('❌ Erro ao copiar. Tente copiar manualmente.');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -330,9 +330,14 @@
             
             try {
                 const { data, error } = await supabase
-                    .from('vw_vendas_aguardando_separacao')
-                    .select('*')
-                    .order('data_finalizacao', { ascending: false });
+                    .from('vendas')
+                    .select(`
+                        *,
+                        cliente:clientes(nome),
+                        vendas_itens(count)
+                    `)
+                    .eq('status_venda', 'FINALIZADA')
+                    .order('created_at', { ascending: false });
                 
                 if (error) throw error;
                 
@@ -414,11 +419,11 @@
             try {
                 // Buscar dados do pedido
                 const { data: pedido, error: erroPedido } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
-                        clientes (nome, whatsapp),
-                        users:solicitante_id (full_name)
+                        cliente:clientes (nome, contato, whatsapp),
+                        operador:users!vendas_operador_id_fkey (full_name)
                     `)
                     .eq('id', pedidoId)
                     .single();
@@ -427,13 +432,12 @@
                 
                 // Buscar itens do pedido
                 const { data: itens, error: erroItens } = await supabase
-                    .from('pedido_itens')
+                    .from('vendas_itens')
                     .select(`
                         *,
-                        produtos (codigo, nome),
-                        produto_sabores (sabor)
+                        produto:produtos (codigo, nome)
                     `)
-                    .eq('pedido_id', pedidoId)
+                    .eq('venda_id', pedidoId)
                     .order('created_at', { ascending: true });
                 
                 if (erroItens) throw erroItens;
@@ -507,7 +511,7 @@
                 console.log('User ID:', user.id);
                 
                 const { data: updateData, error } = await supabase
-                    .from('pedido_itens')
+                    .from('vendas_itens')
                     .update({
                         conferido: conferido,
                         conferido_por: conferido ? user.id : null,
@@ -526,9 +530,9 @@
                 
                 // Recarregar itens para atualizar progresso
                 const { data: itens } = await supabase
-                    .from('pedido_itens')
+                    .from('vendas_itens')
                     .select('*')
-                    .eq('pedido_id', pedidoAtualConferencia);
+                    .eq('venda_id', pedidoAtualConferencia);
                 
                 console.log('Itens recarregados:', itens);
                 console.log('Primeiro item completo:', itens[0]);
@@ -620,9 +624,12 @@
             
             try {
                 const { data, error } = await supabase
-                    .from('vw_vendas_aguardando_despacho')
-                    .select('*')
-                    .order('data_separacao', { ascending: false });
+                    .from('vendas')
+                    .select(`
+                        *,
+                        cliente:clientes(nome)
+                    `)
+                    .order('created_at', { ascending: false });
                 
                 if (error) throw error;
                 
@@ -707,10 +714,10 @@
             
             try {
                 const { data: pedido, error } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
-                        clientes (nome, whatsapp, endereco, cidade, estado, cep)
+                        cliente:clientes (nome, contato, whatsapp, endereco, cidade, estado, cep)
                     `)
                     .eq('id', pedidoId)
                     .single();
@@ -721,15 +728,15 @@
                 
                 const containerEndereco = document.getElementById('modal-despachar-endereco');
                 containerEndereco.innerHTML = `
-                    <p class="font-medium text-gray-800">${pedido.clientes.nome}</p>
-                    <p class="text-gray-600">${pedido.clientes.endereco || 'Endereço não informado'}</p>
-                    <p class="text-gray-600">${pedido.clientes.cidade || ''} - ${pedido.clientes.estado || ''}</p>
-                    <p class="text-gray-600">CEP: ${pedido.clientes.cep || 'Não informado'}</p>
-                    ${pedido.clientes.whatsapp ? `
-                        <a href="https://wa.me/${pedido.clientes.whatsapp.replace(/\D/g, '')}" 
+                    <p class="font-medium text-gray-800">${pedido.cliente.nome}</p>
+                    <p class="text-gray-600">${pedido.cliente.endereco || 'Endereço não informado'}</p>
+                    <p class="text-gray-600">${pedido.cliente.cidade || ''} - ${pedido.cliente.estado || ''}</p>
+                    <p class="text-gray-600">CEP: ${pedido.cliente.cep || 'Não informado'}</p>
+                    ${pedido.cliente.whatsapp ? `
+                        <a href="https://wa.me/${pedido.cliente.whatsapp.replace(/\D/g, '')}" 
                            target="_blank"
                            class="inline-flex items-center text-green-600 hover:text-green-700 mt-2">
-                            <i class="fab fa-whatsapp mr-2"></i>${pedido.clientes.whatsapp}
+                            <i class="fab fa-whatsapp mr-2"></i>${pedido.cliente.whatsapp}
                         </a>
                     ` : ''}
                 `;
@@ -765,7 +772,7 @@
                 // Adicionar observações se houver
                 if (observacoes) {
                     await supabase
-                        .from('pedidos')
+                        .from('vendas')
                         .update({
                             observacoes: observacoes
                         })
@@ -803,24 +810,20 @@
             
             try {
                 let query = supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
-                        clientes (nome),
-                        users:solicitante_id (full_name),
-                        users_separado:separado_por (full_name),
-                        users_despacho:despachado_por (full_name)
+                        cliente:clientes (nome),
+                        operador:users!vendas_operador_id_fkey (full_name)
                     `)
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
-                    .eq('status_envio', 'DESPACHADO')
-                    .order('data_despacho', { ascending: false });
+                    .eq('status_venda', 'FINALIZADA')
+                    .order('created_at', { ascending: false });
                 
                 if (dataInicio) {
-                    query = query.gte('data_despacho', dataInicio);
+                    query = query.gte('created_at', dataInicio);
                 }
                 if (dataFim) {
-                    query = query.lte('data_despacho', dataFim + 'T23:59:59');
+                    query = query.lte('created_at', dataFim + 'T23:59:59');
                 }
                 
                 const { data, error } = await query;

@@ -380,8 +380,8 @@
             try {
                 const { data, error } = await supabase
                     .from('produtos')
-                    .select('id, codigo, codigo_barras, nome, preco_custo, unidade, categoria_id')
-                    .eq('active', true);
+                    .select('id, sku, codigo_barras, nome, preco_custo, unidade, categoria_id')
+                    .eq('ativo', true);
                 
                 if (error) throw error;
                 produtosCadastrados = data || [];
@@ -424,19 +424,39 @@
                     .from('pedidos_compra')
                     .select(`
                         *,
-                        fornecedor:fornecedores(razao_social, nome_fantasia),
-                        itens:pedido_compra_itens(quantidade)
+                        pedido_compra_itens(quantidade)
                     `);
                 
                 if (status) query = query.eq('status', status);
                 if (fornecedorId) query = query.eq('fornecedor_id', fornecedorId);
-                if (search) query = query.or(`numero.ilike.%${search}%,numero_nf.ilike.%${search}%,chave_nfe.ilike.%${search}%`);
+                if (search) query = query.or(`numero.ilike.%${search}%,nf_numero.ilike.%${search}%,nf_chave.ilike.%${search}%`);
                 if (dataInicio) query = query.gte('data_pedido', dataInicio);
                 if (dataFim) query = query.lte('data_pedido', dataFim + 'T23:59:59');
                 
-                const { data, error } = await query.order('created_at', { ascending: false });
+                let { data, error } = await query.order('created_at', { ascending: false });
                 
                 if (error) throw error;
+
+                // Enriquecer com dados dos fornecedores
+                if (data && data.length > 0) {
+                    const fornecedorIds = [...new Set(data.map(p => p.fornecedor_id).filter(Boolean))];
+                    if (fornecedorIds.length > 0) {
+                        const { data: fornecedores } = await supabase
+                            .from('fornecedores')
+                            .select('id, razao_social')
+                            .in('id', fornecedorIds);
+                        
+                        const fornecedoresMap = {};
+                        (fornecedores || []).forEach(f => {
+                            fornecedoresMap[f.id] = f;
+                        });
+                        
+                        data = data.map(p => ({
+                            ...p,
+                            fornecedores: fornecedoresMap[p.fornecedor_id] || null
+                        }));
+                    }
+                }
                 
                 renderPedidos(data || []);
                 calcularEstatisticas(data || []);
@@ -459,14 +479,11 @@
                 const dataFim = document.getElementById('filter-data-fim').value;
 
                 let query = supabase
-                    .from('pedidos')
+                    .from('pedidos_compra')
                     .select(`
                         *,
-                        fornecedor:fornecedores(nome),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name),
-                        pedido_itens(quantidade)
-                    `)
-                    .eq('tipo_pedido', 'COMPRA');
+                        pedido_compra_itens(quantidade)
+                    `);
                 
                 if (status) query = query.eq('status', status);
                 if (fornecedorId) query = query.eq('fornecedor_id', fornecedorId);
@@ -474,9 +491,44 @@
                 if (dataInicio) query = query.gte('created_at', dataInicio + 'T00:00:00');
                 if (dataFim) query = query.lte('created_at', dataFim + 'T23:59:59');
                 
-                const { data, error } = await query.order('created_at', { ascending: false });
+                let { data, error } = await query.order('created_at', { ascending: false });
                 
                 if (error) throw error;
+
+                // Enriquecer com dados dos fornecedores e usuários
+                if (data && data.length > 0) {
+                    const fornecedorIds = [...new Set(data.map(p => p.fornecedor_id).filter(Boolean))];
+                    const usuarioIds = [...new Set(data.map(p => p.usuario_id).filter(Boolean))];
+                    
+                    const fornecedoresMap = {};
+                    const usuariosMap = {};
+                    
+                    if (fornecedorIds.length > 0) {
+                        const { data: fornecedores } = await supabase
+                            .from('fornecedores')
+                            .select('id, razao_social')
+                            .in('id', fornecedorIds);
+                        (fornecedores || []).forEach(f => {
+                            fornecedoresMap[f.id] = f;
+                        });
+                    }
+                    
+                    if (usuarioIds.length > 0) {
+                        const { data: usuarios } = await supabase
+                            .from('users')
+                            .select('id, full_name')
+                            .in('id', usuarioIds);
+                        (usuarios || []).forEach(u => {
+                            usuariosMap[u.id] = u;
+                        });
+                    }
+                    
+                    data = data.map(p => ({
+                        ...p,
+                        fornecedores: fornecedoresMap[p.fornecedor_id] || null,
+                        usuario: usuariosMap[p.usuario_id] || null
+                    }));
+                }
                 
                 renderPedidosLegacy(data || []);
             } catch (error) {
@@ -493,9 +545,9 @@
             }
 
             tbody.innerHTML = pedidos.map(p => {
-                const qtdItens = (p.itens || []).reduce((sum, i) => sum + (i.quantidade || 0), 0);
-                const fornecedor = p.fornecedor?.nome_fantasia || p.fornecedor?.razao_social || '-';
-                const nfInfo = p.numero_nf ? `NF ${p.numero_nf}` : (p.chave_nfe ? `...${p.chave_nfe.slice(-8)}` : '-');
+                const qtdItens = (p.pedido_compra_itens || []).reduce((sum, i) => sum + (i.quantidade || 0), 0);
+                const fornecedor = p.fornecedores?.razao_social || '-';
+                const nfInfo = p.nf_numero ? `NF ${p.nf_numero}` : (p.nf_chave ? `...${p.nf_chave.slice(-8)}` : '-');
                 
                 return `
                 <tr class="hover:bg-gray-50">
@@ -530,13 +582,13 @@
             }
 
             tbody.innerHTML = pedidos.map(p => {
-                const qtdItens = (p.pedido_itens || []).reduce((sum, i) => sum + (i.quantidade || 0), 0);
+                const qtdItens = (p.pedido_compra_itens || []).reduce((sum, i) => sum + (i.quantidade || 0), 0);
                 
                 return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3 text-sm font-medium text-blue-600">${p.numero}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">-</td>
-                    <td class="px-4 py-3 text-sm text-gray-900">${p.fornecedor?.nome || '-'}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${p.fornecedores?.razao_social || '-'}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">${Math.round(qtdItens)}</td>
                     <td class="px-4 py-3 text-sm font-medium text-gray-900">${formatCurrency(p.total)}</td>
                     <td class="px-4 py-3 text-sm">${getStatusBadge(p.status)}</td>
@@ -629,7 +681,7 @@
                     const infNFe = xmlDoc.querySelector('infNFe');
                     const ide = xmlDoc.querySelector('ide');
                     const emit = xmlDoc.querySelector('emit');
-                    const total = xmlDoc.querySelector('total ICMSTot');
+                    const total = xmlDoc.querySelector('total');
                     const det = xmlDoc.querySelectorAll('det');
 
                     // Extrair dados da NFe
@@ -644,12 +696,12 @@
                             nome_fantasia: emit?.querySelector('xFant')?.textContent || '',
                             ie: emit?.querySelector('IE')?.textContent || '',
                             endereco: {
-                                logradouro: emit?.querySelector('enderEmit xLgr')?.textContent || '',
-                                numero: emit?.querySelector('enderEmit nro')?.textContent || '',
-                                bairro: emit?.querySelector('enderEmit xBairro')?.textContent || '',
-                                cidade: emit?.querySelector('enderEmit xMun')?.textContent || '',
-                                uf: emit?.querySelector('enderEmit UF')?.textContent || '',
-                                cep: emit?.querySelector('enderEmit CEP')?.textContent || ''
+                                logradouro: emit?.querySelector('xLgr')?.textContent || '',
+                                numero: emit?.querySelector('nro')?.textContent || '',
+                                bairro: emit?.querySelector('xBairro')?.textContent || '',
+                                cidade: emit?.querySelector('xMun')?.textContent || '',
+                                uf: emit?.querySelector('UF')?.textContent || '',
+                                cep: emit?.querySelector('CEP')?.textContent || ''
                             }
                         },
                         total_produtos: parseFloat(total?.querySelector('vProd')?.textContent || 0),
@@ -659,20 +711,22 @@
                         itens: []
                     };
 
-                    // Extrair itens
+                    // Extrair itens - corrigir seletores para XML correto
                     det.forEach(item => {
                         const prod = item.querySelector('prod');
-                        dadosXMLImportado.itens.push({
-                            codigo: prod?.querySelector('cProd')?.textContent || '',
-                            codigo_barras: prod?.querySelector('cEAN')?.textContent || '',
-                            ncm: prod?.querySelector('NCM')?.textContent || '',
-                            nome: prod?.querySelector('xProd')?.textContent || '',
-                            unidade: prod?.querySelector('uCom')?.textContent || '',
-                            quantidade: parseFloat(prod?.querySelector('qCom')?.textContent || 0),
-                            valor_unitario: parseFloat(prod?.querySelector('vUnCom')?.textContent || 0),
-                            valor_total: parseFloat(prod?.querySelector('vProd')?.textContent || 0),
-                            cfop: prod?.querySelector('CFOP')?.textContent || ''
-                        });
+                        if (prod) {
+                            dadosXMLImportado.itens.push({
+                                codigo: prod?.querySelector('cProd')?.textContent || '',
+                                codigo_barras: prod?.querySelector('cEAN')?.textContent || '',
+                                ncm: prod?.querySelector('NCM')?.textContent || '',
+                                nome: prod?.querySelector('xProd')?.textContent || '',
+                                unidade: prod?.querySelector('uCom')?.textContent || '',
+                                quantidade: parseFloat(prod?.querySelector('qCom')?.textContent || 0),
+                                valor_unitario: parseFloat(prod?.querySelector('vUnCom')?.textContent || 0),
+                                valor_total: parseFloat(prod?.querySelector('vProd')?.textContent || 0),
+                                cfop: prod?.querySelector('CFOP')?.textContent || ''
+                            });
+                        }
                     });
 
                     exibirPreviewXML();
@@ -766,20 +820,48 @@
                 // 1. Cadastrar fornecedor se não existir
                 let fornecedorId = dadosXMLImportado.fornecedor_id;
                 if (!fornecedorId) {
+                    // Preparar dados do fornecedor conforme estrutura real do banco
+                    const novoFornecedorData = {
+                        nome: dadosXMLImportado.fornecedor.nome_fantasia || dadosXMLImportado.fornecedor.razao_social || 'Fornecedor Importado',
+                        razao_social: dadosXMLImportado.fornecedor.razao_social || '',
+                        nome_fantasia: dadosXMLImportado.fornecedor.nome_fantasia || '',
+                        ativo: true
+                    };
+                    
+                    // Adicionar cnpj se disponível
+                    if (dadosXMLImportado.fornecedor.cnpj) {
+                        novoFornecedorData.cnpj = dadosXMLImportado.fornecedor.cnpj;
+                    }
+                    
+                    // Adicionar dados opcionais
+                    if (dadosXMLImportado.fornecedor.ie) {
+                        novoFornecedorData.inscricao_estadual = dadosXMLImportado.fornecedor.ie;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.logradouro) {
+                        novoFornecedorData.endereco = dadosXMLImportado.fornecedor.endereco.logradouro;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.numero) {
+                        novoFornecedorData.numero = dadosXMLImportado.fornecedor.endereco.numero;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.complemento) {
+                        novoFornecedorData.complemento = dadosXMLImportado.fornecedor.endereco.complemento;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.bairro) {
+                        novoFornecedorData.bairro = dadosXMLImportado.fornecedor.endereco.bairro;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.cidade) {
+                        novoFornecedorData.cidade = dadosXMLImportado.fornecedor.endereco.cidade;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.uf) {
+                        novoFornecedorData.estado = dadosXMLImportado.fornecedor.endereco.uf;
+                    }
+                    if (dadosXMLImportado.fornecedor.endereco?.cep) {
+                        novoFornecedorData.cep = dadosXMLImportado.fornecedor.endereco.cep;
+                    }
+                    
                     const { data: novoFornecedor, error: errFornecedor } = await supabase
                         .from('fornecedores')
-                        .insert([{
-                            cnpj: dadosXMLImportado.fornecedor.cnpj,
-                            razao_social: dadosXMLImportado.fornecedor.razao_social,
-                            nome_fantasia: dadosXMLImportado.fornecedor.nome_fantasia || dadosXMLImportado.fornecedor.razao_social,
-                            ie: dadosXMLImportado.fornecedor.ie,
-                            endereco: dadosXMLImportado.fornecedor.endereco.logradouro,
-                            numero: dadosXMLImportado.fornecedor.endereco.numero,
-                            bairro: dadosXMLImportado.fornecedor.endereco.bairro,
-                            cidade: dadosXMLImportado.fornecedor.endereco.cidade,
-                            uf: dadosXMLImportado.fornecedor.endereco.uf,
-                            cep: dadosXMLImportado.fornecedor.endereco.cep
-                        }])
+                        .insert([novoFornecedorData])
                         .select()
                         .single();
                     
@@ -791,16 +873,35 @@
                 const itensParaPedido = [];
                 
                 for (const item of dadosXMLImportado.itens) {
-                    let produtoId = item.produto_id;
+                    // Pular itens com quantidade 0 ou sem preço
+                    if (!item.quantidade || !item.valor_unitario) {
+                        console.warn('Item ignorado (sem quantidade ou preço):', item.nome);
+                        continue;
+                    }
                     
+                    let produtoId = null;
+                    
+                    // Tentar buscar produto existente por código
+                    if (item.codigo) {
+                        const { data: produtoExistente } = await supabase
+                            .from('produtos')
+                            .select('id')
+                            .eq('codigo', item.codigo)
+                            .single();
+                        
+                        if (produtoExistente) {
+                            produtoId = produtoExistente.id;
+                        }
+                    }
+                    
+                    // Se não encontrou e deve cadastrar, criar novo produto
                     if (!produtoId && cadastrarProdutos) {
-                        // Cadastrar novo produto
                         const { data: novoProduto, error: errProduto } = await supabase
                             .from('produtos')
                             .insert([{
-                                codigo: item.codigo,
+                                codigo: item.codigo || `XML-${Date.now()}`,
                                 codigo_barras: item.codigo_barras || null,
-                                nome: item.nome,
+                                nome: item.nome || 'Produto Importado',
                                 unidade: item.unidade || 'UN',
                                 ncm: item.ncm,
                                 preco_custo: item.valor_unitario,
@@ -813,6 +914,8 @@
                         
                         if (!errProduto) {
                             produtoId = novoProduto.id;
+                        } else {
+                            console.error('Erro ao criar produto:', item.nome, errProduto);
                         }
                     } else if (produtoId && atualizarPrecos) {
                         // Atualizar preço de custo
@@ -822,6 +925,7 @@
                             .eq('id', produtoId);
                     }
                     
+                    // Adicionar item ao pedido se conseguiu produto
                     if (produtoId) {
                         itensParaPedido.push({
                             produto_id: produtoId,
@@ -834,17 +938,26 @@
 
                 // 3. Criar pedido de compra
                 const numero = `PC${Date.now().toString().slice(-8)}`;
+                const user = await getCurrentUser();
+                
+                // Gerar UUID no cliente usando crypto.getRandomValues
+                const pedidoId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
                 
                 const { data: pedido, error: errPedido } = await supabase
                     .from('pedidos_compra')
                     .insert([{
+                        id: pedidoId, // Passar ID explicitamente
                         numero: numero,
                         fornecedor_id: fornecedorId,
-                        numero_nf: dadosXMLImportado.numero_nf,
-                        serie_nf: dadosXMLImportado.serie,
-                        chave_nfe: dadosXMLImportado.chave,
+                        usuario_id: user.id,
+                        nf_numero: dadosXMLImportado.numero_nf,
+                        nf_serie: dadosXMLImportado.serie,
+                        nf_chave: dadosXMLImportado.chave,
                         data_pedido: dadosXMLImportado.data_emissao || new Date().toISOString().split('T')[0],
-                        data_emissao_nf: dadosXMLImportado.data_emissao,
                         subtotal: dadosXMLImportado.total_produtos,
                         desconto: dadosXMLImportado.total_desconto,
                         frete: dadosXMLImportado.total_frete,
@@ -856,19 +969,24 @@
                     .single();
 
                 if (errPedido) {
-                    // Tentar com tabela legada
-                    await criarPedidoLegacy(fornecedorId, itensParaPedido);
-                } else {
-                    // 4. Adicionar itens ao pedido
-                    if (itensParaPedido.length > 0) {
-                        const itensComPedido = itensParaPedido.map(item => ({
-                            ...item,
-                            pedido_compra_id: pedido.id
-                        }));
+                    console.error('Erro ao criar pedido:', errPedido);
+                    throw errPedido;
+                }
+                
+                // 4. Adicionar itens ao pedido
+                if (itensParaPedido.length > 0) {
+                    const itensComPedido = itensParaPedido.map(item => ({
+                        ...item,
+                        pedido_compra_id: pedido.id || pedidoId // Usar pedido.id se disponível, caso contrário usar o que foi passado
+                    }));
 
-                        await supabase
-                            .from('pedido_compra_itens')
-                            .insert(itensComPedido);
+                    const { error: errItens } = await supabase
+                        .from('pedido_compra_itens')
+                        .insert(itensComPedido);
+                    
+                    if (errItens) {
+                        console.error('Erro ao adicionar itens:', errItens);
+                        throw errItens;
                     }
                 }
 
@@ -889,12 +1007,11 @@
             const numero = `PC${Date.now().toString().slice(-8)}`;
             
             const { data: pedido, error } = await supabase
-                .from('pedidos')
+                .from('pedidos_compra')
                 .insert([{
                     numero: numero,
-                    tipo_pedido: 'COMPRA',
                     fornecedor_id: fornecedorId,
-                    solicitante_id: user.id,
+                    usuario_id: user.id,
                     total: dadosXMLImportado.total_nf,
                     status: 'APROVADO',
                     observacoes: `Importado via XML NFe ${dadosXMLImportado.numero_nf}`
@@ -906,13 +1023,13 @@
             
             // Adicionar itens
             const itensComPedido = itens.map(item => ({
-                pedido_id: pedido.id,
+                pedido_compra_id: pedido.id,
                 produto_id: item.produto_id,
                 quantidade: item.quantidade,
                 preco_unitario: item.preco_unitario
             }));
             
-            await supabase.from('pedido_itens').insert(itensComPedido);
+            await supabase.from('pedido_compra_itens').insert(itensComPedido);
         }
 
         // ========================================

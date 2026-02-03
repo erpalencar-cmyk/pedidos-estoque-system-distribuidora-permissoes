@@ -359,7 +359,7 @@
                 const { data, error } = await supabase
                     .from('clientes')
                     .select('id, nome, razao_social')
-                    .eq('active', true)
+                    .eq('ativo', true)
                     .order('nome');
 
                 if (error) throw error;
@@ -385,7 +385,7 @@
                     .from('contas_receber')
                     .select(`
                         *,
-                        cliente:clientes(nome, razao_social)
+                        cliente:clientes(nome)
                     `)
                     .order('data_vencimento', { ascending: true });
 

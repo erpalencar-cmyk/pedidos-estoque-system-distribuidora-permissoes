@@ -214,7 +214,7 @@ SELECT
         ELSE 'DISPONIVEL'
     END as status_estoque
 FROM produtos p
-WHERE p.active = true
+WHERE p.ativo = true
 ORDER BY p.nome;
 
 -- View: Resumo de vendas por período

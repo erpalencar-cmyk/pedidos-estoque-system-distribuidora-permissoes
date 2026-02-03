@@ -783,7 +783,7 @@
                 console.log('📝 Atualizando item:', itemId, {quantidade, preco});
                 
                 const { data, error } = await supabase
-                    .from('pedido_itens')
+                    .from('pedido_compra_itens')
                     .update({
                         quantidade: quantidade,
                         preco_unitario: preco
@@ -896,12 +896,12 @@
                         if (item.sabor_id) {
                             const { data: saborAtual, error } = await supabase
                                 .from('produto_sabores')
-                                .select('quantidade, sabor, produtos(codigo)')
+                                .select('quantidade, sabor, produtos(sku)')
                                 .eq('id', item.sabor_id)
                                 .single();
                             
                             console.log('📊 Item do pedido:', {
-                                produto: item.produto?.codigo,
+                                produto: item.produto?.sku,
                                 sabor: item.sabor?.sabor,
                                 quantidade_pedido: item.quantidade,
                                 estoque_atual: saborAtual?.quantidade,
@@ -1012,10 +1012,10 @@
                     // ✅ APENAS mudar status para RASCUNHO
                     // NÃO mexer no estoque - ele já está correto
                     const { error } = await supabase
-                        .from('pedidos')
+                        .from('pedidos_compra')
                         .update({ 
                             status: 'RASCUNHO',
-                            data_finalizacao: null // Limpar data de finalização
+                            data_finalizacao: null
                         })
                         .eq('id', pedidoId);
                     
@@ -1026,7 +1026,7 @@
                 } else {
                     // Outros casos (ex: APROVADO → RASCUNHO sem reverter estoque)
                     const { error } = await supabase
-                        .from('pedidos')
+                        .from('pedidos_compra')
                         .update({ 
                             status: novoStatus,
                             aprovador_id: novoStatus === 'CANCELADO' ? currentUser.id : null
@@ -1079,7 +1079,7 @@
                 const observacoes = document.getElementById('textarea-observacoes').value.trim();
                 
                 const { error } = await supabase
-                    .from('pedidos')
+                    .from('pedidos_compra')
                     .update({ observacoes })
                     .eq('id', pedidoId);
                 

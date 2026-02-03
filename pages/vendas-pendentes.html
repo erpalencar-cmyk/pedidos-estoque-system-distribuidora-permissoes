@@ -186,15 +186,14 @@
                 const filtroStatus = document.getElementById('filtro-status').value;
 
                 let query = supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
                         cliente:clientes(nome, contato, whatsapp),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name)
+                        operador:users!vendas_operador_id_fkey(full_name)
                     `)
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
-                    .in('pagamento_status', ['PENDENTE', 'PARCIAL'])
+                    .eq('status_venda', 'FINALIZADA')
+                    .neq('status_fiscal', 'PAGO')
                     .order('created_at', { ascending: false });
 
                 if (filtroStatus) {
@@ -372,9 +371,9 @@
             try {
                 // Registrar pagamento
                 const { error: pagamentoError } = await supabase
-                    .from('pagamentos')
+                    .from('pagamentos_venda')
                     .insert({
-                        pedido_id: vendaId,
+                        venda_id: vendaId,
                         valor: valor,
                         forma_pagamento: forma,
                         observacao: observacao
@@ -399,7 +398,7 @@
                 }
 
                 const { error: updateError } = await supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .update(updateData)
                     .eq('id', vendaId);
 

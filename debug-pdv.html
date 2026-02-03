@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - PDV Verificação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold mb-4">
+                <i class="fas fa-bug mr-2 text-red-600"></i>Debug - PDV Verificação
+            </h1>
+            
+            <div class="space-y-4">
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <h3 class="font-bold text-blue-900 mb-2">Teste de Verificação de Caixa</h3>
+                    <p class="text-sm text-blue-800 mb-4">
+                        Este teste verifica se o sistema está corretamente:
+                    </p>
+                    <ul class="text-sm text-blue-800 space-y-1 ml-4">
+                        <li>✓ Consultando caixa aberto para o operador atual</li>
+                        <li>✓ Verificando status ABERTO vs FECHADO</li>
+                        <li>✓ Exibindo modal quando nenhum caixa está aberto</li>
+                        <li>✓ Salvando operador_id no banco de dados</li>
+                    </ul>
+                </div>
+
+                <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-600">
+                    <h3 class="font-bold text-yellow-900 mb-2">Como Debugar:</h3>
+                    <ol class="text-sm text-yellow-800 space-y-2 ml-4 list-decimal">
+                        <li>Abra o navegador (F12) → Console</li>
+                        <li>Recarregue a página (F5)</li>
+                        <li>Observe os logs com 🔍 🟢 ✅ ❌ emojis</li>
+                        <li>Procure por mensagens como:
+                            <ul class="ml-4 mt-1 space-y-1">
+                                <li>🔍 Verificando caixa aberto para operador...</li>
+                                <li>⭕ Nenhum caixa aberto para este operador</li>
+                                <li>⏳ Nenhum caixa aberto, exibindo modal...</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-600">
+                    <h3 class="font-bold text-green-900 mb-2">Esperado:</h3>
+                    <ul class="text-sm text-green-800 space-y-1 ml-4">
+                        <li>1️⃣ Se NÃO tem caixa aberto → Modal deve aparecer automaticamente</li>
+                        <li>2️⃣ Status deve aparecer em VERMELHO (Nenhum caixa aberto)</li>
+                        <li>3️⃣ Ao abrir caixa → Status fica VERDE e salva operador_id</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-600">
+                    <h3 class="font-bold text-gray-900 mb-2">Dicas Importantes:</h3>
+                    <ul class="text-sm text-gray-800 space-y-2 ml-4">
+                        <li><strong>Se modal não aparecer:</strong> Verifique console para erro ❌</li>
+                        <li><strong>Se caixa não abre:</strong> Verifique se operador_id está sendo enviado</li>
+                        <li><strong>Se status não muda:</strong> Recarregue a página (F5)</li>
+                        <li><strong>Para limpar:</strong> Feche o caixa em "Caixas" do menu</li>
+                    </ul>
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-600">
+                    <h3 class="font-bold text-indigo-900 mb-2">Fluxo Correto:</h3>
+                    <div class="text-sm text-indigo-800 space-y-1 ml-4">
+                        Página Carrega
+                        ↓<br>
+                        verificarCaixaAberta() executa
+                        ↓<br>
+                        Se data vazia → atualizarStatusCaixa(false)
+                        ↓<br>
+                        Exibe modal "Abrir Caixa"
+                        ↓<br>
+                        Usuário seleciona caixa + valor
+                        ↓<br>
+                        confirmarAbrirCaixa() salva no BD
+                        ↓<br>
+                        atualizarStatusCaixa(true) muda visual para VERDE
+                    </div>
+                </div>
+
+                <button onclick="window.location.href='../pages/pdv.html'" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                    <i class="fas fa-arrow-right mr-2"></i>Voltar para PDV
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Problema Operador Null</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold mb-6">🔍 Debug - Operador Null em caixa_sessoes</h1>
+            
+            <div id="resultado" class="space-y-4">
+                <p class="text-gray-600"><i class="fas fa-spinner fa-spin mr-2"></i>Testando...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script>
+        async function testarInserção() {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = '';
+
+            try {
+                // 1. Teste: Verificar autenticação
+                console.log('=== TESTE 1: Verificar Autenticação ===');
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                
+                adicionarResultado('✅ Autenticação', `Usuário autenticado: ${authUser?.id?.substring(0, 8)}...`);
+                adicionarResultado('Email', authUser?.email);
+
+                if (!authUser) {
+                    adicionarResultado('❌ Erro', 'Usuário não autenticado!');
+                    return;
+                }
+
+                // 2. Teste: Buscar usuário no banco
+                console.log('=== TESTE 2: Buscar Usuário no Banco ===');
+                const { data: usuario, error: erroUser } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', authUser.id)
+                    .single();
+
+                if (erroUser) {
+                    adicionarResultado('❌ Erro ao buscar usuário', erroUser.message);
+                    return;
+                }
+
+                adicionarResultado('✅ Usuário encontrado', `${usuario.full_name} (${usuario.role})`);
+                adicionarResultado('ID do usuário', usuario.id);
+
+                // 3. Teste: Tentar inserir um teste simples
+                console.log('=== TESTE 3: Inserir Teste de Caixa ===');
+                const testData = {
+                    caixa_id: '550e8400-e29b-41d4-a716-446655440000', // UUID fake para teste
+                    operador_id: usuario.id,
+                    valor_abertura: 100,
+                    status: 'ABERTO'
+                };
+
+                adicionarResultado('Dados para inserção', JSON.stringify(testData, null, 2));
+
+                const { data: insertResult, error: erroInsert } = await supabase
+                    .from('caixa_sessoes')
+                    .insert([testData])
+                    .select();
+
+                if (erroInsert) {
+                    adicionarResultado('❌ ERRO ao inserir', erroInsert.message);
+                    adicionarResultado('Código do erro', erroInsert.code);
+                    adicionarResultado('Detalhes', JSON.stringify(erroInsert.details, null, 2));
+                    return;
+                }
+
+                adicionarResultado('✅ Inserção bem-sucedida!', 'Registro inserido com sucesso');
+                adicionarResultado('Registro inserido', JSON.stringify(insertResult[0], null, 2));
+
+                // 4. Teste: Verificar o que foi inserido
+                console.log('=== TESTE 4: Verificar Inserção ===');
+                const { data: verificacao } = await supabase
+                    .from('caixa_sessoes')
+                    .select('*')
+                    .eq('id', insertResult[0].id)
+                    .single();
+
+                adicionarResultado('✅ Verificação', JSON.stringify(verificacao, null, 2));
+
+                // 5. Teste: Deletar registro de teste
+                console.log('=== TESTE 5: Deletar Teste ===');
+                await supabase
+                    .from('caixa_sessoes')
+                    .delete()
+                    .eq('id', insertResult[0].id);
+
+                adicionarResultado('✅ Teste deletado', 'Registro de teste removido');
+
+            } catch (error) {
+                adicionarResultado('❌ Erro Fatal', error.message);
+                console.error('Erro:', error);
+            }
+        }
+
+        function adicionarResultado(titulo, conteudo) {
+            const resultado = document.getElementById('resultado');
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border-l-4 border-blue-600';
+            
+            let html = `<p class="font-semibold text-gray-800">${titulo}</p>`;
+            
+            if (typeof conteudo === 'string' && conteudo.includes('{')) {
+                // Se for JSON, mostrar em pre
+                html += `<pre class="bg-gray-900 text-gray-100 p-2 rounded mt-1 text-xs overflow-x-auto">${conteudo}</pre>`;
+            } else {
+                html += `<p class="text-gray-600 mt-1">${conteudo}</p>`;
+            }
+            
+            div.innerHTML = html;
+            resultado.appendChild(div);
+        }
+
+        // Executar ao carregar
+        window.addEventListener('load', testarInserção);
+    </script>
+</body>
+</html>

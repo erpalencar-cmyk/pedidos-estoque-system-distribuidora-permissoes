@@ -210,14 +210,13 @@
             
             try {
                 let query = supabase
-                    .from('pedidos')
+                    .from('vendas')
                     .select(`
                         *,
                         cliente:clientes(nome),
-                        solicitante:users!pedidos_solicitante_id_fkey(full_name),
-                        pedido_itens(quantidade)
-                    `)
-                    .eq('tipo_pedido', 'VENDA');
+                        operador:users!vendas_operador_id_fkey(full_name),
+                        vendas_itens(quantidade)
+                    `);
                 
                 if (status) {
                     query = query.eq('status', status);
@@ -282,7 +281,7 @@
 
             tbody.innerHTML = vendas.map(venda => {
                 // Calcular quantidade total de itens
-                const quantidadeTotal = (venda.pedido_itens || []).reduce((sum, item) => sum + (item.quantidade || 0), 0);
+                const quantidadeTotal = (venda.vendas_itens || []).reduce((sum, item) => sum + (item.quantidade || 0), 0);
                 
                 // Acumular totais
                 somaQuantidade += quantidadeTotal;
@@ -314,7 +313,7 @@
                         ${formatCurrency(venda.total || 0)}${badgePagamento}
                     </td>
                     <td class="px-6 py-4">
-                        ${getStatusBadge(venda.status)}
+                        ${getStatusBadge(venda.status_venda)}
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500">
                         ${formatDate(venda.created_at)}

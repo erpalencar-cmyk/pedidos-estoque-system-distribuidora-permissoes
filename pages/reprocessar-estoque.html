@@ -277,11 +277,18 @@
             addLog('Carregando status do sistema...', 'process');
             
             try {
-                // Contar pedidos finalizados
-                const { count: pedidos, error: e1 } = await supabaseClient
-                    .from('pedidos')
+                // Contar vendas finalizadas
+                const { count: vendas, error: e0 } = await supabaseClient
+                    .from('vendas')
                     .select('*', { count: 'exact', head: true })
-                    .eq('status', 'FINALIZADO');
+                    .eq('status_venda', 'FINALIZADA');
+                
+                if (e0) throw e0;
+                
+                // Contar pedidos de compra finalizados
+                const { count: pedidos, error: e1 } = await supabaseClient
+                    .from('pedidos_compra')
+                    .select('*', { count: 'exact', head: true });
                 
                 if (e1) throw e1;
 
@@ -294,12 +301,12 @@
 
                 // Somar estoque
                 const { data: estoque, error: e3 } = await supabaseClient
-                    .from('vw_estoque_sabores')
-                    .select('quantidade');
+                    .from('produtos')
+                    .select('estoque_atual');
                 
                 if (e3) throw e3;
 
-                const totalEstoque = estoque?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+                const totalEstoque = estoque?.reduce((sum, item) => sum + (item.estoque_atual || 0), 0) || 0;
 
                 // Tentar verificar se existe backup (sem usar RPC)
                 let backupExists = false;
@@ -482,31 +489,40 @@
         // Carregar pedidos processados
         async function carregarPedidosProcessados() {
             try {
-                addLog('Carregando detalhes dos pedidos processados...', 'process');
+                addLog('Carregando vendas finalizadas...', 'process');
+                
+                // Buscar vendas finalizadas
+                const { data: vendas, error: e1 } = await supabaseClient
+                    .from('vendas')
+                    .select(`
+                        *,
+                        cliente:clientes(nome),
+                        itens:vendas_itens(quantidade)
+                    `)
+                    .eq('status_venda', 'FINALIZADA')
+                    .order('created_at', { ascending: false });
 
-                // Buscar pedidos finalizados com seus itens
-                const { data: pedidos, error } = await supabaseClient
-                    .from('pedidos')
+                if (e1) throw e1;
+                
+                addLog('Carregando pedidos de compra finalizados...', 'process');
+                
+                // Buscar pedidos de compra
+                const { data: compras, error: e2 } = await supabaseClient
+                    .from('pedidos_compra')
                     .select(`
                         *,
                         fornecedor:fornecedores(nome),
-                        cliente:clientes(nome),
-                        itens:pedido_itens(quantidade)
+                        itens:pedido_compra_itens(quantidade)
                     `)
-                    .eq('status', 'FINALIZADO')
-                    .order('data_finalizacao', { ascending: false });
+                    .order('created_at', { ascending: false });
 
-                if (error) throw error;
+                if (e2) throw e2;
 
-                // Separar em compras e vendas
-                const compras = pedidos.filter(p => p.tipo_pedido === 'COMPRA');
-                const vendas = pedidos.filter(p => p.tipo_pedido === 'VENDA');
-
-                // Renderizar compras
-                renderPedidos(compras, 'compras');
-                
                 // Renderizar vendas
                 renderPedidos(vendas, 'vendas');
+                
+                // Renderizar compras
+                renderPedidos(compras, 'compras');
 
                 // Mostrar container
                 document.getElementById('pedidos-processados-container').style.display = 'block';

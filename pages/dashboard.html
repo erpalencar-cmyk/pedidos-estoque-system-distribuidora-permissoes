@@ -432,8 +432,8 @@
             try {
                 const { data: produtos, error } = await supabase
                     .from('produtos')
-                    .select('id, codigo, nome, marca, estoque_atual, estoque_minimo, unidade')
-                    .eq('active', true);
+                    .select('id, sku, nome, marca, estoque_atual, estoque_minimo, unidade')
+                    .eq('ativo', true);
 
                 if (error) throw error;
 
@@ -451,7 +451,7 @@
                         <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border-l-4 border-orange-400">
                             <div class="flex-1">
                                 <p class="font-medium text-gray-900">${p.nome}</p>
-                                <p class="text-sm text-gray-600">${p.marca || ''} - ${p.codigo}</p>
+                                <p class="text-sm text-gray-600">${p.marca || ''} - ${p.sku}</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-sm font-semibold text-orange-600">
@@ -479,7 +479,7 @@
                     .from('produto_lotes')
                     .select(`
                         id, numero_lote, data_validade, quantidade_atual,
-                        produto:produtos(nome, codigo, marca)
+                        produto:produtos(nome, sku, marca)
                     `)
                     .eq('status', 'ATIVO')
                     .gt('quantidade_atual', 0)
@@ -543,7 +543,7 @@
                     .from('contas_pagar')
                     .select(`
                         id, descricao, valor_original, valor_pago, data_vencimento, status,
-                        fornecedor:fornecedores(razao_social, nome_fantasia)
+                        fornecedor:fornecedores(razao_social)
                     `)
                     .in('status', ['PENDENTE', 'VENCIDO', 'PAGO_PARCIAL'])
                     .lte('data_vencimento', em7dias.toISOString().split('T')[0])
@@ -607,7 +607,7 @@
                     .from('contas_receber')
                     .select(`
                         id, descricao, valor_original, valor_recebido, data_vencimento, status,
-                        cliente:clientes(nome, razao_social)
+                        cliente:clientes(nome)
                     `)
                     .in('status', ['PENDENTE', 'VENCIDO', 'RECEBIDO_PARCIAL'])
                     .lte('data_vencimento', em7dias.toISOString().split('T')[0])
@@ -666,7 +666,7 @@
                 const { data: vendas, error } = await supabase
                     .from('vendas')
                     .select(`
-                        id, numero, total, data_venda, forma_pagamento, status,
+                        id, numero_nf, total, data_venda, forma_pagamento, status,
                         cliente:clientes(nome)
                     `)
                     .order('data_venda', { ascending: false })

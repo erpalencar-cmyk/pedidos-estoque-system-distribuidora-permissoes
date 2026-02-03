@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Layout - PDV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🧪 Teste de Layout - PDV</h1>
+
+        <!-- TESTE 1: Layout Original (com problema) -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">❌ ORIGINAL (com sobreposição)</h2>
+            <div class="bg-red-100 text-red-800 p-4 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div class="flex items-center">
+                    <i class="fas fa-lock mr-2 text-lg"></i>
+                    <div>
+                        <div class="font-bold">Nenhum caixa aberto</div>
+                        <div class="text-sm">Abra um caixa para começar</div>
+                    </div>
+                </div>
+                <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 whitespace-nowrap flex-shrink-0">
+                    <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                </button>
+            </div>
+        </div>
+
+        <!-- TESTE 2: Layout Corrigido (v1) -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">✅ CORRIGIDO v1 (SM breakpoint)</h2>
+            <div class="bg-red-100 text-red-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 items-start">
+                <div class="flex items-center flex-1 min-w-0">
+                    <i class="fas fa-lock mr-2 text-lg flex-shrink-0"></i>
+                    <div class="min-w-0">
+                        <div class="font-bold">Nenhum caixa aberto</div>
+                        <div class="text-sm break-words">Abra um caixa para começar</div>
+                    </div>
+                </div>
+                <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                    <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                </button>
+            </div>
+        </div>
+
+        <!-- TESTE 3: Layout Stack (força coluna sempre) -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">✅ STACK (coluna em mobile, linha em desktop)</h2>
+            <div class="bg-red-100 text-red-800 p-4 rounded-lg">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-lock mr-2 text-lg"></i>
+                    <div>
+                        <div class="font-bold">Nenhum caixa aberto</div>
+                        <div class="text-sm">Abra um caixa para começar</div>
+                    </div>
+                </div>
+                <button class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                </button>
+            </div>
+        </div>
+
+        <!-- TESTE 4: Teste em diferentes resoluções -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">📱 Dimensões de Teste</h2>
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-600 mb-2">Celular (320px)</p>
+                    <div class="w-80 mx-auto border-2 border-blue-500 p-4 bg-gray-50">
+                        <div class="bg-red-100 text-red-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 items-start">
+                            <div class="flex items-center flex-1 min-w-0">
+                                <i class="fas fa-lock mr-2 text-lg flex-shrink-0"></i>
+                                <div class="min-w-0">
+                                    <div class="font-bold">Nenhum caixa aberto</div>
+                                    <div class="text-sm break-words">Abra um caixa para começar</div>
+                                </div>
+                            </div>
+                            <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                                <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-600 mb-2">Tablet (640px)</p>
+                    <div class="w-full sm:w-96 mx-auto border-2 border-green-500 p-4 bg-gray-50">
+                        <div class="bg-red-100 text-red-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 items-start">
+                            <div class="flex items-center flex-1 min-w-0">
+                                <i class="fas fa-lock mr-2 text-lg flex-shrink-0"></i>
+                                <div class="min-w-0">
+                                    <div class="font-bold">Nenhum caixa aberto</div>
+                                    <div class="text-sm break-words">Abra um caixa para começar</div>
+                                </div>
+                            </div>
+                            <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                                <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESUMO -->
+        <div class="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-600">
+            <h2 class="text-xl font-bold mb-4">📊 Resumo das Mudanças</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li>✅ <strong>md:</strong> → <strong>sm:</strong> (breakpoint mais sensível)</li>
+                <li>✅ <strong>gap-3</strong> → <strong>gap-4</strong> (mais espaço)</li>
+                <li>✅ Adicionado <strong>flex-1 min-w-0</strong> no texto (permite wrapping)</li>
+                <li>✅ Adicionado <strong>break-words</strong> no "começar"</li>
+                <li>✅ Botão: <strong>w-full sm:w-auto</strong> (full mobile, auto desktop)</li>
+                <li>✅ Ícone: <strong>flex-shrink-0</strong> (não encolhe)</li>
+                <li>✅ Texto: <strong>min-w-0</strong> (permite encolher)</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

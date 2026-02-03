@@ -360,7 +360,7 @@
                 const { data, error } = await supabase
                     .from('fornecedores')
                     .select('id, razao_social, nome_fantasia')
-                    .eq('active', true)
+                    .eq('ativo', true)
                     .order('razao_social');
 
                 if (error) throw error;

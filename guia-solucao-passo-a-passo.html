@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Passo-a-Passo - Solução do Problema</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen p-8">
+        <div class="max-w-2xl mx-auto">
+            
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+                <div class="text-center">
+                    <div class="text-5xl mb-4">🚀</div>
+                    <h1 class="text-4xl font-bold mb-2">Solução do Problema</h1>
+                    <p class="text-gray-600 text-lg">PDV mostrando caixa aberto quando não deveria</p>
+                </div>
+            </div>
+
+            <!-- O Problema -->
+            <div class="bg-red-50 rounded-lg shadow-lg p-6 mb-6 border-l-4 border-red-600">
+                <h2 class="text-2xl font-bold text-red-800 mb-3">
+                    <i class="fas fa-bug mr-2"></i>O Problema
+                </h2>
+                <div class="bg-white p-4 rounded mb-3 text-gray-700">
+                    <p class="font-semibold mb-2">📺 Na tela:</p>
+                    <p>Mostra "Caixa 1 - CAIXA 1" com 🔓 (cadeado aberto)</p>
+                </div>
+                <div class="bg-white p-4 rounded text-gray-700">
+                    <p class="font-semibold mb-2">💾 Na realidade:</p>
+                    <p>Nenhum caixa está aberto no banco de dados</p>
+                </div>
+            </div>
+
+            <!-- Causa Raiz -->
+            <div class="bg-orange-50 rounded-lg shadow-lg p-6 mb-6 border-l-4 border-orange-600">
+                <h2 class="text-2xl font-bold text-orange-800 mb-3">
+                    <i class="fas fa-microscope mr-2"></i>Causa Raiz
+                </h2>
+                <div class="bg-white p-4 rounded text-gray-700 space-y-2">
+                    <p><strong>Encontrados registros com:</strong></p>
+                    <code class="bg-gray-100 p-2 rounded block">operador_id = NULL</code>
+                    <p class="text-sm text-gray-600 mt-2">Estes são dados corrompidos de sessões incompletas anteriores.</p>
+                </div>
+            </div>
+
+            <!-- Passo 1 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        1
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Acesse a Ferramenta de Limpeza</h3>
+                        <a href="./limpeza-dados-caixa.html" class="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                            <i class="fas fa-arrow-right mr-2"></i>Ir para Limpeza
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passo 2 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        2
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Copie o Script SQL</h3>
+                        <p class="text-gray-600 mb-3">Na página de limpeza, clique em <strong>"Copiar Script"</strong></p>
+                        <div class="bg-gray-50 p-3 rounded text-sm">
+                            <i class="fas fa-check text-green-600 mr-2"></i>Script será copiado para a área de transferência
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passo 3 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        3
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Abra o Supabase SQL Editor</h3>
+                        <ol class="text-gray-600 space-y-2 ml-4 list-decimal">
+                            <li>Acesse <a href="https://supabase.com" target="_blank" class="text-blue-600 underline">supabase.com</a></li>
+                            <li>Entre na sua Project</li>
+                            <li>Clique em <strong>SQL Editor</strong> (no menu esquerdo)</li>
+                            <li>Clique em <strong>"+ New Query"</strong></li>
+                        </ol>
+                        <button onclick="window.open('https://supabase.com', '_blank')" class="mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            <i class="fas fa-external-link-alt mr-2"></i>Abrir Supabase
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passo 4 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        4
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Cole e Execute o Script</h3>
+                        <ol class="text-gray-600 space-y-2 ml-4 list-decimal">
+                            <li>Cole o script (Ctrl+V) na query</li>
+                            <li>Clique em <strong>Run</strong></li>
+                            <li>Aguarde completar</li>
+                        </ol>
+                        <div class="bg-green-50 p-3 rounded mt-3 text-green-800 text-sm">
+                            <i class="fas fa-check mr-2"></i>Você verá uma mensagem confirmando a limpeza
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passo 5 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        5
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Verifique se Funcionou</h3>
+                        <p class="text-gray-600 mb-3">Abra a ferramenta de diagnóstico para verificar:</p>
+                        <a href="./diagnostico-caixa.html" class="inline-block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold">
+                            <i class="fas fa-stethoscope mr-2"></i>Abrir Diagnóstico
+                        </a>
+                        <p class="text-sm text-gray-600 mt-3">Deve mostrar: <span class="font-semibold text-green-600">✅ Situação CORRETA</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passo 6 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        6
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-3">Teste no PDV</h3>
+                        <p class="text-gray-600 mb-3">Recarregue a página do PDV (F5):</p>
+                        <a href="./pages/pdv.html" class="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold">
+                            <i class="fas fa-shopping-cart mr-2"></i>Abrir PDV
+                        </a>
+                        <div class="bg-green-50 p-3 rounded mt-3 text-green-800 text-sm space-y-1">
+                            <p><i class="fas fa-check mr-2"></i>Deve mostrar: <strong>Nenhum caixa aberto</strong> (vermelho)</p>
+                            <p><i class="fas fa-check mr-2"></i>Deve exibir: <strong>Modal para abrir caixa</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultado Esperado -->
+            <div class="bg-green-50 rounded-lg shadow-lg p-6 mb-6 border-l-4 border-green-600">
+                <h2 class="text-2xl font-bold text-green-800 mb-4">
+                    <i class="fas fa-star mr-2"></i>Resultado Esperado
+                </h2>
+                <div class="space-y-3">
+                    <div class="bg-white p-3 rounded text-gray-700">
+                        <p class="font-semibold mb-1">✅ Status do Caixa</p>
+                        <p>Mostrar vermelho com mensagem "Nenhum caixa aberto"</p>
+                    </div>
+                    <div class="bg-white p-3 rounded text-gray-700">
+                        <p class="font-semibold mb-1">✅ Modal Automático</p>
+                        <p>Exibir modal "Abrir Caixa" automaticamente</p>
+                    </div>
+                    <div class="bg-white p-3 rounded text-gray-700">
+                        <p class="font-semibold mb-1">✅ Console (F12)</p>
+                        <p>Ver log: "⭕ Nenhum caixa aberto para este operador"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dúvidas -->
+            <div class="bg-blue-50 rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600">
+                <h2 class="text-2xl font-bold text-blue-800 mb-4">
+                    <i class="fas fa-question-circle mr-2"></i>Dúvidas?
+                </h2>
+                <div class="space-y-2 text-blue-800 text-sm">
+                    <p><strong>P: O script vai deletar meus dados bons?</strong></p>
+                    <p class="ml-4 text-gray-700">R: Não, apenas deleta registros com operador_id = NULL (dados corrompidos)</p>
+                    
+                    <p class="mt-3"><strong>P: É seguro re-executar o script?</strong></p>
+                    <p class="ml-4 text-gray-700">R: Sim, é idempotente (roda sempre com o mesmo resultado)</p>
+                    
+                    <p class="mt-3"><strong>P: E se o problema continuar?</strong></p>
+                    <p class="ml-4 text-gray-700">R: Limpe o cache do navegador (Ctrl+Shift+Del) e tente novamente</p>
+                </div>
+            </div>
+
+            <!-- Botões Finais -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="./limpeza-dados-caixa.html" class="p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-center font-semibold">
+                    <i class="fas fa-broom mr-2"></i>Ferramenta de Limpeza
+                </a>
+                <a href="./diagnostico-caixa.html" class="p-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-center font-semibold">
+                    <i class="fas fa-stethoscope mr-2"></i>Diagnóstico
+                </a>
+                <a href="./pages/pdv.html" class="p-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-center font-semibold">
+                    <i class="fas fa-shopping-cart mr-2"></i>Voltar para PDV
+                </a>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

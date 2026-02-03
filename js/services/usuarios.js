@@ -14,8 +14,8 @@ async function listUsuarios(filters = {}) {
             query = query.eq('role', filters.role);
         }
 
-        if (filters.active !== undefined) {
-            query = query.eq('active', filters.active);
+        if (filters.ativo !== undefined) {
+            query = query.eq('ativo', filters.ativo);
         }
 
         if (filters.search) {
@@ -87,7 +87,7 @@ async function deactivateUsuario(id) {
 
         const { error } = await supabase
             .from('users')
-            .update({ active: false })
+            .update({ ativo: false })
             .eq('id', id);
 
         if (error) throw error;
@@ -110,7 +110,7 @@ async function activateUsuario(id) {
 
         const { error } = await supabase
             .from('users')
-            .update({ active: true })
+            .update({ ativo: true })
             .eq('id', id);
 
         if (error) throw error;
@@ -133,7 +133,7 @@ async function getAprovadores() {
             .from('users')
             .select('*')
             .eq('role', 'APROVADOR')
-            .eq('active', true)
+            .eq('ativo', true)
             .order('full_name');
 
         if (error) throw error;
