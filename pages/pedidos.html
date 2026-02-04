@@ -724,7 +724,9 @@
                                 quantidade: parseFloat(prod?.querySelector('qCom')?.textContent || 0),
                                 valor_unitario: parseFloat(prod?.querySelector('vUnCom')?.textContent || 0),
                                 valor_total: parseFloat(prod?.querySelector('vProd')?.textContent || 0),
-                                cfop: prod?.querySelector('CFOP')?.textContent || ''
+                                cfop: prod?.querySelector('CFOP')?.textContent || '',
+                                // Extrair data de vencimento se disponível
+                                data_vencimento: prod?.querySelector('dVal')?.textContent || null
                             });
                         }
                     });
@@ -817,6 +819,52 @@
             showLoading(true);
             
             try {
+                // 0. VALIDAÇÃO: Verificar se essa nota já foi lançada
+                console.log('🔍 Verificando se nota já foi lançada...', dadosXMLImportado.chave);
+                
+                const { data: pedidoExistente } = await supabase
+                    .from('pedidos_compra')
+                    .select('id, numero, status')
+                    .eq('chave_nfe', dadosXMLImportado.chave)
+                    .maybeSingle();
+                
+                if (pedidoExistente) {
+                    console.log('ℹ️ Nota fiscal encontrada. Status:', pedidoExistente.status);
+                    
+                    // Permitir reimportação se estiver cancelada
+                    if (pedidoExistente.status === 'CANCELADO') {
+                        console.log('✅ Nota foi cancelada, permitindo reimportação...');
+                        const permitir = confirm(
+                            `⚠️ NOTA FISCAL CANCELADA\n\n` +
+                            `Pedido: ${pedidoExistente.numero}\n` +
+                            `Status: CANCELADO\n\n` +
+                            `Essa nota foi cancelada anteriormente.\n` +
+                            `Deseja importar novamente?`
+                        );
+                        if (!permitir) {
+                            showLoading(false);
+                            closeModal('modal-importar-xml');
+                            return;
+                        }
+                    } else if (pedidoExistente.status === 'RECEBIDO' || pedidoExistente.status === 'APROVADO' || pedidoExistente.status === 'PENDENTE') {
+                        console.warn('❌ Nota fiscal já foi lançada com status ativo!');
+                        alert(
+                            `❌ NOTA FISCAL JÁ LANÇADA!\n\n` +
+                            `Pedido: ${pedidoExistente.numero}\n` +
+                            `Status: ${pedidoExistente.status}\n` +
+                            `ID: ${pedidoExistente.id}\n\n` +
+                            `Essa chave NFe já existe no sistema com status ativo.\n` +
+                            `Não é possível importar novamente.\n\n` +
+                            `💡 Se deseja reimportar, primeiro CANCELE o pedido anterior.`
+                        );
+                        showLoading(false);
+                        closeModal('modal-importar-xml');
+                        return;
+                    }
+                }
+                
+                console.log('✅ Nota fiscal validada, prosseguindo com importação...');
+                
                 // 1. Cadastrar fornecedor se não existir
                 let fornecedorId = dadosXMLImportado.fornecedor_id;
                 if (!fornecedorId) {
@@ -875,30 +923,49 @@
                 for (const item of dadosXMLImportado.itens) {
                     // Pular itens com quantidade 0 ou sem preço
                     if (!item.quantidade || !item.valor_unitario) {
-                        console.warn('Item ignorado (sem quantidade ou preço):', item.nome);
+                        console.warn('❌ Item ignorado (sem quantidade ou preço):', item.nome);
                         continue;
                     }
                     
                     let produtoId = null;
                     
-                    // Tentar buscar produto existente por código
-                    if (item.codigo) {
+                    console.log('🔍 Buscando produto:', { codigo: item.codigo, barras: item.codigo_barras, nome: item.nome });
+                    
+                    // 1. Tentar buscar por código de barras (EAN) - mais confiável
+                    if (item.codigo_barras) {
                         const { data: produtoExistente } = await supabase
                             .from('produtos')
-                            .select('id')
-                            .eq('codigo', item.codigo)
-                            .single();
+                            .select('id, nome')
+                            .eq('codigo_barras', item.codigo_barras)
+                            .maybeSingle();
                         
                         if (produtoExistente) {
+                            console.log('✅ Produto encontrado por código de barras:', produtoExistente.nome);
                             produtoId = produtoExistente.id;
                         }
                     }
                     
-                    // Se não encontrou e deve cadastrar, criar novo produto
+                    // 2. Se não encontrou, tentar por código (cProd)
+                    if (!produtoId && item.codigo) {
+                        const { data: produtoExistente } = await supabase
+                            .from('produtos')
+                            .select('id, nome')
+                            .eq('codigo', item.codigo)
+                            .maybeSingle();
+                        
+                        if (produtoExistente) {
+                            console.log('✅ Produto encontrado por código:', produtoExistente.nome);
+                            produtoId = produtoExistente.id;
+                        }
+                    }
+                    
+                    // 3. Se não encontrou e deve cadastrar, criar novo produto
                     if (!produtoId && cadastrarProdutos) {
+                        console.log('📝 Criando novo produto:', item.nome);
                         const { data: novoProduto, error: errProduto } = await supabase
                             .from('produtos')
                             .insert([{
+                                sku: item.codigo || `SKU-${Date.now()}`,
                                 codigo: item.codigo || `XML-${Date.now()}`,
                                 codigo_barras: item.codigo_barras || null,
                                 nome: item.nome || 'Produto Importado',
@@ -907,39 +974,52 @@
                                 preco_custo: item.valor_unitario,
                                 preco_venda: item.valor_unitario * 1.3, // Margem padrão 30%
                                 estoque_atual: 0,
-                                estoque_minimo: 5
+                                estoque_minimo: 5,
+                                ativo: true
                             }])
                             .select()
                             .single();
                         
                         if (!errProduto) {
+                            console.log('✅ Novo produto criado:', novoProduto.id);
                             produtoId = novoProduto.id;
                         } else {
-                            console.error('Erro ao criar produto:', item.nome, errProduto);
+                            console.error('❌ Erro ao criar produto:', item.nome, errProduto);
                         }
-                    } else if (produtoId && atualizarPrecos) {
-                        // Atualizar preço de custo
+                    }
+                    
+                    // 4. Atualizar preço se encontrou e marcou a opção
+                    if (produtoId && atualizarPrecos) {
+                        console.log('💰 Atualizando preço:', item.valor_unitario);
+                        const updateData = { preco_custo: item.valor_unitario };
+                        
+                        // Adicionar data de vencimento se disponível
+                        if (item.data_vencimento) {
+                            updateData.data_vencimento = item.data_vencimento;
+                            console.log('📅 Data de vencimento:', item.data_vencimento);
+                        }
+                        
                         await supabase
                             .from('produtos')
-                            .update({ preco_custo: item.valor_unitario })
+                            .update(updateData)
                             .eq('id', produtoId);
                     }
                     
-                    // Adicionar item ao pedido se conseguiu produto
+                    // 5. Adicionar item ao pedido se conseguiu produto
                     if (produtoId) {
+                        console.log('✅ Item adicionado ao pedido:', { produto_id: produtoId, quantidade: item.quantidade });
                         itensParaPedido.push({
                             produto_id: produtoId,
                             quantidade: item.quantidade,
                             preco_unitario: item.valor_unitario,
                             preco_total: item.valor_total
                         });
+                    } else {
+                        console.warn('⚠️ Item NÃO adicionado (produto não encontrado e não marcou criar novo):', item.nome);
                     }
                 }
 
-                // 3. Criar pedido de compra usando tabela "pedidos" com tipo_pedido='COMPRA'
-                const numero = `COMP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
-                const user = await getCurrentUser();
-                
+                // 3. Criar pedido de compra
                 // Gerar UUID no cliente
                 const pedidoId = crypto.randomUUID ? crypto.randomUUID() : 
                     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -947,22 +1027,25 @@
                         const v = c === 'x' ? r : (r & 0x3 | 0x8);
                         return v.toString(16);
                     });
+                const numero = `PC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+                const user = await getCurrentUser();
                 
                 console.log('📦 Criando pedido de compra:', { pedidoId, numero, fornecedorId });
                 
                 const dadosPedido = {
                     id: pedidoId,
                     numero: numero,
-                    tipo_pedido: 'COMPRA',
                     fornecedor_id: fornecedorId,
-                    solicitante_id: user.id,
-                    status: 'FINALIZADO', // Pedido já recebido (veio de NF-e)
+                    usuario_id: user.id,
+                    status: 'PENDENTE',
                     total: dadosXMLImportado.total_nf || dadosXMLImportado.total_produtos || 0,
+                    chave_nfe: dadosXMLImportado.chave,
+                    numero_nf: dadosXMLImportado.numero_nf,
                     observacoes: `Importado via XML NF-e ${dadosXMLImportado.numero_nf || 'S/N'} - Chave: ${dadosXMLImportado.chave || 'N/A'}`
                 };
                 
                 const { data: pedido, error: errPedido } = await supabase
-                    .from('pedidos')
+                    .from('pedidos_compra')
                     .insert([dadosPedido])
                     .select()
                     .single();
@@ -974,19 +1057,31 @@
                 
                 console.log('✅ Pedido criado:', pedido);
                 
-                // 4. Adicionar itens ao pedido usando tabela "pedido_itens"
+                // 4. Adicionar itens ao pedido usando tabela "pedido_compra_itens"
                 if (itensParaPedido.length > 0) {
+                    // Função para gerar UUID
+                    const generateUUID = () => {
+                        return crypto.randomUUID ? crypto.randomUUID() : 
+                            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                                const r = Math.random() * 16 | 0;
+                                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                                return v.toString(16);
+                            });
+                    };
+                    
                     const itensComPedido = itensParaPedido.map(item => ({
+                        id: generateUUID(),
                         pedido_id: pedido.id,
                         produto_id: item.produto_id,
                         quantidade: item.quantidade,
-                        preco_unitario: item.preco_unitario
+                        preco_unitario: item.preco_unitario,
+                        subtotal: item.quantidade * item.preco_unitario
                     }));
 
                     console.log('📝 Inserindo itens do pedido:', itensComPedido.length);
 
                     const { error: errItens } = await supabase
-                        .from('pedido_itens')
+                        .from('pedido_compra_itens')
                         .insert(itensComPedido);
                     
                     if (errItens) {
@@ -1195,34 +1290,34 @@
                 // Obter usuário atual
                 const user = await getCurrentUser();
                 
-                // Tentar criar na tabela pedidos_compra
-                const numero = `PC${Date.now().toString().slice(-8)}`;
+                // Gerar UUID e número do pedido
+                const pedidoId = crypto.randomUUID ? crypto.randomUUID() : 
+                    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                        const r = Math.random() * 16 | 0;
+                        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                const numero = `PC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
                 
+                console.log('📦 Criando pedido com ID:', { pedidoId, numero, fornecedorId });
+                
+                // Tentar criar na tabela pedidos_compra
                 const { data: pedido, error } = await supabase
                     .from('pedidos_compra')
                     .insert([{
+                        id: pedidoId,
                         numero: numero,
                         fornecedor_id: fornecedorId,
                         usuario_id: user.id,
-                        data_pedido: new Date().toISOString().split('T')[0],
-                        status: 'RASCUNHO',
-                        observacoes: observacoes
+                        status: 'PENDENTE',
+                        observacoes: observacoes || ''
                     }])
                     .select()
                     .single();
 
                 if (error) {
                     console.error('Erro ao criar na tabela pedidos_compra:', error);
-                    // Fallback para criar usando função legacy
-                    const pedidoLegacy = await criarPedidoLegacy(fornecedorId, [], observacoes);
-                    
-                    if (pedidoLegacy) {
-                        closeModal('modal-novo-pedido');
-                        showToast('Pedido criado com sucesso!', 'success');
-                        redirect(`/pages/pedido-detalhe.html?id=${pedidoLegacy.id}`);
-                    } else {
-                        throw new Error('Não foi possível criar o pedido');
-                    }
+                    throw new Error(`Erro ao criar pedido: ${error.message}`);
                 } else {
                     closeModal('modal-novo-pedido');
                     showToast('Pedido criado com sucesso!', 'success');
@@ -1236,8 +1331,8 @@
         });
 
         function verPedido(id) {
-            // TODO: Criar página de detalhes para novo modelo
-            showToast('Abrindo detalhes do pedido...', 'info');
+            // Redirecionar para página de detalhes do pedido
+            redirect(`/pages/pedido-detalhe.html?id=${id}`);
         }
 
         function verPedidoLegacy(id) {

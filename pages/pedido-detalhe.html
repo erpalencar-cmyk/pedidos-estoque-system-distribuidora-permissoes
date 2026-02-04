@@ -610,104 +610,507 @@
         async function loadPedido() {
             try {
                 showLoading(true);
-                pedido = await getPedido(pedidoId);
-                if (!pedido) return;
+                
+                // 1️⃣ Buscar dados do pedido
+                const { data: pedidoData, error: errPedido } = await supabase
+                    .from('pedidos_compra')
+                    .select(`id, numero, status, total, data_pedido, observacoes, fornecedor_id, usuario_id`)
+                    .eq('id', pedidoId)
+                    .single();
 
-            document.getElementById('pedido-numero').textContent = `Pedido ${pedido.numero}`;
-            document.getElementById('pedido-status').innerHTML = getStatusBadge(pedido.status);
-            document.getElementById('pedido-total').textContent = formatCurrency(pedido.total);
-            document.getElementById('pedido-solicitante').textContent = pedido.solicitante?.full_name || 'N/A';
-            document.getElementById('pedido-fornecedor').textContent = pedido.fornecedor?.nome || '-';
-            document.getElementById('pedido-data').textContent = formatDate(pedido.created_at);
-            
-            // Observações
-            const obsElement = document.getElementById('pedido-observacoes');
-            if (pedido.observacoes && pedido.observacoes.trim()) {
-                obsElement.textContent = pedido.observacoes;
-            } else {
-                obsElement.innerHTML = '<span class="text-gray-400 italic">Nenhuma observação</span>';
-            }
-            
-            // Controle de visibilidade do botão editar observações
-            const btnEditarObs = document.getElementById('btn-editar-obs');
-            if (pedido.status === 'RASCUNHO' && pedido.solicitante_id === currentUser.id) {
-                btnEditarObs.classList.remove('hidden');
-            } else if (currentUser.role === 'ADMIN') {
-                btnEditarObs.classList.remove('hidden');
-            } else {
-                btnEditarObs.classList.add('hidden');
-            }
-
-            // Ações baseadas no status
-            const acoesEl = document.getElementById('acoes-pedido');
-            const btnAddItem = document.getElementById('btn-add-item');
-            
-            // Botão de impressão sempre visível
-            let botoesHTML = '<button onclick="imprimirPedidoCompra(\'' + pedidoId + '\')" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">🖨️ Imprimir</button>';
-            
-            if (pedido.status === 'RASCUNHO' && pedido.solicitante_id === currentUser.id) {
-                // Solicitante pode editar, finalizar e excluir
-                botoesHTML += ' <button onclick="finalizarPedidoHandler()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">✅ Finalizar Pedido</button>';
-                botoesHTML += ' <button onclick="excluirPedido()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">🗑️ Excluir Pedido</button>';
-                btnAddItem.classList.remove('hidden');
-            } else if (pedido.status === 'FINALIZADO') {
-                // Quando está FINALIZADO, apenas ADMIN pode cancelar
-                if (currentUser.role === 'ADMIN') {
-                    botoesHTML += ' <button onclick="openModal(\'modal-cancelar\')" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700">🚫 Cancelar Pedido</button>';
+                if (errPedido || !pedidoData) {
+                    console.error('❌ Erro ao carregar pedido:', errPedido);
+                    showToast('Pedido não encontrado', 'error');
+                    redirect('/pages/pedidos.html');
+                    return;
                 }
-                btnAddItem.classList.add('hidden');
-            } else {
-                btnAddItem.classList.add('hidden');
-            }
-            
-            acoesEl.innerHTML = botoesHTML;
 
-            await loadItens();
+                pedido = pedidoData;
+                console.log('✅ Pedido carregado:', pedido);
+
+                // Buscar fornecedor
+                let fornecedorInfo = {};
+                if (pedido.fornecedor_id) {
+                    const { data: forn } = await supabase
+                        .from('fornecedores')
+                        .select('id, razao_social, nome_fantasia')
+                        .eq('id', pedido.fornecedor_id)
+                        .single();
+                    fornecedorInfo = forn || {};
+                }
+
+                // Buscar usuário
+                let usuarioInfo = {};
+                if (pedido.usuario_id) {
+                    const { data: user } = await supabase
+                        .from('users')
+                        .select('id, full_name')
+                        .eq('id', pedido.usuario_id)
+                        .single();
+                    usuarioInfo = user || {};
+                }
+
+                // Atualizar UI com dados do pedido
+                document.getElementById('pedido-numero').textContent = `Pedido ${pedido.numero}`;
+                document.getElementById('pedido-status').textContent = `Status: ${pedido.status}`;
+                document.getElementById('pedido-total').textContent = formatCurrency(pedido.total || 0);
+                document.getElementById('pedido-solicitante').textContent = usuarioInfo.full_name || 'N/A';
+                document.getElementById('pedido-fornecedor').textContent = fornecedorInfo.razao_social || fornecedorInfo.nome_fantasia || '-';
+                document.getElementById('pedido-data').textContent = formatDate(pedido.data_pedido);
+                
+                // Observações
+                const obsElement = document.getElementById('pedido-observacoes');
+                if (pedido.observacoes && pedido.observacoes.trim()) {
+                    obsElement.textContent = pedido.observacoes;
+                } else {
+                    obsElement.innerHTML = '<span class="text-gray-400 italic">Nenhuma observação</span>';
+                }
+
+                // 2️⃣ Buscar itens DO PEDIDO
+                console.log('🔍 Buscando itens para pedido:', pedidoId);
+                const { data: itensRaw, error: errItens } = await supabase
+                    .from('pedido_compra_itens')
+                    .select('id, quantidade, preco_unitario, produto_id')
+                    .eq('pedido_id', pedidoId);
+
+                if (errItens) {
+                    console.error('❌ Erro ao carregar itens:', errItens);
+                    showToast('Erro ao carregar itens: ' + errItens.message, 'error');
+                    await renderItens([]);
+                } else {
+                    console.log('✅ Itens encontrados:', itensRaw?.length || 0);
+                    
+                    if (!itensRaw || itensRaw.length === 0) {
+                        console.log('ℹ️ Nenhum item neste pedido');
+                        await renderItens([]);
+                    } else {
+                        // 3️⃣ Para cada item, buscar informações do produto
+                        const itensComProduto = [];
+                        for (const item of itensRaw) {
+                            console.log('  → Buscando produto:', item.produto_id);
+                            const { data: produto, error: errProd } = await supabase
+                                .from('produtos')
+                                .select('id, nome, codigo, unidade')
+                                .eq('id', item.produto_id)
+                                .single();
+                            
+                            if (errProd) {
+                                console.warn('  ⚠️ Erro ao buscar produto:', errProd);
+                            }
+                            
+                            itensComProduto.push({
+                                ...item,
+                                produto_id: produto || { id: item.produto_id, nome: '❌ Produto não encontrado', codigo: '', unidade: 'UN' }
+                            });
+                        }
+                        
+                        console.log('✅ Itens carregados com produtos:', itensComProduto.length);
+                        await renderItens(itensComProduto);
+                    }
+                }
+
+                // Controlar botões conforme status
+                const acoesEl = document.getElementById('acoes-pedido');
+                let botoesHTML = '<button onclick="imprimirPedidoCompra(\'' + pedidoId + '\')" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 text-sm">🖨️ Imprimir</button>';
+                
+                if (pedido.status === 'PENDENTE') {
+                    botoesHTML += ' <button onclick="aprovarPedido()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 text-sm">✅ Aprovar</button>';
+                    botoesHTML += ' <button onclick="cancelarPedido()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 text-sm">❌ Cancelar</button>';
+                    botoesHTML += ' <button onclick="excluirPedido()" class="bg-red-800 text-white px-6 py-2 rounded-lg hover:bg-red-900 text-sm">🗑️ Excluir</button>';
+                } else if (pedido.status === 'APROVADO') {
+                    botoesHTML += ' <button onclick="receberPedido()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 text-sm">📦 Receber</button>';
+                    botoesHTML += ' <button onclick="reverterAprovacao()" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 text-sm">↩️ Reverter Aprovação</button>';
+                } else if (pedido.status === 'RECEBIDO') {
+                    botoesHTML += ' <button onclick="reverterRecebimento()" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 text-sm">↩️ Reverter Recebimento</button>';
+                }
+                
+                acoesEl.innerHTML = botoesHTML;
+
+            } catch (error) {
+                console.error('❌ Erro ao carregar pedido:', error);
+                showToast('Erro ao carregar pedido: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
 
-        async function loadItens() {
-            const itens = await getItensPedido(pedidoId);
+        async function renderItens(itens) {
             const tbody = document.getElementById('itens-tbody');
             
-            if (itens.length === 0) {
+            if (!itens || itens.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Nenhum item adicionado</td></tr>';
                 document.getElementById('pedido-quantidade-total').textContent = '0 UN';
                 return;
             }
-            
-            // Calcular quantidade total de itens
-            const quantidadeTotal = itens.reduce((sum, item) => sum + parseFloat(item.quantidade || 0), 0);
-            document.getElementById('pedido-quantidade-total').textContent = `${Math.round(quantidadeTotal)} UN`;
+
+            const quantidadeTotal = itens.reduce((sum, item) => sum + (parseFloat(item.quantidade) || 0), 0);
+            document.getElementById('pedido-quantidade-total').textContent = `${quantidadeTotal} UN`;
 
             tbody.innerHTML = itens.map(item => {
-                const produtoNome = item.produto?.nome || 'N/A';
-                const sabor = item.sabor?.sabor ? ` - ${item.sabor.sabor}` : '';
+                const subtotal = (item.quantidade || 0) * (item.preco_unitario || 0);
+                const produtoNome = item.produto_id?.nome || 'N/A';
+                const produtoCodigo = item.produto_id?.codigo || '';
+                const unidadeVenda = item.produto_id?.unidade_venda || 'UN';
+                const unidadeEstoque = item.produto_id?.unidade_medida_padrao || 'UN';
+                const conversao = item.produto_id?.quantidade_por_embalagem || 1;
+                
+                // Mostrar conversão se unidades forem diferentes
+                let textoConversao = `${item.quantidade} ${unidadeVenda}`;
+                if (unidadeVenda !== unidadeEstoque && conversao > 1) {
+                    const qtdEmEstoque = item.quantidade * conversao;
+                    textoConversao = `${item.quantidade} ${unidadeVenda} = ${qtdEmEstoque} ${unidadeEstoque}`;
+                }
+                
                 return `
-                    <tr class="border-t">
+                    <tr class="border-t hover:bg-gray-50">
                         <td class="px-4 py-3 text-sm">
                             <div class="font-medium">${produtoNome}</div>
-                            ${sabor ? `<div class="text-xs text-gray-500">${sabor}</div>` : ''}
-                            <div class="text-xs text-gray-500">${item.produto?.codigo || ''}</div>
+                            <div class="text-xs text-gray-500">${produtoCodigo}</div>
                         </td>
-                        <td class="px-4 py-3 text-sm">${item.quantidade} ${item.produto?.unidade || ''}</td>
-                        <td class="px-4 py-3 text-sm">${formatCurrency(item.preco_unitario)}</td>
-                        <td class="px-4 py-3 text-sm font-semibold">${formatCurrency(item.subtotal)}</td>
-                        <td class="px-4 py-3 text-sm">
-                            ${pedido.status === 'RASCUNHO' ? `
-                                <button onclick="editarItem('${item.id}', ${item.quantidade}, ${item.preco_unitario})" class="text-blue-600 hover:text-blue-800 text-sm mr-2" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="removeItem('${item.id}')" class="text-red-600 hover:text-red-800 text-sm" title="Remover">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            ` : '-'}
+                        <td class="px-4 py-3 text-sm text-right">
+                            <div>${textoConversao}</div>
+                            ${unidadeVenda !== unidadeEstoque ? `<div class="text-xs text-gray-500">(conversão: 1 ${unidadeVenda} = ${conversao} ${unidadeEstoque})</div>` : ''}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right">${formatCurrency(item.preco_unitario)}</td>
+                        <td class="px-4 py-3 text-sm font-semibold text-right">${formatCurrency(subtotal)}</td>
+                        <td class="px-4 py-3 text-sm text-center">
+                            <button onclick="editarItem('${item.id}', ${item.quantidade}, ${item.preco_unitario})" class="text-blue-600 hover:text-blue-800 text-sm mr-2" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="removeItem('${item.id}')" class="text-red-600 hover:text-red-800 text-sm" title="Remover">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        async function editarItem(itemId, quantidadeAtual, precoAtual) {
+            // Preencher o modal de edição
+            document.getElementById('editar-item-id').value = itemId;
+            document.getElementById('editar-item-quantidade').value = quantidadeAtual;
+            document.getElementById('editar-item-preco').value = precoAtual;
+            
+            // Calcular e mostrar subtotal
+            const quantidade = parseFloat(quantidadeAtual) || 0;
+            const preco = parseFloat(precoAtual) || 0;
+            const subtotal = quantidade * preco;
+            document.getElementById('editar-item-subtotal').textContent = formatCurrency(subtotal);
+            
+            // Abrir modal
+            openModal('modal-editar-item');
+        }
+
+        async function removeItem(itemId) {
+            if (!confirm('Deseja remover este item?')) return;
+            
+            try {
+                showLoading(true);
+                const { error } = await supabase
+                    .from('pedido_compra_itens')
+                    .delete()
+                    .eq('id', itemId);
+
+                if (error) throw error;
+                
+                showToast('Item removido com sucesso', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('Erro ao remover item:', error);
+                showToast('Erro ao remover item: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Converte quantidade de uma unidade para outra usando quantidade_por_embalagem
+        function converterQuantidade(quantidade, unidadeOrigem, unidadeDestino, quantidadePorEmbalagem) {
+            if (unidadeOrigem === unidadeDestino) return quantidade;
+            
+            quantidadePorEmbalagem = quantidadePorEmbalagem || 1;
+            
+            // Se o produto é recebido em CX mas estoque é em UN
+            // Ex: recebe 12 CX onde cada CX = 12 UN
+            // Resultado: 12 CX * 12 UN/CX = 144 UN
+            if (unidadeOrigem === 'CX' && unidadeDestino === 'UN') {
+                return quantidade * quantidadePorEmbalagem;
+            }
+            
+            // Se temos quantidade em UN mas precisamos em CX
+            if (unidadeOrigem === 'UN' && unidadeDestino === 'CX') {
+                return quantidade / quantidadePorEmbalagem;
+            }
+            
+            // Para FD (fardo), DZ (dúzia), etc
+            if (unidadeOrigem !== unidadeDestino) {
+                console.warn(`Conversão não mapeada: ${unidadeOrigem} → ${unidadeDestino}`);
+                return quantidade;
+            }
+            
+            return quantidade;
+        }
+
+        async function aprovarPedido() {
+            if (!confirm('Deseja aprovar este pedido e alimentar o estoque?')) return;
+
+            try {
+                showLoading(true);
+                
+                // 1. Buscar todos os itens do pedido com dados de unidade
+                const { data: itensRaw } = await supabase
+                    .from('pedido_compra_itens')
+                    .select(`
+                        id,
+                        quantidade,
+                        produto_id,
+                        produtos:produto_id(
+                            id,
+                            estoque_atual,
+                            unidade_medida_padrao,
+                            unidade_venda,
+                            quantidade_por_embalagem
+                        )
+                    `)
+                    .eq('pedido_id', pedidoId);
+                
+                // 2. Atualizar estoque de cada produto COM CONVERSÃO
+                if (itensRaw && itensRaw.length > 0) {
+                    console.log('📦 Atualizando estoque para', itensRaw.length, 'produtos...');
+                    
+                    for (const item of itensRaw) {
+                        if (item.produtos) {
+                            const produto = item.produtos;
+                            
+                            // Converter quantidade para unidade de armazenamento (estoque)
+                            const quantidadeEmEstoque = converterQuantidade(
+                                item.quantidade,
+                                produto.unidade_venda || 'UN',
+                                produto.unidade_medida_padrao || 'UN',
+                                produto.quantidade_por_embalagem || 1
+                            );
+                            
+                            const novoEstoque = (produto.estoque_atual || 0) + quantidadeEmEstoque;
+                            
+                            console.log(`  → Produto ${item.produto_id}:`);
+                            console.log(`     Unidade venda: ${produto.unidade_venda}, Qtd: ${item.quantidade}`);
+                            console.log(`     Conversão (${produto.quantidade_por_embalagem} por embalagem): ${quantidadeEmEstoque} ${produto.unidade_medida_padrao}`);
+                            console.log(`     Estoque: ${produto.estoque_atual} + ${quantidadeEmEstoque} = ${novoEstoque}`);
+                            
+                            await supabase
+                                .from('produtos')
+                                .update({ estoque_atual: novoEstoque })
+                                .eq('id', item.produto_id);
+                        }
+                    }
+                }
+                
+                // 3. Atualizar status do pedido
+                const { error } = await supabase
+                    .from('pedidos_compra')
+                    .update({ status: 'APROVADO' })
+                    .eq('id', pedidoId);
+
+                if (error) throw error;
+                
+                console.log('✅ Pedido aprovado e estoque atualizado com conversão de unidades!');
+                showToast('Pedido aprovado e estoque atualizado com sucesso!', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('❌ Erro ao aprovar:', error);
+                showToast('Erro ao aprovar pedido: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function reverterAprovacao() {
+            if (!confirm('Deseja REVERTER a aprovação?\n\nIsso vai desfazer o estoque de todos os itens e voltar o pedido para PENDENTE.')) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+                
+                // 1. Buscar todos os itens do pedido com dados de unidade
+                const { data: itensRaw } = await supabase
+                    .from('pedido_compra_itens')
+                    .select(`
+                        id,
+                        quantidade,
+                        produto_id,
+                        produtos:produto_id(
+                            id,
+                            estoque_atual,
+                            unidade_medida_padrao,
+                            unidade_venda,
+                            quantidade_por_embalagem
+                        )
+                    `)
+                    .eq('pedido_id', pedidoId);
+                
+                // 2. REVERTER estoque de cada produto COM CONVERSÃO
+                if (itensRaw && itensRaw.length > 0) {
+                    console.log('📦 Revertendo estoque de', itensRaw.length, 'produtos...');
+                    
+                    for (const item of itensRaw) {
+                        if (item.produtos) {
+                            const produto = item.produtos;
+                            
+                            // Converter quantidade para unidade de armazenamento (estoque)
+                            const quantidadeEmEstoque = converterQuantidade(
+                                item.quantidade,
+                                produto.unidade_venda || 'UN',
+                                produto.unidade_medida_padrao || 'UN',
+                                produto.quantidade_por_embalagem || 1
+                            );
+                            
+                            const novoEstoque = Math.max(0, (produto.estoque_atual || 0) - quantidadeEmEstoque);
+                            console.log(`  → Produto ${item.produto_id}: ${produto.estoque_atual} - ${quantidadeEmEstoque} = ${novoEstoque}`);
+                            
+                            await supabase
+                                .from('produtos')
+                                .update({ estoque_atual: novoEstoque })
+                                .eq('id', item.produto_id);
+                        }
+                    }
+                }
+                
+                // 3. Voltar status do pedido para PENDENTE
+                const { error } = await supabase
+                    .from('pedidos_compra')
+                    .update({ status: 'PENDENTE' })
+                    .eq('id', pedidoId);
+
+                if (error) throw error;
+                
+                console.log('✅ Aprovação revertida e estoque desfazido com conversão de unidades!');
+                showToast('Aprovação revertida com sucesso! Estoque foi desfazido.', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('❌ Erro ao reverter aprovação:', error);
+                showToast('Erro ao reverter aprovação: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function reverterRecebimento() {
+            if (!confirm('Deseja REVERTER o recebimento?\n\nIsso vai desfazer o estoque de todos os itens e voltar o pedido para APROVADO.')) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+                
+                // 1. Buscar todos os itens do pedido com dados de unidade
+                const { data: itensRaw } = await supabase
+                    .from('pedido_compra_itens')
+                    .select(`
+                        id,
+                        quantidade,
+                        produto_id,
+                        produtos:produto_id(
+                            id,
+                            estoque_atual,
+                            unidade_medida_padrao,
+                            unidade_venda,
+                            quantidade_por_embalagem
+                        )
+                    `)
+                    .eq('pedido_id', pedidoId);
+                
+                // 2. REVERTER estoque de cada produto COM CONVERSÃO
+                if (itensRaw && itensRaw.length > 0) {
+                    console.log('📦 Revertendo estoque de', itensRaw.length, 'produtos...');
+                    
+                    for (const item of itensRaw) {
+                        if (item.produtos) {
+                            const produto = item.produtos;
+                            
+                            // Converter quantidade para unidade de armazenamento (estoque)
+                            const quantidadeEmEstoque = converterQuantidade(
+                                item.quantidade,
+                                produto.unidade_venda || 'UN',
+                                produto.unidade_medida_padrao || 'UN',
+                                produto.quantidade_por_embalagem || 1
+                            );
+                            
+                            const novoEstoque = Math.max(0, (produto.estoque_atual || 0) - quantidadeEmEstoque);
+                            console.log(`  → Produto ${item.produto_id}: ${produto.estoque_atual} - ${quantidadeEmEstoque} = ${novoEstoque}`);
+                            
+                            await supabase
+                                .from('produtos')
+                                .update({ estoque_atual: novoEstoque })
+                                .eq('id', item.produto_id);
+                        }
+                    }
+                }
+                
+                // 3. Voltar status do pedido para APROVADO
+                const { error } = await supabase
+                    .from('pedidos_compra')
+                    .update({ status: 'APROVADO' })
+                    .eq('id', pedidoId);
+
+                if (error) throw error;
+                
+                console.log('✅ Recebimento revertido e estoque desfazido com conversão de unidades!');
+                showToast('Recebimento revertido com sucesso! Estoque foi desfazido.', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('❌ Erro ao reverter recebimento:', error);
+                showToast('Erro ao reverter recebimento: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function cancelarPedido() {
+            if (!confirm('Deseja cancelar este pedido?')) return;
+
+            try {
+                showLoading(true);
+                const { error } = await supabase
+                    .from('pedidos_compra')
+                    .update({ status: 'CANCELADO' })
+                    .eq('id', pedidoId);
+
+                if (error) throw error;
+                showToast('Pedido cancelado com sucesso!', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('Erro ao cancelar:', error);
+                showToast('Erro ao cancelar pedido', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function receberPedido() {
+            if (!confirm('Dar entrada no estoque para este pedido?')) return;
+
+            try {
+                showLoading(true);
+                const { error } = await supabase
+                    .from('pedidos_compra')
+                    .update({ status: 'RECEBIDO', data_recebimento: new Date().toISOString() })
+                    .eq('id', pedidoId);
+
+                if (error) throw error;
+                showToast('Pedido recebido com sucesso!', 'success');
+                await loadPedido();
+            } catch (error) {
+                console.error('Erro ao receber:', error);
+                showToast('Erro ao receber pedido', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function imprimirPedidoCompra(pedId) {
+            showToast('Gerando impressão...', 'info');
+            // Implementar impressão conforme necessário
         }
 
         async function removeItem(itemId) {
@@ -1072,6 +1475,52 @@
             await salvarObservacoes();
         });
 
+        async function deletePedido(id) {
+            try {
+                console.log('🗑️ Iniciando exclusão do pedido:', id);
+                
+                // 1. Deletar todos os itens do pedido
+                console.log('  → Deletando itens...');
+                const { error: errItens, count: countItens } = await supabase
+                    .from('pedido_compra_itens')
+                    .delete()
+                    .eq('pedido_id', id);
+                
+                if (errItens) {
+                    console.error('❌ Erro ao deletar itens:', errItens);
+                    alert('Erro ao deletar itens do pedido:\n' + errItens.message);
+                    throw errItens;
+                }
+                console.log('✅ Itens deletados:', countItens);
+                
+                // 2. Deletar o pedido
+                console.log('  → Deletando pedido...');
+                const { error: errPedido, count: countPedido } = await supabase
+                    .from('pedidos_compra')
+                    .delete()
+                    .eq('id', id);
+                
+                if (errPedido) {
+                    console.error('❌ Erro ao deletar pedido:', errPedido);
+                    alert('Erro ao deletar pedido:\n' + errPedido.message);
+                    throw errPedido;
+                }
+                console.log('✅ Pedido deletado:', countPedido);
+                
+                if (countPedido === 0) {
+                    console.warn('⚠️ Nenhum pedido foi deletado. ID pode ser incorreto ou sem permissão.');
+                    alert('⚠️ Nenhum pedido foi deletado.\n\nVerifique se você tem permissão ou tente novamente.');
+                    return false;
+                }
+                
+                console.log('✅ Pedido e itens deletados com sucesso');
+                return true;
+            } catch (error) {
+                console.error('❌ Erro completo ao deletar pedido:', error);
+                throw error;
+            }
+        }
+
         async function salvarObservacoes() {
             try {
                 showLoading(true);
@@ -1094,6 +1543,40 @@
                 handleError(error, 'Erro ao salvar observações');
             } finally {
                 showLoading(false);
+            }
+        }
+
+        async function recalcularTotalPedido(pedidoId) {
+            try {
+                // Buscar todos os itens do pedido
+                const { data: itens } = await supabase
+                    .from('pedido_compra_itens')
+                    .select('quantidade, preco_unitario')
+                    .eq('pedido_id', pedidoId);
+                
+                if (!itens || itens.length === 0) {
+                    // Se não há itens, total é 0
+                    await supabase
+                        .from('pedidos_compra')
+                        .update({ total: 0 })
+                        .eq('id', pedidoId);
+                    return;
+                }
+                
+                // Calcular total
+                const total = itens.reduce((sum, item) => {
+                    return sum + ((item.quantidade || 0) * (item.preco_unitario || 0));
+                }, 0);
+                
+                console.log('💰 Novo total calculado:', total);
+                
+                // Atualizar total do pedido
+                await supabase
+                    .from('pedidos_compra')
+                    .update({ total })
+                    .eq('id', pedidoId);
+            } catch (error) {
+                console.error('❌ Erro ao recalcular total:', error);
             }
         }
     </script>
