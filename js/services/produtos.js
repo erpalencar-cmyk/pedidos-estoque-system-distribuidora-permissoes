@@ -7,7 +7,11 @@ async function listProdutos(filters = {}) {
     try {
         let query = window.supabase
             .from('produtos')
-            .select('*')
+            .select(`
+                *,
+                categoria:categorias(id, nome),
+                marca_rel:marcas(id, nome)
+            `)
             .eq('ativo', true)
             .order('nome');
 
@@ -22,7 +26,13 @@ async function listProdutos(filters = {}) {
         const { data, error } = await query;
 
         if (error) throw error;
-        return data;
+        
+        // Adicionar campos compatíveis
+        return (data || []).map(p => ({
+            ...p,
+            categoria_nome: p.categoria?.nome || '-',
+            marca_nome: p.marca_rel?.nome || p.marca || '-'
+        }));
         
     } catch (error) {
         handleError(error, 'Erro ao listar produtos');
@@ -35,11 +45,24 @@ async function getProduto(id) {
     try {
         const { data, error } = await window.supabase
             .from('produtos')
-            .select('*')
+            .select(`
+                *,
+                categoria:categorias(id, nome),
+                marca_rel:marcas(id, nome),
+                fornecedor:fornecedores(id, nome)
+            `)
             .eq('id', id)
             .single();
 
         if (error) throw error;
+        
+        // Adicionar campos compatíveis
+        if (data) {
+            data.categoria_nome = data.categoria?.nome || '-';
+            data.marca_nome = data.marca_rel?.nome || data.marca || '-';
+            data.fornecedor_nome = data.fornecedor?.nome || '-';
+        }
+        
         return data;
         
     } catch (error) {

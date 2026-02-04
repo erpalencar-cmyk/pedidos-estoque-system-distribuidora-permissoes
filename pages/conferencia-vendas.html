@@ -334,7 +334,7 @@
                     .select(`
                         *,
                         cliente:clientes(nome),
-                        vendas_itens(count)
+                        venda_itens(count)
                     `)
                     .eq('status_venda', 'FINALIZADA')
                     .order('created_at', { ascending: false });
@@ -432,7 +432,7 @@
                 
                 // Buscar itens do pedido
                 const { data: itens, error: erroItens } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .select(`
                         *,
                         produto:produtos (codigo, nome)
@@ -511,7 +511,7 @@
                 console.log('User ID:', user.id);
                 
                 const { data: updateData, error } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .update({
                         conferido: conferido,
                         conferido_por: conferido ? user.id : null,
@@ -530,7 +530,7 @@
                 
                 // Recarregar itens para atualizar progresso
                 const { data: itens } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .select('*')
                     .eq('venda_id', pedidoAtualConferencia);
                 

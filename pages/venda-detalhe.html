@@ -960,7 +960,7 @@
                 
                 // Buscar itens da venda
                 const { data: itensData, error: itensError } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .select(`
                         *,
                         produtos(id, nome, descricao, codigo, codigo_barras, preco_venda, estoque_atual, unidade)
@@ -1367,7 +1367,7 @@
                 console.log('📝 Atualizando item da venda:', itemId, {quantidade, preco});
                 
                 const { data, error } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .update({
                         quantidade: quantidade,
                         preco_unitario: preco
@@ -1847,7 +1847,7 @@
                 for (const item of itensData) {
                     try {
                         const { error } = await supabase
-                            .from('vendas_itens')
+                            .from('venda_itens')
                             .update({
                                 preco_unitario: novoPreco
                                 // subtotal é calculado automaticamente pelo banco

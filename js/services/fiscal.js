@@ -23,11 +23,28 @@ class FiscalSystem {
             // Buscar venda
             const { data: venda, error: erroV } = await supabase
                 .from('vendas')
-                .select('*, vendas_itens(*), clientes(*)')
+                .select('*')
                 .eq('id', vendaId)
                 .single();
 
             if (erroV) throw new Error('Venda não encontrada');
+
+            // Buscar itens
+            const { data: itens } = await supabase
+                .from('venda_itens')
+                .select('*')
+                .eq('venda_id', vendaId);
+            venda.venda_itens = itens || [];
+
+            // Buscar cliente
+            if (venda.cliente_id) {
+                const { data: cliente } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .eq('id', venda.cliente_id)
+                    .single();
+                venda.clientes = cliente;
+            }
 
             // Verificar se já foi emitida
             if (venda.status_fiscal !== 'SEM_DOCUMENTO_FISCAL' && venda.status_fiscal !== 'REJEITADA_SEFAZ') {
@@ -122,11 +139,28 @@ class FiscalSystem {
             // Verificar se venda é para cliente PJ
             const { data: venda, error: erroV } = await supabase
                 .from('vendas')
-                .select('*, vendas_itens(*), clientes(*)')
+                .select('*')
                 .eq('id', vendaId)
                 .single();
 
             if (erroV) throw new Error('Venda não encontrada');
+
+            // Buscar itens
+            const { data: itens } = await supabase
+                .from('venda_itens')
+                .select('*')
+                .eq('venda_id', vendaId);
+            venda.venda_itens = itens || [];
+
+            // Buscar cliente
+            if (venda.cliente_id) {
+                const { data: cliente } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .eq('id', venda.cliente_id)
+                    .single();
+                venda.clientes = cliente;
+            }
 
             if (!venda.cliente_id || venda.clientes.tipo !== 'PJ') {
                 throw new Error('NF-e apenas para clientes PJ');
@@ -283,7 +317,7 @@ class FiscalSystem {
         const cliente = venda.clientes || {};
 
         let itensXml = '';
-        venda.vendas_itens.forEach((item, idx) => {
+        venda.venda_itens.forEach((item, idx) => {
             itensXml += `
             <det nItem="${idx + 1}">
                 <prod>

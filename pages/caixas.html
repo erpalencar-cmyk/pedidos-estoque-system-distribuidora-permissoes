@@ -7,23 +7,63 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        .modal-backdrop.hidden {
+            display: none;
+        }
+        .btn-action {
+            transition: all 0.2s ease;
+        }
+        .btn-action:hover {
+            transform: scale(1.05);
+        }
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #0ea5e9;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
     <div id="navbar"></div>
     <div id="sidebar-container"></div>
 
     <main class="lg:ml-64 pt-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex justify-between items-center mb-8">
-                <div>
-                    <h2 class="text-3xl font-bold text-gray-900">
-                        <i class="fas fa-cash-register mr-3 text-blue-600"></i>Gerenciamento de Caixas
-                    </h2>
-                    <p class="text-gray-600 mt-1">Gerencie caixas e sessões de atendimento</p>
+            <!-- Header -->
+            <div class="mb-8">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-4xl font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-cash-register mr-4 text-cyan-600"></i>Caixas
+                        </h1>
+                        <p class="text-gray-600 mt-2">Gerenciamento de caixas e sessões de atendimento</p>
+                    </div>
+                    <button onclick="abrirModalCaixa()" class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Novo Caixa
+                    </button>
                 </div>
-                <button onclick="abrirModalCaixa()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                    + Novo Caixa
-                </button>
             </div>
 
             <!-- Status dos Caixas -->
@@ -32,17 +72,17 @@
             </div>
 
             <!-- Abas -->
-            <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
                 <div class="border-b border-gray-200">
-                    <nav class="flex space-x-8">
+                    <nav class="-mb-px flex space-x-8">
                         <button onclick="trocarAba('caixas')" 
                                 id="aba-caixas" 
-                                class="py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
+                                class="py-2 px-1 border-b-2 border-cyan-600 font-semibold text-sm text-cyan-600 whitespace-nowrap">
                             <i class="fas fa-cash-register mr-2"></i>Cadastro de Caixas
                         </button>
                         <button onclick="trocarAba('sessoes')" 
                                 id="aba-sessoes" 
-                                class="py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                class="py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">
                             <i class="fas fa-clock mr-2"></i>Sessões de Caixa
                         </button>
                     </nav>
@@ -50,20 +90,20 @@
             </div>
 
             <!-- Conteúdo Caixas -->
-            <div id="conteudo-caixas" class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="conteudo-caixas" class="bg-white rounded-lg shadow-md overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="w-full">
+                        <thead class="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Terminal</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Número</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Nome</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Terminal</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="caixas-tbody" class="bg-white divide-y divide-gray-200">
-                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                        <tbody id="caixas-tbody" class="divide-y divide-gray-200">
+                            <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando caixas...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -71,32 +111,32 @@
 
             <!-- Conteúdo Sessões -->
             <div id="conteudo-sessoes" class="hidden">
-                <div class="bg-white rounded-lg shadow p-4 mb-6">
-                    <div class="flex space-x-4">
-                        <button onclick="abrirCaixa()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                            <i class="fas fa-play mr-2"></i>Abrir Caixa
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                    <div class="flex gap-4">
+                        <button onclick="abrirCaixa()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                            <i class="fas fa-play"></i>Abrir Caixa
                         </button>
-                        <button onclick="fecharCaixa()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                            <i class="fas fa-stop mr-2"></i>Fechar Caixa
+                        <button onclick="fecharCaixa()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition flex items-center gap-2">
+                            <i class="fas fa-stop"></i>Fechar Caixa
                         </button>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="w-full">
+                            <thead class="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Caixa</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Operador</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Abertura</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fechamento</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Caixa</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Operador</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Abertura</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Fechamento</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="sessoes-tbody" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>
+                            <tbody id="sessoes-tbody" class="divide-y divide-gray-200">
+                                <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando sessões...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -107,46 +147,107 @@
     </div>
 
     <!-- Modal Caixa -->
-    <div id="modal-caixa" class="hidden fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
-            <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full">
-                <div class="px-6 py-4 border-b">
-                    <h3 class="text-lg font-semibold text-gray-900" id="modal-titulo">Novo Caixa</h3>
+    <div id="modal-caixa" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center px-6 py-4 border-b bg-gradient-to-r from-cyan-600 to-blue-600 sticky top-0 z-10">
+                <h3 id="modal-titulo" class="text-xl font-bold text-white">Novo Caixa</h3>
+                <button onclick="fecharModalCaixa()" class="text-cyan-100 hover:text-white transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="form-caixa" class="px-6 py-4" onsubmit="salvarCaixa(event)">
+                <input type="hidden" id="caixa-id">
+                
+                <!-- Abas de Formulário -->
+                <div class="border-b border-gray-200 mb-6">
+                    <nav class="-mb-px flex space-x-8 overflow-x-auto">
+                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-cyan-600 text-cyan-600 font-semibold text-sm whitespace-nowrap" data-tab="tab-basico">
+                            <i class="fas fa-info-circle mr-2"></i>Dados Básicos
+                        </button>
+                        <button type="button" class="tab-btn py-2 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm whitespace-nowrap" data-tab="tab-equipamentos">
+                            <i class="fas fa-print mr-2"></i>Equipamentos
+                        </button>
+                    </nav>
                 </div>
-                <form id="form-caixa" class="px-6 py-4">
-                    <div class="space-y-4">
+
+                <!-- TAB: DADOS BÁSICOS -->
+                <div id="tab-basico" class="tab-content space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Número*</label>
-                            <input type="number" id="caixa-numero" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Número do Caixa <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" id="caixa-numero" required min="1"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="Ex: 1">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome*</label>
-                            <input type="text" id="caixa-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Nome do Caixa <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="caixa-nome" required 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="Ex: Caixa Principal">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Terminal</label>
-                            <input type="text" id="caixa-terminal" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-desktop mr-1 text-gray-400"></i>Terminal/Computador
+                            </label>
+                            <input type="text" id="caixa-terminal" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="Ex: TERMINAL-01 ou nome do computador">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Impressora NFCe</label>
-                            <input type="text" id="caixa-impressora-nfce" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Impressora Cupom</label>
-                            <input type="text" id="caixa-impressora-cupom" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <div class="md:col-span-2 flex items-center">
+                            <input type="checkbox" id="caixa-ativo" checked class="mr-2 h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded">
+                            <label for="caixa-ativo" class="text-sm font-medium text-gray-700">Caixa ativo</label>
                         </div>
                     </div>
-                </form>
-                <div class="px-6 py-4 border-t flex justify-end space-x-2">
-                    <button onclick="fecharModalCaixa()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Cancelar
+                </div>
+
+                <!-- TAB: EQUIPAMENTOS -->
+                <div id="tab-equipamentos" class="tab-content hidden space-y-4">
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-receipt mr-1 text-gray-400"></i>Impressora NFC-e
+                            </label>
+                            <input type="text" id="caixa-impressora-nfce" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="Nome da impressora fiscal (NFC-e)">
+                            <p class="text-xs text-gray-500 mt-1">Nome da impressora configurada no sistema para emitir NFC-e</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-print mr-1 text-gray-400"></i>Impressora de Cupom
+                            </label>
+                            <input type="text" id="caixa-impressora-cupom" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="Nome da impressora térmica para cupons">
+                            <p class="text-xs text-gray-500 mt-1">Nome da impressora não fiscal para cupons internos</p>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Configuração de Impressoras</h4>
+                            <ul class="text-sm text-blue-800 space-y-1">
+                                <li>• Configure as impressoras no Windows antes de usar</li>
+                                <li>• Use o nome exato da impressora como aparece no sistema</li>
+                                <li>• A impressora NFC-e deve estar homologada pela SEFAZ</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex justify-end space-x-3 pt-6 border-t sticky bottom-0 bg-white">
+                    <button type="button" onclick="fecharModalCaixa()" 
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition">
+                        <i class="fas fa-times mr-2"></i>Cancelar
                     </button>
-                    <button onclick="salvarCaixa()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        Salvar
+                    <button type="submit" 
+                        class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:shadow-lg font-medium transition">
+                        <i class="fas fa-save mr-2"></i>Salvar Caixa
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -212,6 +313,15 @@
                 await loadCaixas();
                 await loadSessoes();
                 await atualizarStatusCaixas();
+                
+                // Configurar navegação por tabs do modal
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const tabId = this.getAttribute('data-tab');
+                        switchTab(tabId);
+                    });
+                });
             } catch (error) {
                 console.error('Erro ao inicializar:', error);
                 document.getElementById('navbar').innerHTML = createNavbar();
@@ -220,13 +330,32 @@
         })();
 
         // =====================================================
-        // ABAS
+        // FUNÇÕES DE TAB DO MODAL
+        // =====================================================
+        
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-cyan-600', 'text-cyan-600', 'font-semibold', 'bg-red-100', 'text-red-700');
+                btn.classList.add('border-transparent', 'text-gray-600');
+                btn.style.animation = '';
+            });
+            document.getElementById(tabId)?.classList.remove('hidden');
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-600');
+                activeBtn.classList.add('border-cyan-600', 'text-cyan-600', 'font-semibold');
+            }
+        }
+
+        // =====================================================
+        // ABAS PRINCIPAIS (Cadastro / Sessões)
         // =====================================================
         
         function trocarAba(aba) {
             // Remover classes ativas
-            document.getElementById('aba-caixas').className = "py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300";
-            document.getElementById('aba-sessoes').className = "py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300";
+            document.getElementById('aba-caixas').className = "py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap";
+            document.getElementById('aba-sessoes').className = "py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap";
             
             // Ocultar conteúdos
             document.getElementById('conteudo-caixas').classList.add('hidden');
@@ -234,12 +363,126 @@
             
             // Ativar aba selecionada
             if (aba === 'caixas') {
-                document.getElementById('aba-caixas').className = "py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600";
+                document.getElementById('aba-caixas').className = "py-2 px-1 border-b-2 border-cyan-600 font-semibold text-sm text-cyan-600 whitespace-nowrap";
                 document.getElementById('conteudo-caixas').classList.remove('hidden');
             } else {
-                document.getElementById('aba-sessoes').className = "py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600";
+                document.getElementById('aba-sessoes').className = "py-2 px-1 border-b-2 border-cyan-600 font-semibold text-sm text-cyan-600 whitespace-nowrap";
                 document.getElementById('conteudo-sessoes').classList.remove('hidden');
             }
+        }
+
+        // =====================================================
+        // MODAL CAIXA
+        // =====================================================
+        
+        function abrirModalCaixa(caixa = null) {
+            editingCaixaId = caixa?.id || null;
+            document.getElementById('modal-titulo').textContent = caixa ? 'Editar Caixa' : 'Novo Caixa';
+            
+            if (caixa) {
+                document.getElementById('caixa-id').value = caixa.id;
+                document.getElementById('caixa-numero').value = caixa.numero || '';
+                document.getElementById('caixa-nome').value = caixa.nome || '';
+                document.getElementById('caixa-terminal').value = caixa.terminal || '';
+                document.getElementById('caixa-impressora-nfce').value = caixa.impressora_nfce || '';
+                document.getElementById('caixa-impressora-cupom').value = caixa.impressora_cupom || '';
+                document.getElementById('caixa-ativo').checked = caixa.ativo !== false;
+            } else {
+                document.getElementById('form-caixa').reset();
+                document.getElementById('caixa-id').value = '';
+                document.getElementById('caixa-ativo').checked = true;
+            }
+            
+            switchTab('tab-basico');
+            document.getElementById('modal-caixa').classList.remove('hidden');
+        }
+
+        function fecharModalCaixa() {
+            document.getElementById('modal-caixa').classList.add('hidden');
+            document.getElementById('form-caixa').reset();
+            editingCaixaId = null;
+        }
+
+        async function salvarCaixa(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('caixa-id').value;
+            
+            // Validação de campos obrigatórios
+            const erros = [];
+            const numero = document.getElementById('caixa-numero').value;
+            const nome = document.getElementById('caixa-nome').value.trim();
+            
+            if (!numero) erros.push({ campo: 'Número do Caixa', tab: 'tab-basico' });
+            if (!nome) erros.push({ campo: 'Nome do Caixa', tab: 'tab-basico' });
+            
+            if (erros.length > 0) {
+                mostrarErrosValidacao(erros);
+                return;
+            }
+            
+            const caixaData = {
+                numero: parseInt(numero),
+                nome: nome,
+                terminal: document.getElementById('caixa-terminal').value.trim() || null,
+                impressora_nfce: document.getElementById('caixa-impressora-nfce').value.trim() || null,
+                impressora_cupom: document.getElementById('caixa-impressora-cupom').value.trim() || null,
+                ativo: document.getElementById('caixa-ativo').checked
+            };
+            
+            try {
+                const { data, error } = id ? 
+                    await supabase.from('caixas').update(caixaData).eq('id', id).select() :
+                    await supabase.from('caixas').insert([caixaData]).select();
+                
+                if (error) throw error;
+                
+                showToast(`Caixa ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                fecharModalCaixa();
+                await loadCaixas();
+            } catch (error) {
+                console.error('Erro ao salvar caixa:', error);
+                showToast(error.message || 'Erro ao salvar caixa', 'error');
+            }
+        }
+
+        function mostrarErrosValidacao(erros) {
+            const tabsComErro = [...new Set(erros.map(e => e.tab))];
+            const primeiraTab = tabsComErro[0];
+            
+            let mensagem = '<div class="space-y-3">';
+            mensagem += '<p class="font-semibold text-gray-800 mb-2">Os seguintes campos são obrigatórios:</p>';
+            
+            tabsComErro.forEach(tabId => {
+                const camposTab = erros.filter(e => e.tab === tabId).map(e => e.campo);
+                const tabNome = {
+                    'tab-basico': 'Dados Básicos',
+                    'tab-equipamentos': 'Equipamentos'
+                }[tabId];
+                
+                mensagem += `<div class="bg-red-50 border border-red-200 rounded p-2">`;
+                mensagem += `<p class="font-medium text-red-800">${tabNome}:</p>`;
+                mensagem += `<ul class="list-disc list-inside text-red-700 text-sm">`;
+                camposTab.forEach(campo => {
+                    mensagem += `<li>${campo}</li>`;
+                });
+                mensagem += `</ul></div>`;
+            });
+            
+            mensagem += '</div>';
+            
+            showToast(mensagem, 'error', 5000);
+            
+            // Destacar tabs com erro
+            tabsComErro.forEach(tabId => {
+                const btn = document.querySelector(`[data-tab="${tabId}"]`);
+                if (btn) {
+                    btn.classList.add('bg-red-100', 'text-red-700');
+                    btn.style.animation = 'pulse 1.5s ease-in-out infinite';
+                }
+            });
+            
+            switchTab(primeiraTab);
         }
 
         // =====================================================

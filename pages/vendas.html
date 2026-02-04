@@ -215,7 +215,7 @@
                         *,
                         cliente:clientes(nome),
                         operador:users!vendas_operador_id_fkey(full_name),
-                        vendas_itens(quantidade)
+                        venda_itens(quantidade)
                     `);
                 
                 if (status) {
@@ -281,7 +281,7 @@
 
             tbody.innerHTML = vendas.map(venda => {
                 // Calcular quantidade total de itens
-                const quantidadeTotal = (venda.vendas_itens || []).reduce((sum, item) => sum + (item.quantidade || 0), 0);
+                const quantidadeTotal = (venda.venda_itens || []).reduce((sum, item) => sum + (item.quantidade || 0), 0);
                 
                 // Acumular totais
                 somaQuantidade += quantidadeTotal;
@@ -362,13 +362,40 @@
             
             try {
                 showLoading(true);
-                const vendaData = {
-                    tipo_pedido: 'VENDA',
-                    cliente_id: document.getElementById('venda-cliente').value,
-                    observacoes: document.getElementById('venda-observacoes').value || null
-                };
+                const clienteId = document.getElementById('venda-cliente').value;
+                const observacoes = document.getElementById('venda-observacoes').value || null;
+                
+                if (!clienteId) {
+                    showToast('Selecione um cliente', 'error');
+                    return;
+                }
 
-                const venda = await createPedido(vendaData);
+                // Obter usuário atual
+                const user = await getCurrentUser();
+                
+                // Gerar número único para venda
+                const numero = `VD${Date.now().toString().slice(-8)}`;
+
+                // Criar venda diretamente na tabela vendas
+                const { data: venda, error } = await supabase
+                    .from('vendas')
+                    .insert([{
+                        numero: numero,
+                        cliente_id: clienteId,
+                        vendedor_id: user.id,
+                        status: 'ABERTA',
+                        subtotal: 0,
+                        desconto_valor: 0,
+                        total: 0,
+                        observacoes: observacoes
+                    }])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('Erro ao criar venda:', error);
+                    throw error;
+                }
                 
                 if (venda) {
                     closeModal('modal-nova-venda');
@@ -385,13 +412,42 @@
                 // Buscar dados da venda
                 const { data: venda, error: erroVenda } = await supabase
                     .from('vendas')
-                    .select('*, vendas_itens(*, produtos(*)), clientes(*)')
+                    .select('*')
                     .eq('id', vendaId)
                     .single();
 
                 if (erroVenda || !venda) {
                     alert('Erro ao carregar dados da venda');
                     return;
+                }
+
+                // Buscar itens com produtos
+                const { data: itens } = await supabase
+                    .from('venda_itens')
+                    .select('*')
+                    .eq('venda_id', vendaId);
+                
+                // Carregar produtos para cada item
+                for (let item of itens || []) {
+                    if (item.produto_id) {
+                        const { data: produto } = await supabase
+                            .from('produtos')
+                            .select('*')
+                            .eq('id', item.produto_id)
+                            .single();
+                        item.produtos = produto;
+                    }
+                }
+                venda.venda_itens = itens || [];
+
+                // Buscar cliente
+                if (venda.cliente_id) {
+                    const { data: cliente } = await supabase
+                        .from('clientes')
+                        .select('*')
+                        .eq('id', venda.cliente_id)
+                        .single();
+                    venda.clientes = cliente;
                 }
 
                 // Verificar configurações da empresa

@@ -11,13 +11,7 @@ class PedidosService {
         try {
             let query = supabase
                 .from('vendas')
-                .select(`
-                    *,
-                    clientes(*),
-                    operador:operador_id(nome_completo),
-                    caixa:caixa_id(*),
-                    vendas_itens(*)
-                `)
+                .select('*')
                 .order('created_at', { ascending: false });
 
             // Aplicar filtros
@@ -26,7 +20,7 @@ class PedidosService {
             }
 
             if (filtros.status) {
-                query = query.eq('status_venda', filtros.status);
+                query = query.eq('status', filtros.status);
             }
 
             if (filtros.status_fiscal) {
@@ -43,11 +37,51 @@ class PedidosService {
                 query = query.eq('operador_id', filtros.operador_id);
             }
 
-            const { data, error } = await query.limit(filtros.limite || 100);
+            const { data: vendas, error } = await query.limit(filtros.limite || 100);
 
             if (error) throw error;
 
-            return data || [];
+            // Carregar relacionamentos separadamente
+            for (let venda of vendas || []) {
+                // Carregar cliente
+                if (venda.cliente_id) {
+                    const { data: cliente } = await supabase
+                        .from('clientes')
+                        .select('*')
+                        .eq('id', venda.cliente_id)
+                        .single();
+                    venda.clientes = cliente;
+                }
+
+                // Carregar operador
+                if (venda.operador_id) {
+                    const { data: operador } = await supabase
+                        .from('users')
+                        .select('nome_completo')
+                        .eq('id', venda.operador_id)
+                        .single();
+                    venda.operador = operador;
+                }
+
+                // Carregar caixa
+                if (venda.caixa_id) {
+                    const { data: caixa } = await supabase
+                        .from('caixas')
+                        .select('*')
+                        .eq('id', venda.caixa_id)
+                        .single();
+                    venda.caixa = caixa;
+                }
+
+                // Carregar itens
+                const { data: itens } = await supabase
+                    .from('venda_itens')
+                    .select('*')
+                    .eq('venda_id', venda.id);
+                venda.venda_itens = itens || [];
+            }
+
+            return vendas || [];
         } catch (error) {
             console.error('Erro ao listar pedidos:', error);
             return [];
@@ -59,22 +93,77 @@ class PedidosService {
      */
     static async obterPedido(vendaId) {
         try {
-            const { data, error } = await supabase
+            // Carregar venda
+            const { data: venda, error } = await supabase
                 .from('vendas')
-                .select(`
-                    *,
-                    clientes(*),
-                    operador:operador_id(*),
-                    caixa:caixa_id(*),
-                    movimentacao_caixa:movimentacao_caixa_id(*),
-                    vendas_itens(*, produto:produto_id(*))
-                `)
+                .select('*')
                 .eq('id', vendaId)
                 .single();
 
             if (error) throw error;
+            if (!venda) return null;
 
-            return data;
+            // Carregar cliente
+            if (venda.cliente_id) {
+                const { data: cliente } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .eq('id', venda.cliente_id)
+                    .single();
+                venda.clientes = cliente;
+            }
+
+            // Carregar operador
+            if (venda.operador_id) {
+                const { data: operador } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', venda.operador_id)
+                    .single();
+                venda.operador = operador;
+            }
+
+            // Carregar caixa
+            if (venda.caixa_id) {
+                const { data: caixa } = await supabase
+                    .from('caixas')
+                    .select('*')
+                    .eq('id', venda.caixa_id)
+                    .single();
+                venda.caixa = caixa;
+            }
+
+            // Carregar movimentacao_caixa
+            if (venda.movimentacao_caixa_id) {
+                const { data: movimentacao } = await supabase
+                    .from('movimentacao_caixa')
+                    .select('*')
+                    .eq('id', venda.movimentacao_caixa_id)
+                    .single();
+                venda.movimentacao_caixa = movimentacao;
+            }
+
+            // Carregar itens com produtos
+            const { data: itens } = await supabase
+                .from('venda_itens')
+                .select('*')
+                .eq('venda_id', vendaId);
+
+            // Para cada item, carregar o produto
+            for (let item of itens || []) {
+                if (item.produto_id) {
+                    const { data: produto } = await supabase
+                        .from('produtos')
+                        .select('*')
+                        .eq('id', item.produto_id)
+                        .single();
+                    item.produto = produto;
+                }
+            }
+
+            venda.venda_itens = itens || [];
+
+            return venda;
         } catch (error) {
             console.error('Erro ao obter pedido:', error);
             return null;
@@ -196,7 +285,7 @@ class PedidosService {
             const { data, error } = await supabase
                 .from('vendas')
                 .update({
-                    status_venda: 'CANCELADA',
+                    status: 'CANCELADA',
                     observacoes: `CANCELADO: ${motivo}`
                 })
                 .eq('id', vendaId)
@@ -273,16 +362,18 @@ class PedidosService {
                     <tbody>
             `;
 
-            venda.vendas_itens.forEach(item => {
-                html += `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px;">${item.descricao || 'Item'}</td>
-                        <td style="text-align: right; padding: 10px;">${item.quantidade}</td>
-                        <td style="text-align: right; padding: 10px;">R$ ${parseFloat(item.preco_unitario).toFixed(2)}</td>
-                        <td style="text-align: right; padding: 10px;">R$ ${parseFloat(item.total).toFixed(2)}</td>
-                    </tr>
-                `;
-            });
+            if (venda.venda_itens && venda.venda_itens.length > 0) {
+                venda.venda_itens.forEach(item => {
+                    html += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;">${item.descricao || 'Item'}</td>
+                            <td style="text-align: right; padding: 10px;">${item.quantidade}</td>
+                            <td style="text-align: right; padding: 10px;">R$ ${parseFloat(item.preco_unitario).toFixed(2)}</td>
+                            <td style="text-align: right; padding: 10px;">R$ ${parseFloat(item.total).toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+            }
 
             html += `
                     </tbody>
@@ -316,7 +407,7 @@ class PedidosService {
             mensagem += `Seu pedido *${venda.numero_nf}* foi criado.\n`;
             mensagem += `Total: R$ ${venda.total.toFixed(2)}\n\n`;
             mensagem += `Data: ${SharedUtils.formatarDataBR(venda.created_at)}\n`;
-            mensagem += `Status: ${venda.status_venda}\n`;
+            mensagem += `Status: ${venda.status}\n`;
 
             // Codificar para URL
             const mensagemURL = encodeURIComponent(mensagem);

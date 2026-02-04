@@ -463,7 +463,7 @@ async function gerarPedidoVenda(prePedidoId, clienteId, observacoesEstoque = '')
         }));
 
         const { error: errorItens } = await supabase
-            .from('vendas_itens')
+            .from('venda_itens')
             .insert(itensPedido);
         
         if (errorItens) throw errorItens;

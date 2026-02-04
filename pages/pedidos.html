@@ -1052,9 +1052,13 @@
             }
         }
 
-        async function criarPedidoLegacy(fornecedorId, itens) {
+        async function criarPedidoLegacy(fornecedorId, itens, observacoes = null, totalNF = 0, numeroNF = null) {
             const user = await getCurrentUser();
             const numero = `PC${Date.now().toString().slice(-8)}`;
+            
+            const obsText = numeroNF 
+                ? `Importado via XML NFe ${numeroNF}` 
+                : observacoes || '';
             
             const { data: pedido, error } = await supabase
                 .from('pedidos_compra')
@@ -1062,24 +1066,28 @@
                     numero: numero,
                     fornecedor_id: fornecedorId,
                     usuario_id: user.id,
-                    total: dadosXMLImportado.total_nf,
-                    status: 'APROVADO',
-                    observacoes: `Importado via XML NFe ${dadosXMLImportado.numero_nf}`
+                    total: totalNF,
+                    status: 'RASCUNHO',
+                    observacoes: obsText
                 }])
                 .select()
                 .single();
             
             if (error) throw error;
             
-            // Adicionar itens
-            const itensComPedido = itens.map(item => ({
-                pedido_compra_id: pedido.id,
-                produto_id: item.produto_id,
-                quantidade: item.quantidade,
-                preco_unitario: item.preco_unitario
-            }));
+            // Adicionar itens se houver
+            if (itens && itens.length > 0) {
+                const itensComPedido = itens.map(item => ({
+                    pedido_compra_id: pedido.id,
+                    produto_id: item.produto_id,
+                    quantidade: item.quantidade,
+                    preco_unitario: item.preco_unitario
+                }));
+                
+                await supabase.from('pedido_compra_itens').insert(itensComPedido);
+            }
             
-            await supabase.from('pedido_compra_itens').insert(itensComPedido);
+            return pedido;
         }
 
         // ========================================
@@ -1184,7 +1192,10 @@
                     return;
                 }
 
-                // Tentar criar na tabela nova
+                // Obter usuário atual
+                const user = await getCurrentUser();
+                
+                // Tentar criar na tabela pedidos_compra
                 const numero = `PC${Date.now().toString().slice(-8)}`;
                 
                 const { data: pedido, error } = await supabase
@@ -1192,6 +1203,7 @@
                     .insert([{
                         numero: numero,
                         fornecedor_id: fornecedorId,
+                        usuario_id: user.id,
                         data_pedido: new Date().toISOString().split('T')[0],
                         status: 'RASCUNHO',
                         observacoes: observacoes
@@ -1200,22 +1212,21 @@
                     .single();
 
                 if (error) {
-                    // Fallback para tabela antiga
-                    const pedidoLegacy = await createPedido({
-                        fornecedor_id: fornecedorId,
-                        observacoes: observacoes,
-                        tipo_pedido: 'COMPRA'
-                    });
+                    console.error('Erro ao criar na tabela pedidos_compra:', error);
+                    // Fallback para criar usando função legacy
+                    const pedidoLegacy = await criarPedidoLegacy(fornecedorId, [], observacoes);
                     
                     if (pedidoLegacy) {
                         closeModal('modal-novo-pedido');
+                        showToast('Pedido criado com sucesso!', 'success');
                         redirect(`/pages/pedido-detalhe.html?id=${pedidoLegacy.id}`);
+                    } else {
+                        throw new Error('Não foi possível criar o pedido');
                     }
                 } else {
                     closeModal('modal-novo-pedido');
                     showToast('Pedido criado com sucesso!', 'success');
-                    await loadPedidos();
-                    // TODO: Redirecionar para página de detalhes do novo modelo
+                    redirect(`/pages/pedido-detalhe.html?id=${pedido.id}`);
                 }
             } catch (error) {
                 handleError(error, 'Erro ao criar pedido');

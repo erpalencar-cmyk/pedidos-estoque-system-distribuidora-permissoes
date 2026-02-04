@@ -73,7 +73,7 @@ async function gerarPDFVenda(vendaId) {
 
     // Buscar itens
     const { data: itens, error: itensError } = await supabase
-        .from('vendas_itens')
+        .from('venda_itens')
         .select('*, produto:produtos(codigo, nome)')
         .eq('venda_id', vendaId)
         .order('created_at', { ascending: true });

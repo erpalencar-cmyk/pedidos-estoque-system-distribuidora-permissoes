@@ -1020,7 +1020,7 @@ class PDVSystem {
             // Inserir itens
             for (const item of this.itensCarrinho) {
                 const { error: erroItem } = await supabase
-                    .from('vendas_itens')
+                    .from('venda_itens')
                     .insert({
                         venda_id: vendaId,
                         produto_id: item.produto_id,
@@ -1145,7 +1145,7 @@ class PDVSystem {
 
             // Buscar itens separadamente
             const { data: itens, error: erroItens } = await supabase
-                .from('vendas_itens')
+                .from('venda_itens')
                 .select('*')
                 .eq('venda_id', vendaId);
 

@@ -497,7 +497,7 @@
                     .select(`
                         *,
                         cliente:clientes(nome),
-                        itens:vendas_itens(quantidade)
+                        itens:venda_itens(quantidade)
                     `)
                     .eq('status_venda', 'FINALIZADA')
                     .order('created_at', { ascending: false });

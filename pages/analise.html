@@ -594,7 +594,7 @@
                 // Buscar itens de cada venda
                 vendasFinalizadas = await Promise.all(vendas.map(async p => {
                     const { data: itens } = await supabase
-                        .from('vendas_itens')
+                        .from('venda_itens')
                         .select('*')
                         .eq('venda_id', p.id);
                     return { ...p, itens };

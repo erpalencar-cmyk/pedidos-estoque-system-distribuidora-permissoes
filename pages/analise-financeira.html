@@ -199,6 +199,21 @@
                             <canvas id="chart-diario"></canvas>
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <h4 class="text-md font-semibold mb-4 text-gray-700">
+                                <i class="fas fa-truck text-indigo-500 mr-2"></i>Análise por Fornecedor
+                            </h4>
+                            <canvas id="chart-fornecedores"></canvas>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <h4 class="text-md font-semibold mb-4 text-gray-700">
+                                <i class="fas fa-chart-line text-teal-500 mr-2"></i>Variação de Preço Médio por Fornecedor
+                            </h4>
+                            <canvas id="chart-variacao-fornecedor"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tab: Por Categoria -->
@@ -430,18 +445,11 @@
                     selectMarca.innerHTML += `<option value="${marca}">${marca}</option>`;
                 });
 
-                // Carregar vendas finalizadas (pedidos do tipo VENDA com status FINALIZADO)
+                // Carregar vendas finalizadas
                 const { data: vendasData, error: erroVendas } = await supabase
-                    .from('pedidos')
-                    .select(`
-                        *,
-                        itens:pedido_itens(
-                            *,
-                            produto:produtos(id, nome, codigo, marca, preco_compra, preco_venda, preco_custo, categoria_id)
-                        )
-                    `)
-                    .eq('tipo_pedido', 'VENDA')
-                    .eq('status', 'FINALIZADO')
+                    .from('vendas')
+                    .select('*')
+                    .eq('status', 'FINALIZADA')
                     .order('created_at', { ascending: false });
 
                 if (erroVendas) {
@@ -450,6 +458,38 @@
                     vendas = [];
                 } else {
                     vendas = vendasData || [];
+                    
+                    // Carregar itens de cada venda separadamente
+                    for (let venda of vendas) {
+                        const { data: itensData } = await supabase
+                            .from('venda_itens')
+                            .select('*')
+                            .eq('venda_id', venda.id);
+                        
+                        venda.venda_itens = itensData || [];
+                        
+                        // Para cada item, carregar produto e lote
+                        for (let item of venda.venda_itens) {
+                            // Carregar produto
+                            const { data: prodData } = await supabase
+                                .from('produtos')
+                                .select('*, fornecedores:fornecedores(id, nome)')
+                                .eq('id', item.produto_id)
+                                .single();
+                            item.produtos = prodData;
+                            
+                            // Carregar lote se existir
+                            if (item.lote_id) {
+                                const { data: loteData } = await supabase
+                                    .from('produto_lotes')
+                                    .select('id, preco_custo')
+                                    .eq('id', item.lote_id)
+                                    .single();
+                                item.produto_lotes = loteData;
+                            }
+                        }
+                    }
+                    
                     console.log('✅ Vendas carregadas:', vendas.length);
                 }
 
@@ -501,6 +541,33 @@
             aplicarFiltros();
         }
 
+        // ========== FUNÇÃO HELPER PARA CALCULAR CUSTO ==========
+        /**
+         * Calcula o custo correto de um item de venda
+         * Prioridade:
+         * 1. preco_custo do item (venda_itens.preco_custo) - valor histórico da compra
+         * 2. preco_custo do lote (produto_lotes.preco_custo) - se o item tem lote
+         * 3. preco_custo do produto (produtos.preco_custo) - fallback
+         */
+        function getCustoItem(item) {
+            // 1. Prioridade: custo do item (já vem da movimentação/compra)
+            if (item.preco_custo && item.preco_custo > 0) {
+                return item.preco_custo;
+            }
+            
+            // 2. Se tem lote, usar custo do lote
+            if (item.produto_lotes && item.produto_lotes.preco_custo && item.produto_lotes.preco_custo > 0) {
+                return item.produto_lotes.preco_custo;
+            }
+            
+            // 3. Fallback: custo do cadastro do produto
+            if (item.produtos && item.produtos.preco_custo && item.produtos.preco_custo > 0) {
+                return item.produtos.preco_custo;
+            }
+            
+            return 0;
+        }
+
         function filtrarVendas() {
             let resultado = [...vendas];
             
@@ -519,12 +586,13 @@
             const vendasFiltradas = filtrarVendas();
             
             let receitaTotal = 0;
-            let custoTotal = 0;
+            let custoTotalVendas = 0;
             let qtdVendas = vendasFiltradas.length;
             
+            // Calcular receita e custo das vendas
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     // Aplicar filtros de categoria e marca
@@ -532,10 +600,25 @@
                     if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
                     
                     receitaTotal += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    custoTotal += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    // Usar custo histórico correto (item > lote > produto)
+                    const custo = getCustoItem(item);
+                    custoTotalVendas += custo * (item.quantidade || 0);
                 });
             });
             
+            // Adicionar despesas das contas a pagar no período filtrado
+            let despesasExtras = 0;
+            contasPagar.forEach(cp => {
+                if (cp.status_pagamento === 'PAGO') {
+                    if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
+                        if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
+                            despesasExtras += cp.valor_pago || 0;
+                        }
+                    }
+                }
+            });
+            
+            const custoTotal = custoTotalVendas + despesasExtras;
             const lucroTotal = receitaTotal - custoTotal;
             const margemMedia = receitaTotal > 0 ? (lucroTotal / receitaTotal * 100) : 0;
             
@@ -589,6 +672,8 @@
             criarGraficoProdutos(vendasFiltradas);
             criarGraficoLucroReceita(vendasFiltradas);
             criarGraficoDiario(vendasFiltradas);
+            criarGraficoFornecedores(vendasFiltradas);
+            criarGraficoVariacaoFornecedor(vendasFiltradas);
         }
 
         function criarGraficoEvolucao(vendasFiltradas) {
@@ -635,8 +720,8 @@
             const vendasPorCategoria = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
@@ -684,8 +769,8 @@
             const qtdPorProduto = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
@@ -723,8 +808,8 @@
             const dadosPorMarca = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
@@ -734,7 +819,7 @@
                     if (!dadosPorMarca[marca]) dadosPorMarca[marca] = { receita: 0, custo: 0 };
                     
                     dadosPorMarca[marca].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    dadosPorMarca[marca].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    dadosPorMarca[marca].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
 
@@ -785,15 +870,15 @@
                 
                 if (!dadosPorDia[data]) dadosPorDia[data] = { receita: 0, custo: 0 };
                 
-                (venda.vendas_itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
                     if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
                     
                     dadosPorDia[data].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    dadosPorDia[data].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    dadosPorDia[data].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
 
@@ -842,6 +927,197 @@
             });
         }
 
+        function criarGraficoFornecedores(vendasFiltradas) {
+            const dadosPorFornecedor = {};
+            
+            // Agrupar vendas por fornecedor usando o fornecedor_id do produto
+            vendasFiltradas.forEach(venda => {
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
+                    if (!produto) return;
+                    
+                    if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    
+                    // Usar nome do fornecedor se disponível, senão "Sem Fornecedor"
+                    const fornecedorNome = produto.fornecedores?.nome || 'Sem Fornecedor';
+                    
+                    if (!dadosPorFornecedor[fornecedorNome]) {
+                        dadosPorFornecedor[fornecedorNome] = { 
+                            receita: 0, 
+                            custo: 0,
+                            quantidade: 0
+                        };
+                    }
+                    
+                    const receita = (item.preco_unitario || 0) * (item.quantidade || 0);
+                    const custo = getCustoItem(item) * (item.quantidade || 0);
+                    
+                    dadosPorFornecedor[fornecedorNome].receita += receita;
+                    dadosPorFornecedor[fornecedorNome].custo += custo;
+                    dadosPorFornecedor[fornecedorNome].quantidade += item.quantidade || 0;
+                });
+            });
+
+            // Ordenar por receita e pegar top 10
+            const topFornecedores = Object.entries(dadosPorFornecedor)
+                .sort((a, b) => b[1].receita - a[1].receita)
+                .slice(0, 10);
+
+            const ctx = document.getElementById('chart-fornecedores');
+            chartInstances.fornecedores = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topFornecedores.map(f => f[0]),
+                    datasets: [
+                        {
+                            label: 'Receita',
+                            data: topFornecedores.map(f => f[1].receita),
+                            backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Custo',
+                            data: topFornecedores.map(f => f[1].custo),
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { 
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    label += formatCurrency(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => 'R$ ' + v.toFixed(0) }
+                        }
+                    }
+                }
+            });
+        }
+
+        function criarGraficoVariacaoFornecedor(vendasFiltradas) {
+            const precoPorFornecedorData = {};
+            
+            // Agrupar por fornecedor e data
+            vendasFiltradas.forEach(venda => {
+                const data = venda.created_at?.split('T')[0];
+                if (!data) return;
+                
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
+                    if (!produto) return;
+                    
+                    if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
+                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    
+                    const fornecedorNome = produto.fornecedores?.nome || 'Sem Fornecedor';
+                    const precoCusto = getCustoItem(item);
+                    
+                    if (!precoPorFornecedorData[fornecedorNome]) {
+                        precoPorFornecedorData[fornecedorNome] = {};
+                    }
+                    
+                    if (!precoPorFornecedorData[fornecedorNome][data]) {
+                        precoPorFornecedorData[fornecedorNome][data] = { soma: 0, count: 0 };
+                    }
+                    
+                    precoPorFornecedorData[fornecedorNome][data].soma += precoCusto * (item.quantidade || 0);
+                    precoPorFornecedorData[fornecedorNome][data].count += item.quantidade || 0;
+                });
+            });
+
+            // Calcular média por data para cada fornecedor
+            const fornecedoresComDados = Object.entries(precoPorFornecedorData)
+                .filter(([_, datas]) => Object.keys(datas).length > 0)
+                .slice(0, 5); // Top 5 fornecedores
+
+            if (fornecedoresComDados.length === 0) {
+                const ctx = document.getElementById('chart-variacao-fornecedor');
+                ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                return;
+            }
+
+            const todasDatas = new Set();
+            fornecedoresComDados.forEach(([_, datas]) => {
+                Object.keys(datas).forEach(d => todasDatas.add(d));
+            });
+            const datasOrdenadas = Array.from(todasDatas).sort();
+
+            const cores = [
+                'rgba(99, 102, 241, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(251, 146, 60, 1)',
+                'rgba(236, 72, 153, 1)',
+                'rgba(14, 165, 233, 1)'
+            ];
+
+            const datasets = fornecedoresComDados.map(([fornecedor, datas], index) => ({
+                label: fornecedor,
+                data: datasOrdenadas.map(data => {
+                    if (datas[data]) {
+                        return datas[data].count > 0 ? datas[data].soma / datas[data].count : 0;
+                    }
+                    return null;
+                }),
+                borderColor: cores[index % cores.length],
+                backgroundColor: cores[index % cores.length].replace('1)', '0.1)'),
+                tension: 0.4,
+                fill: false,
+                spanGaps: true
+            }));
+
+            const ctx = document.getElementById('chart-variacao-fornecedor');
+            chartInstances.variacaoFornecedor = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: datasOrdenadas.map(d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: { 
+                        legend: { position: 'top' },
+                        title: {
+                            display: true,
+                            text: 'Variação do Preço Médio de Compra por Fornecedor'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    label += formatCurrency(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => 'R$ ' + v.toFixed(2) }
+                        }
+                    }
+                }
+            });
+        }
+
         // ============================================
         // TABELAS
         // ============================================
@@ -850,8 +1126,8 @@
             const lucrosPorCategoria = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
@@ -865,7 +1141,7 @@
                     
                     lucrosPorCategoria[catNome].quantidade += item.quantidade || 0;
                     lucrosPorCategoria[catNome].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucrosPorCategoria[catNome].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucrosPorCategoria[catNome].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             
@@ -906,8 +1182,8 @@
             const lucrosPorMarca = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
@@ -920,7 +1196,7 @@
                     
                     lucrosPorMarca[marca].quantidade += item.quantidade || 0;
                     lucrosPorMarca[marca].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucrosPorMarca[marca].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucrosPorMarca[marca].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             
@@ -961,8 +1237,8 @@
             const lucrosPorProduto = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
@@ -983,7 +1259,7 @@
                     
                     lucrosPorProduto[key].quantidade += item.quantidade || 0;
                     lucrosPorProduto[key].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucrosPorProduto[key].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucrosPorProduto[key].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             
@@ -1197,25 +1473,30 @@
             let custoMercadoria = 0;
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
                     if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
                     
                     receitaBruta += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    custoMercadoria += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    // Usar custo histórico correto (item > lote > produto)
+                    const custo = getCustoItem(item);
+                    custoMercadoria += custo * (item.quantidade || 0);
                 });
             });
 
-            // Pagamentos no período (despesas)
+            // Pagamentos no período (despesas operacionais, excluindo compras de mercadorias)
             let despesasOperacionais = 0;
             contasPagar.forEach(cp => {
-                if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
-                    if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
-                        if (cp.categoria !== 'FORNECEDOR') {
-                            despesasOperacionais += cp.valor_pago || 0;
+                if (cp.status_pagamento === 'PAGO') {
+                    if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
+                        if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
+                            // Considerar despesas operacionais (não compras de mercadorias)
+                            if (cp.categoria !== 'FORNECEDOR' && cp.categoria !== 'COMPRA') {
+                                despesasOperacionais += cp.valor_pago || 0;
+                            }
                         }
                     }
                 }
@@ -1346,8 +1627,8 @@
             const lucros = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     const cat = categorias.find(c => c.id === produto.categoria_id);
@@ -1357,7 +1638,7 @@
                     
                     lucros[catNome].quantidade += item.quantidade || 0;
                     lucros[catNome].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucros[catNome].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucros[catNome].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             
@@ -1376,8 +1657,8 @@
             const lucros = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     const marca = produto.marca || 'SEM MARCA';
@@ -1386,7 +1667,7 @@
                     
                     lucros[marca].quantidade += item.quantidade || 0;
                     lucros[marca].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucros[marca].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucros[marca].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             
@@ -1405,8 +1686,8 @@
             const lucros = {};
             
             vendasFiltradas.forEach(venda => {
-                (venda.itens || []).forEach(item => {
-                    const produto = item.produto;
+                (venda.venda_itens || []).forEach(item => {
+                    const produto = item.produtos;
                     if (!produto) return;
                     
                     const key = produto.id;
@@ -1422,7 +1703,7 @@
                     
                     lucros[key].quantidade += item.quantidade || 0;
                     lucros[key].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
-                    lucros[key].custo += (produto.preco_custo || 0) * (item.quantidade || 0);
+                    lucros[key].custo += getCustoItem(item) * (item.quantidade || 0);
                 });
             });
             

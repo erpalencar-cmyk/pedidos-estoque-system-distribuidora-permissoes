@@ -7,24 +7,87 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinner { animation: spin 1s linear infinite; }
+        .modal-backdrop { backdrop-filter: blur(2px); }
+        .btn-action { padding: 0.5rem; border-radius: 0.375rem; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .table-row-hover:hover { background-color: #f9fafb; transition: background-color 0.2s; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div id="navbar"></div>
     <div id="sidebar-container"></div>
 
     <main class="lg:ml-64 pt-16">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="mb-8">
-                <h2 class="text-3xl font-bold text-gray-900">
-                    <i class="fas fa-building mr-3 text-purple-600"></i>Configurações da Empresa
-                </h2>
-                <p class="text-gray-600 mt-1">Gerencie as informações e identidade visual da empresa</p>
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="mb-8 flex justify-between items-center">
+                <div>
+                    <h2 class="text-4xl font-bold text-gray-900">
+                        <i class="fas fa-building mr-3 text-teal-600"></i>Configurações da Empresa
+                    </h2>
+                    <p class="text-gray-600 mt-2">Gerencie informações, identidade visual e integrações</p>
+                </div>
+                <button type="button" onclick="salvarConfiguracoesEmpresa()" 
+                    class="px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold">
+                    <i class="fas fa-save mr-2"></i>Salvar Configurações
+                </button>
             </div>
 
-            <form id="form-empresa" class="space-y-6">
-                <!-- Logo da Empresa -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Logo da Empresa</h3>
+            <!-- Loading Spinner -->
+            <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 flex items-center space-x-3 shadow-xl">
+                    <div class="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full spinner"></div>
+                    <span class="text-gray-700 font-medium">Processando...</span>
+                </div>
+            </div>
+
+            <form id="form-empresa" onsubmit="salvarConfiguracoesEmpresa(event)" class="space-y-6">
+                <!-- Navegação por Tabs -->
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div class="border-b border-gray-200 px-6">
+                        <nav class="flex space-x-1 -mb-px overflow-x-auto">
+                            <button type="button" data-tab="tab-basico" 
+                                class="tab-btn px-6 py-4 border-b-2 border-teal-600 text-teal-600 font-semibold whitespace-nowrap">
+                                <i class="fas fa-building mr-2"></i>Dados Básicos
+                            </button>
+                            <button type="button" data-tab="tab-endereco" 
+                                class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">
+                                <i class="fas fa-map-marker-alt mr-2"></i>Endereço
+                            </button>
+                            <button type="button" data-tab="tab-fiscal" 
+                                class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">
+                                <i class="fas fa-file-invoice mr-2"></i>Dados Fiscais
+                            </button>
+                            <button type="button" data-tab="tab-nfe" 
+                                class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">
+                                <i class="fas fa-receipt mr-2"></i>NF-e / NFC-e
+                            </button>
+                            <button type="button" data-tab="tab-pdv" 
+                                class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">
+                                <i class="fas fa-cash-register mr-2"></i>PDV
+                            </button>
+                            <button type="button" data-tab="tab-integracao" 
+                                class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">
+                                <i class="fas fa-plug mr-2"></i>Integrações
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Conteúdo das Tabs -->
+                    <div class="p-6 max-h-[70vh] overflow-y-auto">
+                        <!-- TAB: Dados Básicos -->
+                        <div id="tab-basico" class="tab-content">
+                            <!-- Logo da Empresa -->
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Logo da Empresa</h3>
                     
                     <div class="flex items-center space-x-6">
                         <div class="flex-shrink-0">
@@ -52,61 +115,62 @@
                 </div>
 
                 <!-- Informações Básicas -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="mt-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Básicas</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nome Fantasia *</label>
-                            <input type="text" id="nome_empresa" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="nome_empresa" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Razão Social</label>
-                            <input type="text" id="razao_social" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="razao_social" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">CNPJ</label>
-                            <input type="text" id="cnpj" placeholder="00.000.000/0000-00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="cnpj" placeholder="00.000.000/0000-00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                            <input type="tel" id="telefone" placeholder="(00) 0000-0000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="tel" id="telefone" placeholder="(00) 0000-0000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                            <input type="email" id="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="email" id="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                            <input type="url" id="website" placeholder="https://" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="url" id="website" placeholder="https://" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Endereço -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+            <!-- TAB: Endereço -->
+            <div id="tab-endereco" class="tab-content hidden">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Endereço Completo</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Endereço Completo</label>
-                            <input type="text" id="endereco" placeholder="Rua, número, complemento" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="endereco" placeholder="Rua, número, complemento" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
-                            <input type="text" id="cidade" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="cidade" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-                                <select id="estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <select id="estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                     <option value="">Selecione</option>
                                     <option value="AC">AC</option>
                                     <option value="AL">AL</option>
@@ -140,31 +204,31 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                                <input type="text" id="cep" placeholder="00000-000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="text" id="cep" placeholder="00000-000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Dados Fiscais da Empresa -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <!-- TAB: Dados Fiscais -->
+                <div id="tab-fiscal" class="tab-content hidden">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">📋 Dados Fiscais</h3>
                     <p class="text-sm text-gray-600 mb-4">Informações fiscais obrigatórias para emissão de NFC-e/NF-e</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Inscrição Estadual *</label>
-                            <input type="text" id="inscricao_estadual" placeholder="000.000.000.000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="inscricao_estadual" placeholder="000.000.000.000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Inscrição Municipal</label>
-                            <input type="text" id="inscricao_municipal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="inscricao_municipal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Regime Tributário *</label>
-                            <select id="regime_tributario" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="regime_tributario" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                 <option value="1">1 - Simples Nacional</option>
                                 <option value="2">2 - Simples Nacional (Excesso)</option>
                                 <option value="3">3 - Regime Normal</option>
@@ -173,41 +237,41 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">CNAE Principal</label>
-                            <input type="text" id="cnae" placeholder="4723700" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="cnae" placeholder="4723700" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Código Município (IBGE)</label>
-                            <input type="text" id="codigo_municipio" placeholder="3550308" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="codigo_municipio" placeholder="3550308" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Código IBGE de 7 dígitos</p>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Número (Endereço)</label>
-                            <input type="text" id="endereco_numero" placeholder="123" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="endereco_numero" placeholder="123" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
-                            <input type="text" id="bairro" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="bairro" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
-                            <input type="text" id="logradouro" placeholder="Rua, Avenida, etc." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="logradouro" placeholder="Rua, Avenida, etc." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
                     </div>
                 </div>
 
-                <!-- Focus NFe API -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <!-- TAB: NF-e / NFC-e -->
+                <div id="tab-nfe" class="tab-content hidden">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">🧾 Integração Focus NFe</h3>
                     <p class="text-sm text-gray-600 mb-4">Configurações para emissão de NFC-e e NF-e via Focus NFe</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Ambiente *</label>
-                            <select id="nfe_ambiente" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="nfe_ambiente" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                 <option value="2">2 - Homologação (Testes)</option>
                                 <option value="1">1 - Produção</option>
                             </select>
@@ -223,32 +287,32 @@
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Token de API Focus NFe *</label>
                             <div class="flex gap-2">
-                                <input type="password" id="nfe_token" placeholder="Seu token da API Focus NFe" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="password" id="nfe_token" placeholder="Seu token da API Focus NFe" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                 <button type="button" onclick="testarConexaoNFe()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
                                     <i class="fas fa-plug mr-2"></i>Testar
                                 </button>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Obtenha em: <a href="https://focusnfe.com.br" target="_blank" class="text-blue-600 underline">focusnfe.com.br</a></p>
+                            <p class="text-xs text-gray-500 mt-1">Obtenha em: <a href="https://focusnfe.com.br" target="_blank" class="text-teal-600 underline">focusnfe.com.br</a></p>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Série NFC-e</label>
-                            <input type="number" id="nfce_serie" value="1" min="1" max="999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="nfce_serie" value="1" min="1" max="999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Série NF-e</label>
-                            <input type="number" id="nfe_serie" value="1" min="1" max="999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="nfe_serie" value="1" min="1" max="999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Próximo Número NFC-e</label>
-                            <input type="number" id="nfce_numero" value="1" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="nfce_numero" value="1" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Próximo Número NF-e</label>
-                            <input type="number" id="nfe_numero" value="1" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="nfe_numero" value="1" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
                     </div>
 
@@ -259,12 +323,12 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Arquivo do Certificado (.pfx)</label>
-                                <input type="file" id="certificado_input" accept=".pfx,.p12" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="file" id="certificado_input" accept=".pfx,.p12" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Senha do Certificado</label>
-                                <input type="password" id="certificado_senha" placeholder="Senha do .pfx" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="password" id="certificado_senha" placeholder="Senha do .pfx" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             </div>
 
                             <div class="md:col-span-2">
@@ -275,7 +339,7 @@
                         </div>
 
                         <div class="mt-4">
-                            <button type="button" onclick="enviarCertificado()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <button type="button" onclick="enviarCertificado()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
                                 <i class="fas fa-upload mr-2"></i>Enviar Certificado para Focus NFe
                             </button>
                         </div>
@@ -292,53 +356,53 @@
                     </div>
                 </div>
 
-                <!-- Configurações PDV -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <!-- TAB: PDV -->
+                <div id="tab-pdv" class="tab-content hidden">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">🖥️ Configurações do PDV</h3>
                     <p class="text-sm text-gray-600 mb-4">Opções para o Ponto de Venda</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="pdv_emitir_nfce" class="w-4 h-4 text-blue-600 rounded">
+                            <input type="checkbox" id="pdv_emitir_nfce" class="w-4 h-4 text-teal-600 rounded">
                             <label for="pdv_emitir_nfce" class="text-sm font-medium text-gray-700">Emitir NFC-e automaticamente nas vendas</label>
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="pdv_imprimir_cupom" checked class="w-4 h-4 text-blue-600 rounded">
+                            <input type="checkbox" id="pdv_imprimir_cupom" checked class="w-4 h-4 text-teal-600 rounded">
                             <label for="pdv_imprimir_cupom" class="text-sm font-medium text-gray-700">Imprimir cupom após venda</label>
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="pdv_permitir_venda_zerado" class="w-4 h-4 text-blue-600 rounded">
+                            <input type="checkbox" id="pdv_permitir_venda_zerado" class="w-4 h-4 text-teal-600 rounded">
                             <label for="pdv_permitir_venda_zerado" class="text-sm font-medium text-gray-700">Permitir venda com estoque zerado</label>
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="pdv_desconto_maximo" class="w-4 h-4 text-blue-600 rounded">
+                            <input type="checkbox" id="pdv_desconto_maximo" class="w-4 h-4 text-teal-600 rounded">
                             <label for="pdv_desconto_maximo" class="text-sm font-medium text-gray-700">Limitar desconto máximo</label>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Desconto Máximo (%)</label>
-                            <input type="number" id="pdv_desconto_limite" value="10" min="0" max="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="pdv_desconto_limite" value="10" min="0" max="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Mensagem no Cupom</label>
-                            <input type="text" id="pdv_mensagem_cupom" placeholder="Obrigado pela preferência!" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="pdv_mensagem_cupom" placeholder="Obrigado pela preferência!" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
                     </div>
                 </div>
 
-                <!-- WhatsApp API -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <!-- TAB: Integrações -->
+                <div id="tab-integracao" class="tab-content hidden">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">🔌 Integração WhatsApp API</h3>
                     <p class="text-sm text-gray-600 mb-4">Configure para envio automático de PDFs via WhatsApp</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Provedor da API</label>
-                            <select id="whatsapp_api_provider" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="whatsapp_api_provider" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                 <option value="">Não configurado</option>
                                 <option value="evolution">Evolution API</option>
                                 <option value="twilio">Twilio</option>
@@ -349,51 +413,39 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Número de Origem (com DDI)</label>
-                            <input type="text" id="whatsapp_numero_origem" placeholder="5511999999999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="whatsapp_numero_origem" placeholder="5511999999999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Formato: 55 + DDD + número (sem espaços ou caracteres)</p>
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">URL da API</label>
-                            <input type="url" id="whatsapp_api_url" placeholder="https://api.exemplo.com" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="url" id="whatsapp_api_url" placeholder="https://api.exemplo.com" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">API Key / Token</label>
-                            <input type="password" id="whatsapp_api_key" placeholder="Seu token de API" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="password" id="whatsapp_api_key" placeholder="Seu token de API" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">ID da Instância (Evolution API)</label>
-                            <input type="text" id="whatsapp_instance_id" placeholder="nome-da-instancia" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="whatsapp_instance_id" placeholder="nome-da-instancia" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                         </div>
                     </div>
 
-                    <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 class="text-sm font-semibold text-blue-900 mb-2">📘 APIs Recomendadas:</h4>
-                        <ul class="text-sm text-blue-800 space-y-1">
+                    <div class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                        <h4 class="text-sm font-semibold text-teal-900 mb-2">📘 APIs Recomendadas:</h4>
+                        <ul class="text-sm text-teal-800 space-y-1">
                             <li><strong>Evolution API</strong> - <a href="https://evolution-api.com" target="_blank" class="underline">evolution-api.com</a> (Gratuita, auto-hospedada)</li>
                             <li><strong>Twilio</strong> - <a href="https://www.twilio.com/whatsapp" target="_blank" class="underline">twilio.com/whatsapp</a> (Paga, oficial)</li>
                         </ul>
                     </div>
                 </div>
-
-                <!-- Botões -->
-                <div class="flex justify-end space-x-3">
-                    <button type="button" onclick="window.location.href='/pages/dashboard.html'" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        💾 Salvar Configurações
-                    </button>
+                    </div>
                 </div>
             </form>
         </div>
     </main>
-
-    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg"><div class="spinner mx-auto"></div><p class="mt-4 text-gray-700">Salvando...</p></div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
@@ -409,6 +461,7 @@
         let logoAtual = null;
         let logoFile = null;
 
+        // ========== INICIALIZAÇÃO ==========
         (async () => {
             await checkAuth();
             
@@ -422,8 +475,257 @@
             await initNavbar();
             await initSidebar();
             await loadEmpresaConfig();
+
+            // Configurar navegação por tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabId = this.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
         })();
 
+        // ========== FUNÇÕES DE TAB ==========
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-teal-600', 'text-teal-600', 'font-semibold', 'bg-red-100', 'text-red-700');
+                btn.classList.add('border-transparent', 'text-gray-600');
+                btn.style.animation = '';
+            });
+            document.getElementById(tabId)?.classList.remove('hidden');
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-600');
+                activeBtn.classList.add('border-teal-600', 'text-teal-600', 'font-semibold');
+            }
+        }
+
+        // ========== VALIDAÇÃO E SAVE ==========
+        async function salvarConfiguracoesEmpresa(event) {
+            if (event) event.preventDefault();
+            
+            // Validação de campos obrigatórios
+            const erros = [];
+            const nomeEmpresa = document.getElementById('nome_empresa')?.value?.trim();
+            if (!nomeEmpresa) erros.push({ campo: 'Nome Fantasia', aba: 'Dados Básicos' });
+            
+            if (erros.length > 0) {
+                mostrarErrosValidacao(erros);
+                return;
+            }
+            
+            const configData = {
+                nome_empresa: nomeEmpresa,
+                razao_social: document.getElementById('razao_social').value?.trim() || null,
+                cnpj: document.getElementById('cnpj').value?.trim() || null,
+                telefone: document.getElementById('telefone').value?.trim() || null,
+                email: document.getElementById('email').value?.trim() || null,
+                website: document.getElementById('website').value?.trim() || null,
+                endereco: document.getElementById('endereco').value?.trim() || null,
+                cidade: document.getElementById('cidade').value?.trim() || null,
+                estado: document.getElementById('estado').value || null,
+                cep: document.getElementById('cep').value?.trim() || null,
+                inscricao_estadual: document.getElementById('inscricao_estadual').value?.trim() || null,
+                inscricao_municipal: document.getElementById('inscricao_municipal').value?.trim() || null,
+                regime_tributario: document.getElementById('regime_tributario').value || null,
+                cnae: document.getElementById('cnae').value?.trim() || null,
+                codigo_municipio: document.getElementById('codigo_municipio').value?.trim() || null,
+                endereco_numero: document.getElementById('endereco_numero').value?.trim() || null,
+                bairro: document.getElementById('bairro').value?.trim() || null,
+                logradouro: document.getElementById('logradouro').value?.trim() || null,
+                nfe_ambiente: document.getElementById('nfe_ambiente').value || '2',
+                nfe_token: document.getElementById('nfe_token').value?.trim() || null,
+                nfce_serie: parseInt(document.getElementById('nfce_serie').value) || 1,
+                nfe_serie: parseInt(document.getElementById('nfe_serie').value) || 1,
+                nfce_numero: parseInt(document.getElementById('nfce_numero').value) || 1,
+                nfe_numero: parseInt(document.getElementById('nfe_numero').value) || 1,
+                certificado_senha: document.getElementById('certificado_senha').value?.trim() || null,
+                pdv_imprimir_cupom: document.getElementById('pdv_imprimir_cupom').checked,
+                pdv_permitir_venda_zerado: document.getElementById('pdv_permitir_venda_zerado').checked,
+                pdv_desconto_maximo: document.getElementById('pdv_desconto_maximo').checked,
+                pdv_desconto_limite: parseFloat(document.getElementById('pdv_desconto_limite').value) || 10,
+                pdv_mensagem_cupom: document.getElementById('pdv_mensagem_cupom').value?.trim() || null,
+                whatsapp_api_provider: document.getElementById('whatsapp_api_provider').value || null,
+                whatsapp_numero_origem: document.getElementById('whatsapp_numero_origem').value?.trim() || null,
+                whatsapp_api_url: document.getElementById('whatsapp_api_url').value?.trim() || null,
+                whatsapp_api_key: document.getElementById('whatsapp_api_key').value?.trim() || null,
+                whatsapp_instance_id: document.getElementById('whatsapp_instance_id').value?.trim() || null
+            };
+
+            try {
+                showLoading(true);
+                const result = await updateEmpresaConfig(configData);
+                
+                if (logoFile) {
+                    await uploadLogo(logoFile);
+                }
+                
+                showToast('Configurações salvas com sucesso!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (error) {
+                console.error('Erro ao salvar configurações:', error);
+                showToast('Erro ao salvar configurações: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function mostrarErrosValidacao(erros) {
+            const abasComErro = [...new Set(erros.map(e => e.aba))];
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full">
+                    <div class="bg-red-600 text-white p-4 rounded-t-lg">
+                        <h3 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Campos Obrigatórios Não Preenchidos
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                            <p class="text-sm text-yellow-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <strong>Atenção:</strong> Preencha todos os campos obrigatórios marcados com *.
+                            </p>
+                        </div>
+                        <p class="text-gray-700 font-semibold mb-3">Você precisa preencher:</p>
+                        ${abasComErro.map(aba => `
+                            <div class="mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-red-500">
+                                <div class="font-bold text-red-700 mb-2 flex items-center gap-2">
+                                    <i class="fas fa-folder-open"></i>Aba: ${aba}
+                                </div>
+                                <ul class="space-y-1 ml-6">
+                                    ${erros.filter(e => e.aba === aba).map(err => `
+                                        <li class="text-sm text-gray-700 flex items-start gap-2">
+                                            <i class="fas fa-chevron-right text-red-500 mt-1"></i>
+                                            <span>${err.campo}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end">
+                        <button onclick="this.closest('.fixed').remove()"
+                            class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
+                            <i class="fas fa-check mr-2"></i>Entendi, vou corrigir
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            document.querySelectorAll('[data-tab]').forEach(btn => {
+                const tabName = btn.getAttribute('data-tab');
+                const abaConfig = {
+                    'tab-basico': 'Dados Básicos',
+                    'tab-endereco': 'Endereço',
+                    'tab-fiscal': 'Dados Fiscais',
+                    'tab-nfe': 'NF-e / NFC-e',
+                    'tab-pdv': 'PDV',
+                    'tab-integracao': 'Integrações'
+                };
+                if (abasComErro.includes(abaConfig[tabName])) {
+                    btn.classList.add('bg-red-100', 'text-red-700', 'font-bold');
+                    btn.style.animation = 'pulse 2s infinite';
+                }
+            });
+            
+            const primeiraAbaErro = erros[0].aba;
+            const mapAba = {
+                'Dados Básicos': 'tab-basico',
+                'Endereço': 'tab-endereco',
+                'Dados Fiscais': 'tab-fiscal',
+                'NF-e / NFC-e': 'tab-nfe',
+                'PDV': 'tab-pdv',
+                'Integrações': 'tab-integracao'
+            };
+            const btnAba = document.querySelector(`[data-tab="${mapAba[primeiraAbaErro]}"]`);
+            if (btnAba) btnAba.click();
+        }
+
+        // ========== CARREGAR DADOS ==========
+        async function loadEmpresaConfig() {
+            try {
+                showLoading(true);
+                const config = await getEmpresaConfig();
+                if (config) {
+                    document.getElementById('nome_empresa').value = config.nome_empresa || '';
+                    document.getElementById('razao_social').value = config.razao_social || '';
+                    document.getElementById('cnpj').value = config.cnpj || '';
+                    document.getElementById('telefone').value = config.telefone || '';
+                    document.getElementById('email').value = config.email || '';
+                    document.getElementById('website').value = config.website || '';
+                    document.getElementById('endereco').value = config.endereco || '';
+                    document.getElementById('cidade').value = config.cidade || '';
+                    document.getElementById('estado').value = config.estado || '';
+                    document.getElementById('cep').value = config.cep || '';
+                    document.getElementById('inscricao_estadual').value = config.inscricao_estadual || '';
+                    document.getElementById('inscricao_municipal').value = config.inscricao_municipal || '';
+                    document.getElementById('regime_tributario').value = config.regime_tributario || '1';
+                    document.getElementById('cnae').value = config.cnae || '';
+                    document.getElementById('codigo_municipio').value = config.codigo_municipio || '';
+                    document.getElementById('endereco_numero').value = config.endereco_numero || '';
+                    document.getElementById('bairro').value = config.bairro || '';
+                    document.getElementById('logradouro').value = config.logradouro || '';
+                    document.getElementById('nfe_ambiente').value = config.nfe_ambiente || '2';
+                    document.getElementById('nfe_token').value = config.nfe_token || '';
+                    document.getElementById('nfce_serie').value = config.nfce_serie || 1;
+                    document.getElementById('nfe_serie').value = config.nfe_serie || 1;
+                    document.getElementById('nfce_numero').value = config.nfce_numero || 1;
+                    document.getElementById('nfe_numero').value = config.nfe_numero || 1;
+                    document.getElementById('pdv_emitir_nfce').checked = config.pdv_emitir_nfce || false;
+                    document.getElementById('pdv_imprimir_cupom').checked = config.pdv_imprimir_cupom !== false;
+                    document.getElementById('pdv_permitir_venda_zerado').checked = config.pdv_permitir_venda_zerado || false;
+                    document.getElementById('pdv_desconto_maximo').checked = config.pdv_desconto_maximo || false;
+                    document.getElementById('pdv_desconto_limite').value = config.pdv_desconto_limite || 10;
+                    document.getElementById('pdv_mensagem_cupom').value = config.pdv_mensagem_cupom || '';
+                    document.getElementById('whatsapp_api_provider').value = config.whatsapp_api_provider || '';
+                    document.getElementById('whatsapp_numero_origem').value = config.whatsapp_numero_origem || '';
+                    document.getElementById('whatsapp_api_url').value = config.whatsapp_api_url || '';
+                    document.getElementById('whatsapp_api_key').value = config.whatsapp_api_key || '';
+                    document.getElementById('whatsapp_instance_id').value = config.whatsapp_instance_id || '';
+                    document.getElementById('certificado_senha').value = config.certificado_senha || '';
+                    
+                    // Exibir informações do certificado se existir
+                    if (config.certificado_base64) {
+                        const validadeInfo = config.certificado_validade 
+                            ? ` - Validade: ${new Date(config.certificado_validade).toLocaleDateString('pt-BR')}` 
+                            : '';
+                        document.getElementById('certificado-info').innerHTML = `
+                            <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-certificate text-green-600"></i>
+                                        <span class="text-sm text-green-700 font-medium">Certificado digital configurado</span>
+                                    </div>
+                                    <div class="text-xs text-green-600 mt-1">
+                                        ${validadeInfo}
+                                    </div>
+                                </div>
+                                <button onclick="removerCertificado()" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
+                    if (config.logo_url) {
+                        document.getElementById('logo-preview').innerHTML = `<img src="${config.logo_url}" class="w-full h-full object-contain">`;
+                        document.getElementById('btn-remove-logo').classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ========== UTILITÁRIOS ==========
         // Máscara para CNPJ
         document.getElementById('cnpj').addEventListener('input', (e) => {
             let value = e.target.value.replace(/\D/g, '');
@@ -497,267 +799,182 @@
             document.getElementById('btn-remove-logo').classList.add('hidden');
         }
 
-        async function loadEmpresaConfig() {
-            try {
-                const config = await getEmpresaConfig();
-                if (config) {
-                    document.getElementById('nome_empresa').value = config.nome_empresa || '';
-                    document.getElementById('razao_social').value = config.razao_social || '';
-                    document.getElementById('cnpj').value = config.cnpj || '';
-                    document.getElementById('telefone').value = config.telefone || '';
-                    document.getElementById('email').value = config.email || '';
-                    document.getElementById('website').value = config.website || '';
-                    document.getElementById('endereco').value = config.endereco || '';
-                    document.getElementById('cidade').value = config.cidade || '';
-                    document.getElementById('estado').value = config.estado || '';
-                    document.getElementById('cep').value = config.cep || '';
-                    
-                    // Dados Fiscais
-                    document.getElementById('inscricao_estadual').value = config.inscricao_estadual || '';
-                    document.getElementById('inscricao_municipal').value = config.inscricao_municipal || '';
-                    document.getElementById('regime_tributario').value = config.regime_tributario || '1';
-                    document.getElementById('cnae').value = config.cnae || '';
-                    document.getElementById('codigo_municipio').value = config.codigo_municipio || '';
-                    document.getElementById('endereco_numero').value = config.endereco_numero || '';
-                    document.getElementById('bairro').value = config.bairro || '';
-                    document.getElementById('logradouro').value = config.logradouro || '';
-                    
-                    // Focus NFe
-                    document.getElementById('nfe_ambiente').value = config.nfe_ambiente || '2';
-                    document.getElementById('nfe_token').value = config.nfe_token || '';
-                    document.getElementById('nfce_serie').value = config.nfce_serie || 1;
-                    document.getElementById('nfe_serie').value = config.nfe_serie || 1;
-                    document.getElementById('nfce_numero').value = config.nfce_numero || 1;
-                    document.getElementById('nfe_numero').value = config.nfe_numero || 1;
-                    
-                    // PDV
-                    document.getElementById('pdv_emitir_nfce').checked = config.pdv_emitir_nfce || false;
-                    document.getElementById('pdv_imprimir_cupom').checked = config.pdv_imprimir_cupom !== false;
-                    document.getElementById('pdv_permitir_venda_zerado').checked = config.pdv_permitir_venda_zerado || false;
-                    document.getElementById('pdv_desconto_maximo').checked = config.pdv_desconto_maximo || false;
-                    document.getElementById('pdv_desconto_limite').value = config.pdv_desconto_limite || 10;
-                    document.getElementById('pdv_mensagem_cupom').value = config.pdv_mensagem_cupom || '';
-                    
-                    // Configurações WhatsApp API
-                    document.getElementById('whatsapp_api_provider').value = config.whatsapp_api_provider || '';
-                    document.getElementById('whatsapp_numero_origem').value = config.whatsapp_numero_origem || '';
-                    document.getElementById('whatsapp_api_url').value = config.whatsapp_api_url || '';
-                    document.getElementById('whatsapp_api_key').value = config.whatsapp_api_key || '';
-                    document.getElementById('whatsapp_instance_id').value = config.whatsapp_instance_id || '';
-
-                    if (config.logo_url) {
-                        logoAtual = config.logo_url;
-                        document.getElementById('logo-preview').innerHTML = `
-                            <img src="${config.logo_url}" alt="Logo" class="w-full h-full object-contain">
-                        `;
-                        document.getElementById('btn-remove-logo').classList.remove('hidden');
-                    }
-                    
-                    // Atualizar status NFe
-                    atualizarStatusNFe(config);
-                }
-            } catch (error) {
-                console.error('Erro ao carregar configurações:', error);
-            }
-        }
-        
-        function atualizarStatusNFe(config) {
-            const statusEl = document.getElementById('nfe-status');
-            if (config.nfe_token) {
-                statusEl.innerHTML = '<i class="fas fa-circle text-green-500 mr-2"></i> Configurado';
-                statusEl.className = 'px-4 py-2 bg-green-100 rounded-lg text-green-800';
-            } else {
-                statusEl.innerHTML = '<i class="fas fa-circle text-gray-400 mr-2"></i> Não configurado';
-                statusEl.className = 'px-4 py-2 bg-gray-100 rounded-lg text-gray-600';
-            }
-        }
-        
         async function testarConexaoNFe() {
             const token = document.getElementById('nfe_token').value;
+            const ambiente = document.getElementById('nfe_ambiente').value;
+            
             if (!token) {
-                showToast('Informe o token da API', 'error');
+                showToast('Informe o token da API Focus NFe', 'error');
                 return;
             }
-            
+
             try {
                 showLoading(true);
-                // Testar conexão com Focus NFe
-                const ambiente = document.getElementById('nfe_ambiente').value;
+                
+                // Endpoint Focus NFe para teste: consultar empresa
                 const baseUrl = ambiente === '1' 
                     ? 'https://api.focusnfe.com.br' 
                     : 'https://homologacao.focusnfe.com.br';
                 
-                const response = await fetch(`${baseUrl}/v2/nfce?ref=teste`, {
+                const response = await fetch(`${baseUrl}/v2/empresas`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': 'Basic ' + btoa(token + ':')
+                        'Authorization': `Basic ${btoa(token + ':')}`
                     }
                 });
-                
-                if (response.status === 401) {
-                    showToast('Token inválido', 'error');
-                } else if (response.ok || response.status === 404) {
-                    showToast('Conexão OK! Token válido.', 'success');
-                    document.getElementById('nfe-status').innerHTML = '<i class="fas fa-circle text-green-500 mr-2"></i> Conectado';
-                    document.getElementById('nfe-status').className = 'px-4 py-2 bg-green-100 rounded-lg text-green-800';
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast('✓ Conexão bem-sucedida! Token válido.', 'success');
+                    
+                    // Exibir informações da empresa se disponível
+                    if (data.cnpj) {
+                        console.log('Empresa Focus NFe:', data);
+                    }
+                } else if (response.status === 401) {
+                    showToast('Token inválido ou sem permissão', 'error');
                 } else {
-                    showToast('Erro na conexão: ' + response.status, 'error');
+                    showToast(`Erro na conexão: ${response.statusText}`, 'error');
                 }
             } catch (error) {
-                showToast('Erro ao conectar: ' + error.message, 'error');
+                console.error('Erro ao testar conexão:', error);
+                showToast('Erro ao conectar com Focus NFe: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
-        
+
         async function enviarCertificado() {
-            const token = document.getElementById('nfe_token').value;
-            const arquivo = document.getElementById('certificado_input').files[0];
+            const fileInput = document.getElementById('certificado_input');
             const senha = document.getElementById('certificado_senha').value;
-            
-            if (!token) {
-                showToast('Configure o token da API primeiro', 'error');
+            const token = document.getElementById('nfe_token').value;
+            const ambiente = document.getElementById('nfe_ambiente').value;
+
+            if (!fileInput.files || !fileInput.files[0]) {
+                showToast('Selecione o arquivo do certificado (.pfx)', 'error');
                 return;
             }
-            if (!arquivo) {
-                showToast('Selecione o arquivo do certificado', 'error');
-                return;
-            }
+
             if (!senha) {
                 showToast('Informe a senha do certificado', 'error');
                 return;
             }
-            
+
+            if (!token) {
+                showToast('Informe o token da API Focus NFe primeiro', 'error');
+                return;
+            }
+
             try {
                 showLoading(true);
+                const file = fileInput.files[0];
                 
-                const ambiente = document.getElementById('nfe_ambiente').value;
-                const baseUrl = ambiente === '1' 
-                    ? 'https://api.focusnfe.com.br' 
-                    : 'https://homologacao.focusnfe.com.br';
+                // Converter certificado para base64
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
                 
-                // Converter arquivo para base64
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result.split(',')[1]);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(arquivo);
+                await new Promise((resolve, reject) => {
+                    reader.onload = async () => {
+                        try {
+                            const base64 = reader.result.split(',')[1];
+                            
+                            // Enviar para Focus NFe
+                            const baseUrl = ambiente === '1' 
+                                ? 'https://api.focusnfe.com.br' 
+                                : 'https://homologacao.focusnfe.com.br';
+                            
+                            const response = await fetch(`${baseUrl}/v2/certificados`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Basic ${btoa(token + ':')}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    certificado: base64,
+                                    senha: senha
+                                })
+                            });
+
+                            const result = await response.json();
+                            
+                            if (response.ok) {
+                                // Salvar informações do certificado no banco
+                                const configData = {
+                                    certificado_base64: base64,
+                                    certificado_senha: senha,
+                                    certificado_validade: result.validade || null
+                                };
+                                
+                                await updateEmpresaConfig(configData);
+                                
+                                const validadeInfo = result.validade 
+                                    ? ` - Validade: ${new Date(result.validade).toLocaleDateString('pt-BR')}` 
+                                    : '';
+                                
+                                document.getElementById('certificado-info').innerHTML = `
+                                    <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <i class="fas fa-certificate text-green-600"></i>
+                                                <span class="text-sm text-green-700 font-medium">Certificado enviado com sucesso!</span>
+                                            </div>
+                                            <div class="text-xs text-green-600 mt-1">
+                                                ${file.name}${validadeInfo}
+                                            </div>
+                                        </div>
+                                        <button onclick="removerCertificado()" class="text-red-600 hover:text-red-800">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                `;
+                                
+                                showToast('✓ Certificado enviado e configurado com sucesso!', 'success');
+                            } else {
+                                throw new Error(result.mensagem || result.erro || 'Erro ao enviar certificado');
+                            }
+                            
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    
+                    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
                 });
                 
-                const response = await fetch(`${baseUrl}/v2/empresas/certificado`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Basic ' + btoa(token + ':'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        arquivo_base64: base64,
-                        senha: senha
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    showToast('Certificado enviado com sucesso!', 'success');
-                    document.getElementById('certificado-info').innerHTML = `
-                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                        Certificado válido até: ${data.validade || 'N/A'}
-                    `;
-                    document.getElementById('certificado-info').className = 'p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800';
-                } else {
-                    const erro = await response.json();
-                    showToast('Erro: ' + (erro.mensagem || 'Falha ao enviar'), 'error');
-                }
             } catch (error) {
-                showToast('Erro: ' + error.message, 'error');
+                console.error('Erro ao enviar certificado:', error);
+                showToast('Erro ao enviar certificado: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
 
-        document.getElementById('form-empresa').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            showLoading(true);
-
+        async function removerCertificado() {
+            if (!confirm('Deseja realmente remover o certificado?')) return;
+            
             try {
-                let logoUrl = logoAtual;
-
-                // Se houver nova logo, fazer upload
-                if (logoFile) {
-                    console.log('Fazendo upload da nova logo...');
-                    // Deletar logo antiga se existir
-                    if (logoAtual) {
-                        console.log('Deletando logo antiga:', logoAtual);
-                        await deleteLogo(logoAtual);
-                    }
-                    logoUrl = await uploadLogo(logoFile);
-                    console.log('Logo enviada com sucesso:', logoUrl);
-                } else if (!logoAtual) {
-                    logoUrl = null;
-                }
-
-                const empresaData = {
-                    nome_empresa: document.getElementById('nome_empresa').value,
-                    razao_social: document.getElementById('razao_social').value || null,
-                    cnpj: document.getElementById('cnpj').value || null,
-                    telefone: document.getElementById('telefone').value || null,
-                    email: document.getElementById('email').value || null,
-                    website: document.getElementById('website').value || null,
-                    endereco: document.getElementById('endereco').value || null,
-                    cidade: document.getElementById('cidade').value || null,
-                    estado: document.getElementById('estado').value || null,
-                    cep: document.getElementById('cep').value || null,
-                    logo_url: logoUrl,
-                    // Dados Fiscais
-                    inscricao_estadual: document.getElementById('inscricao_estadual').value || null,
-                    inscricao_municipal: document.getElementById('inscricao_municipal').value || null,
-                    regime_tributario: document.getElementById('regime_tributario').value || '1',
-                    cnae: document.getElementById('cnae').value || null,
-                    codigo_municipio: document.getElementById('codigo_municipio').value || null,
-                    endereco_numero: document.getElementById('endereco_numero').value || null,
-                    bairro: document.getElementById('bairro').value || null,
-                    logradouro: document.getElementById('logradouro').value || null,
-                    // Focus NFe
-                    nfe_ambiente: document.getElementById('nfe_ambiente').value || '2',
-                    nfe_token: document.getElementById('nfe_token').value || null,
-                    nfce_serie: parseInt(document.getElementById('nfce_serie').value) || 1,
-                    nfe_serie: parseInt(document.getElementById('nfe_serie').value) || 1,
-                    nfce_numero: parseInt(document.getElementById('nfce_numero').value) || 1,
-                    nfe_numero: parseInt(document.getElementById('nfe_numero').value) || 1,
-                    // PDV
-                    pdv_emitir_nfce: document.getElementById('pdv_emitir_nfce').checked,
-                    pdv_imprimir_cupom: document.getElementById('pdv_imprimir_cupom').checked,
-                    pdv_permitir_venda_zerado: document.getElementById('pdv_permitir_venda_zerado').checked,
-                    pdv_desconto_maximo: document.getElementById('pdv_desconto_maximo').checked,
-                    pdv_desconto_limite: parseFloat(document.getElementById('pdv_desconto_limite').value) || 10,
-                    pdv_mensagem_cupom: document.getElementById('pdv_mensagem_cupom').value || null,
-                    // WhatsApp
-                    whatsapp_api_provider: document.getElementById('whatsapp_api_provider').value || null,
-                    whatsapp_numero_origem: document.getElementById('whatsapp_numero_origem').value || null,
-                    whatsapp_api_url: document.getElementById('whatsapp_api_url').value || null,
-                    whatsapp_api_key: document.getElementById('whatsapp_api_key').value || null,
-                    whatsapp_instance_id: document.getElementById('whatsapp_instance_id').value || null
+                showLoading(true);
+                const configData = {
+                    certificado_base64: null,
+                    certificado_senha: null,
+                    certificado_validade: null
                 };
-
-                console.log('Salvando configurações:', empresaData);
-                const result = await updateEmpresaConfig(empresaData);
-                console.log('Configurações salvas:', result);
                 
-                showToast('Configurações salvas com sucesso!', 'success');
+                await updateEmpresaConfig(configData);
                 
-                // Atualizar variáveis locais
-                logoAtual = logoUrl;
-                logoFile = null;
+                document.getElementById('certificado_input').value = '';
+                document.getElementById('certificado_senha').value = '';
+                document.getElementById('certificado-info').innerHTML = '';
                 
-                // Recarregar para atualizar logo no navbar
-                setTimeout(() => window.location.reload(), 1500);
+                showToast('Certificado removido com sucesso', 'success');
             } catch (error) {
-                console.error('Erro completo:', error);
-                handleError(error, 'Erro ao salvar configurações');
+                console.error('Erro ao remover certificado:', error);
+                showToast('Erro ao remover certificado: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
-        });
+        }
     </script>
 </body>
 </html>

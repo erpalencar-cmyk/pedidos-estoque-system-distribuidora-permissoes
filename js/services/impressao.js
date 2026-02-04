@@ -78,7 +78,7 @@ async function imprimirPedidoVenda(pedidoId) {
 
         // Buscar itens do pedido
         const { data: itens, error: itensError } = await supabase
-            .from('vendas_itens')
+            .from('venda_itens')
             .select('*, produto:produtos(id, codigo, nome)')
             .eq('venda_id', pedidoId)
             .order('created_at', { ascending: true });
