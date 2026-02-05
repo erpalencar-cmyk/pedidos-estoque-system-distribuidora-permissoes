@@ -819,7 +819,6 @@ class PDVSystem {
             }
 
             this.atualizarCarrinho();
-            this.exibirSucesso(`${produto.nome} adicionado`);
             return true;
         } catch (error) {
             console.error('Erro ao adicionar item:', error);
@@ -1735,13 +1734,35 @@ class PDVSystem {
         console.log('✅ Próximo cliente - Pronto para nova venda!');
     }
 
+    // Flag para evitar dupla emissão
+    static emitindoNFCe = false;
+
     /**
-     * Emitir NFC-e
+     * Emitir NFC-e usando Focus NFe
+     * IMPORTANTE: A venda só é finalizada APÓS a nota ser autorizada pela SEFAZ
      */
     static async emitirNFCe() {
         try {
+            // ⚠️ PROTEÇÃO: Evitar duplo clique
+            if (this.emitindoNFCe) {
+                console.log('⚠️ [PDV] Emissão já em andamento, ignorando clique duplicado');
+                return;
+            }
+            this.emitindoNFCe = true;
+
+            // Mostrar loading com mensagem específica
+            if (typeof showLoading === 'function') {
+                showLoading(true);
+            }
+            if (typeof setLoadingMessage === 'function') {
+                setLoadingMessage('Preparando emissão da NFC-e...');
+            }
+            console.log('🔄 [PDV] Iniciando processo de emissão NFC-e...');
+
             if (this.itensCarrinho.length === 0) {
-                this.exibirErro('Carrinho vazio. Adicione produtos para emitir NFC-e.');
+                showToast('⚠️ Carrinho vazio. Adicione produtos para emitir NFC-e.', 'warning');
+                this.emitindoNFCe = false;
+                if (typeof showLoading === 'function') showLoading(false);
                 return;
             }
 
@@ -1752,26 +1773,226 @@ class PDVSystem {
                 .single();
 
             if (error || !config) {
-                this.exibirErro('Configure os dados da empresa antes de emitir NFC-e.');
+                showToast('⚠️ Configure os dados da empresa antes de emitir NFC-e.', 'warning');
+                this.emitindoNFCe = false;
+                if (typeof showLoading === 'function') showLoading(false);
                 return;
             }
 
-            // Verificar certificado digital
-            if (!config.certificado_digital || !config.senha_certificado) {
-                this.exibirErro('Certificado digital não configurado. Acesse Configurações da Empresa.');
-                return;
+            // Alertar se em produção
+            if (config.focusnfe_ambiente === 1) {
+                if (typeof showLoading === 'function') showLoading(false); // Esconder loading durante confirmação
+                
+                const confirmacao = await showConfirm(
+                    '⚠️ ATENÇÃO: Você está em AMBIENTE DE PRODUÇÃO!\n\nEsta ação irá emitir uma NFC-e REAL na SEFAZ.\n\nDeseja continuar?',
+                    '⚠️ Ambiente de Produção'
+                );
+                
+                if (!confirmacao) {
+                    this.emitindoNFCe = false;
+                    return;
+                }
+                if (typeof showLoading === 'function') showLoading(true); // Reexibir loading
             }
 
-            // Verificar CSC (Código de Segurança do Contribuinte)
-            if (!config.csc_id || !config.csc_token) {
-                this.exibirErro('CSC não configurado. Acesse Configurações da Empresa.');
-                return;
+            // ✅ VALIDAR ESTOQUE ANTES DE EMITIR
+            console.log('🔍 [PDV] Validando estoque disponível...');
+            for (const item of this.itensCarrinho) {
+                const { data: produto } = await supabase
+                    .from('produtos')
+                    .select('nome, estoque_atual')
+                    .eq('id', item.produto_id)
+                    .single();
+                
+                if (!produto) {
+                    throw new Error(`Produto não encontrado: ${item.nome}`);
+                }
+                
+                const estoqueDisponivel = produto.estoque_atual || 0;
+                if (item.quantidade > estoqueDisponivel) {
+                    throw new Error(
+                        `Estoque insuficiente para ${produto.nome}\n` +
+                        `Disponível: ${estoqueDisponivel.toFixed(2)}\n` +
+                        `Solicitado: ${item.quantidade.toFixed(2)}`
+                    );
+                }
             }
 
-            this.exibirErro('Emissão de NFC-e em desenvolvimento. Estrutura pronta, aguardando integração com API SEFAZ.\n\nCampos já configurados:\n- Certificado Digital\n- Senha do Certificado\n- CSC ID e Token\n- Ambiente (Homologação/Produção)\n- Série e Numeração\n\nPróximos passos: Integrar com biblioteca de NFC-e.');
+            console.log('📤 [PDV] Preparando dados para emissão de NFC-e...');
+
+            // Preparar dados da venda (SEM FINALIZAR AINDA)
+            const usuario = await getCurrentUser();
+            const numeroVenda = this.gerarNumeroVenda();
+
+            const vendaNFe = {
+                numero_venda: numeroVenda,
+                subtotal: this.totaisAtual.subtotal,
+                desconto_valor: this.totaisAtual.desconto,
+                total: this.totaisAtual.total,
+                data_emissao: new Date().toISOString()
+            };
+
+            // Preparar itens para NFCe
+            const itensNFe = this.itensCarrinho.map(item => ({
+                produto_id: item.produto_id,
+                codigo_barras: item.produto?.codigo_barras || item.produto?.sku || item.produto_id.substring(0, 13),
+                descricao: item.produto?.nome || item.nome || 'PRODUTO',
+                ncm: item.produto?.ncm || '22021000',
+                cfop: item.produto?.cfop || '5102',
+                cst_icms: item.produto?.cst_icms || '102',
+                unidade: item.unidade_medida || 'UN',
+                quantidade: item.quantidade,
+                preco_unitario: item.preco_unitario,
+                subtotal: item.subtotal,
+                desconto_valor: item.desconto || 0,
+                aliquota_icms: item.produto?.aliquota_icms || 0
+            }));
+
+            // Preparar pagamentos
+            const pagamentosNFe = [{
+                tipo: 'DINHEIRO',
+                valor: this.totaisAtual.total
+            }];
+
+            // Buscar cliente se houver
+            let cliente = null;
+            if (this.clienteSelecionado) {
+                cliente = this.clienteSelecionado;
+            }
+
+            // ⚡ EMITIR NFC-e PRIMEIRO (antes de finalizar a venda)
+            console.log('📤 [PDV] Emitindo NFC-e via Focus NFe...');
+            if (typeof setLoadingMessage === 'function') {
+                setLoadingMessage('Enviando dados para a SEFAZ... Aguarde até 45 segundos.');
+            }
+            
+            const resultado = await Promise.race([
+                FocusNFe.emitirNFCe(vendaNFe, itensNFe, pagamentosNFe, cliente),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout: A requisição demorou muito. Verifique sua conexão.')), 45000)
+                )
+            ]);
+
+            console.log('📦 [PDV] Resultado da emissão:', resultado);
+
+            // ✅ SE A NOTA FOI AUTORIZADA, ENTÃO FINALIZAR A VENDA
+            if (resultado.success && (resultado.status === 'autorizado' || resultado.status_sefaz === 'autorizado')) {
+                console.log('✅ [PDV] NFC-e autorizada! Finalizando venda no sistema...');
+                if (typeof setLoadingMessage === 'function') {
+                    setLoadingMessage('NFC-e autorizada! Salvando venda no sistema...');
+                }
+                
+                // Agora sim, finalizar a venda no banco
+                const resultadoVenda = await this.finalizarVenda('DINHEIRO', this.totaisAtual.total, 0);
+                
+                if (!resultadoVenda || !resultadoVenda.venda_id) {
+                    throw new Error('Erro ao salvar venda no banco. A nota foi emitida mas a venda não foi registrada.');
+                }
+
+                // Atualizar venda com dados fiscais
+                const { error: erroUpdate } = await supabase
+                    .from('vendas')
+                    .update({
+                        status_fiscal: 'EMITIDA_NFCE',
+                        nfce_referencia: resultado.ref,
+                        nfce_chave: resultado.chave_nfe,
+                        nfce_numero: resultado.numero
+                    })
+                    .eq('id', resultadoVenda.venda_id);
+
+                if (erroUpdate) {
+                    console.warn('⚠️ Erro ao atualizar dados fiscais na venda:', erroUpdate);
+                }
+
+                // Salvar documento fiscal com venda_id agora que temos o ID
+                if (resultado.documentoFiscalData) {
+                    try {
+                        resultado.documentoFiscalData.venda_id = resultadoVenda.venda_id;
+                        await FocusNFe.salvarDocumentoFiscal(resultado.documentoFiscalData);
+                        console.log('✅ [PDV] Documento fiscal salvo com sucesso');
+                    } catch (erroDoc) {
+                        console.warn('⚠️ Erro ao salvar documento fiscal:', erroDoc);
+                        // Não bloquear o fluxo, apenas avisar
+                    }
+                }
+
+                // Exibir sucesso com toast
+                showToast(
+                    `✅ NFC-e autorizada e venda finalizada com sucesso!`,
+                    'success'
+                );
+                
+                // Mostrar detalhes em toast separado
+                setTimeout(() => {
+                    showToast(
+                        `📋 Venda: ${numeroVenda} | 📄 Ref: ${resultado.ref}`,
+                        'info'
+                    );
+                }, 500);
+                
+                // Se tiver DANFE, oferecer para visualizar
+                if (resultado.caminho_danfe) {
+                    setTimeout(async () => {
+                        const visualizar = await showConfirm(
+                            'A NFC-e foi autorizada com sucesso!\n\nDeseja visualizar o DANFE agora?',
+                            '✅ NFC-e Autorizada'
+                        );
+                        if (visualizar) {
+                            window.open(resultado.caminho_danfe, '_blank');
+                        }
+                    }, 1000);
+                }
+                
+            } else {
+                // ❌ NOTA NÃO FOI AUTORIZADA - NÃO FINALIZAR A VENDA
+                const mensagemErro = resultado.mensagem_sefaz || resultado.erro || 'Erro desconhecido';
+                throw new Error(`NFC-e não autorizada: ${mensagemErro}`);
+            }
+
         } catch (error) {
-            console.error('❌ Erro ao emitir NFC-e:', error);
-            this.exibirErro('Erro ao preparar NFC-e: ' + error.message);
+            console.error('❌ [PDV] Erro ao emitir NFC-e:', error);
+            
+            // Mensagem de erro mais descritiva
+            let tituloErro = '❌ Erro ao emitir NFC-e';
+            let mensagemErro = error.message;
+            
+            if (error.message === 'Failed to fetch') {
+                tituloErro = '🔌 Erro de Conexão';
+                mensagemErro = 'Não foi possível conectar ao servidor';
+                
+                showToast(tituloErro, 'error');
+                setTimeout(() => {
+                    showToast('Verifique sua conexão com a internet', 'warning');
+                }, 500);
+                setTimeout(() => {
+                    showToast('⚠️ A venda NÃO foi finalizada. O carrinho foi preservado.', 'warning');
+                }, 1000);
+            } else if (mensagemErro.includes('Estoque insuficiente')) {
+                // Erro de estoque
+                showToast('📦 ' + mensagemErro, 'error');
+            } else if (mensagemErro.includes('não autorizada')) {
+                // Erro da SEFAZ
+                showToast(tituloErro, 'error');
+                setTimeout(() => {
+                    showToast(mensagemErro, 'warning');
+                }, 500);
+                setTimeout(() => {
+                    showToast('⚠️ A venda NÃO foi finalizada. Corrija os dados e tente novamente.', 'warning');
+                }, 1000);
+            } else {
+                // Erro genérico
+                showToast(tituloErro + ': ' + mensagemErro, 'error');
+                setTimeout(() => {
+                    showToast('⚠️ A venda NÃO foi finalizada. O carrinho foi preservado.', 'warning');
+                }, 500);
+            }
+            
+        } finally {
+            // Esconder loading e liberar flag
+            if (typeof showLoading === 'function') {
+                showLoading(false);
+            }
+            this.emitindoNFCe = false;
         }
     }
 
@@ -1783,18 +2004,20 @@ class PDVSystem {
     }
 
     /**
-     * Utilidades de UI
+     * Utilidades de UI (legado - preferir usar showToast diretamente)
      */
     static exibirErro(mensagem) {
-        console.error(mensagem);
-        // Usar toast ou alert
-        alert(mensagem);
+        console.error('❌ [PDV]', mensagem);
+        if (typeof showToast === 'function') {
+            showToast(mensagem, 'error');
+        }
     }
 
     static exibirSucesso(mensagem) {
-        console.log(mensagem);
-        // Usar toast
-        console.log('✓ ' + mensagem);
+        console.log('✅ [PDV]', mensagem);
+        if (typeof showToast === 'function') {
+            showToast(mensagem, 'success');
+        }
     }
 }
 

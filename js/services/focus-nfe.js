@@ -166,13 +166,13 @@ const FocusNFe = {
             // Conforme doc: POST /v2/nfce?ref=REFERENCIA
             const result = await this.makeRequest(`/v2/nfce?ref=${ref}`, 'POST', payload);
             
-            // Salvar documento fiscal no banco
-            await this.salvarDocumentoFiscal({
-                venda_id: venda.id,
+            // Preparar dados do documento fiscal
+            const documentoFiscalData = {
+                venda_id: venda.id, // Pode ser null
                 tipo_documento: 'NFCE',
                 numero_documento: result.numero || '0',
                 serie: parseInt(result.serie || '1'),
-                chave_acesso: result.nf_chave,
+                chave_acesso: result.chave_nfe || result.nf_chave,
                 protocolo_autorizacao: result.protocolo || result.numero_protocolo,
                 status_sefaz: result.status_sefaz || (result.status === 'autorizado' ? '100' : '999'),
                 mensagem_sefaz: result.mensagem_sefaz,
@@ -184,13 +184,20 @@ const FocusNFe = {
                 xml_retorno: JSON.stringify(result),
                 tentativas_emissao: 1,
                 ultima_tentativa: new Date().toISOString()
-            });
+            };
+            
+            // Salvar documento fiscal no banco SOMENTE se venda_id existir
+            if (venda.id) {
+                await this.salvarDocumentoFiscal(documentoFiscalData);
+            }
 
-            // Preparar resposta com métodos de download
+            // Preparar resposta com métodos de download e dados do documento fiscal
             const response = {
                 success: result.status !== 'erro_autorizacao',
                 ref,
                 ...result,
+                // Dados para salvar documento fiscal posteriormente
+                documentoFiscalData,
                 // Métodos helper para download
                 baixarDANFE: () => this.baixarDANFE(ref, 'nfce'),
                 baixarXML: () => this.baixarXML(ref, 'nfce'),
@@ -258,33 +265,40 @@ const FocusNFe = {
             modalidade_frete: "9", // 9=Sem frete
             
             // Itens
-            items: itens.map((item, index) => ({
-                numero_item: String(index + 1),
-                codigo_produto: item.codigo_barras || item.produto_id?.substring(0, 14) || '999',
-                codigo_barras_comercial: item.codigo_barras || '',
-                descricao: item.descricao?.substring(0, 120) || 'Produto sem descrição',
-                codigo_ncm: item.ncm || '84713012', // NCM genérico
-                cfop: item.cfop || '5102',
-                unidade_comercial: item.unidade || 'UN',
-                unidade_tributavel: item.unidade || 'UN',
-                quantidade_comercial: parseFloat(item.quantidade),
-                quantidade_tributavel: parseFloat(item.quantidade),
-                valor_unitario_comercial: parseFloat(item.preco_unitario),
-                valor_unitario_tributavel: parseFloat(item.preco_unitario),
-                valor_bruto: parseFloat(item.subtotal),
+            items: itens.map((item, index) => {
+                // Se tiver código de barras, deve informar tanto comercial quanto tributável
+                // Se não tiver, pode deixar vazio ou usar "SEM GTIN"
+                const temCodigoBarras = item.codigo_barras && item.codigo_barras.trim() !== '';
                 
-                // Tributação ICMS
-                icms_origem: "0", // 0=Nacional
-                icms_situacao_tributaria: item.cst_icms || "102", // 102=Tributada pelo Simples Nacional sem permissão de crédito
-                icms_modalidade_base_calculo: "3", // 3=Valor da operação
-                icms_base_calculo: "0.00",
-                icms_aliquota: "0.00",
-                icms_valor_total: "0.00",
-                
-                // PIS/COFINS
-                pis_situacao_tributaria: "49", // Outras operações de saída
-                cofins_situacao_tributaria: "49"
-            })),
+                return {
+                    numero_item: String(index + 1),
+                    codigo_produto: item.codigo_barras || item.produto_id?.substring(0, 14) || '999',
+                    codigo_barras_comercial: temCodigoBarras ? item.codigo_barras : 'SEM GTIN',
+                    codigo_barras_tributavel: temCodigoBarras ? item.codigo_barras : 'SEM GTIN',
+                    descricao: item.descricao?.substring(0, 120) || 'Produto sem descrição',
+                    codigo_ncm: item.ncm || '84713012', // NCM genérico
+                    cfop: item.cfop || '5102',
+                    unidade_comercial: item.unidade || 'UN',
+                    unidade_tributavel: item.unidade || 'UN',
+                    quantidade_comercial: parseFloat(item.quantidade),
+                    quantidade_tributavel: parseFloat(item.quantidade),
+                    valor_unitario_comercial: parseFloat(item.preco_unitario),
+                    valor_unitario_tributavel: parseFloat(item.preco_unitario),
+                    valor_bruto: parseFloat(item.subtotal),
+                    
+                    // Tributação ICMS
+                    icms_origem: "0", // 0=Nacional
+                    icms_situacao_tributaria: item.cst_icms || "102", // 102=Tributada pelo Simples Nacional sem permissão de crédito
+                    icms_modalidade_base_calculo: "3", // 3=Valor da operação
+                    icms_base_calculo: "0.00",
+                    icms_aliquota: "0.00",
+                    icms_valor_total: "0.00",
+                    
+                    // PIS/COFINS
+                    pis_situacao_tributaria: "49", // Outras operações de saída
+                    cofins_situacao_tributaria: "49"
+                };
+            }),
             
             // Formas de pagamento
             formas_pagamento: pagamentos.map(pag => {

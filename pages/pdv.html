@@ -12,6 +12,31 @@
     <script src="../js/services/estoque-central.js"></script>
 </head>
 <body class="bg-gray-100">
+    <!-- Loading Overlay -->
+    <div id="loading" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[9999] flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Processando...</h3>
+            <p id="loading-message" class="text-gray-600">Aguarde enquanto processamos sua solicitação</p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[9998] flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4" id="confirm-title">Confirmar Ação</h3>
+            <p class="text-gray-600 mb-6" id="confirm-message"></p>
+            <div class="flex gap-3 justify-end">
+                <button id="confirm-cancel" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                    Cancelar
+                </button>
+                <button id="confirm-ok" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="navbar"></div>
     <div id="sidebar-container"></div>
 
@@ -144,9 +169,54 @@
     <script src="../js/rbac.js"></script>
     <script src="../js/services/pdv.js"></script>
     <script src="../js/services/fiscal.js"></script>
+    <script src="../js/services/focus-nfe.js"></script>
     <script src="../js/services/shared-utils.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
+
+    <script>
+        // Modal de confirmação profissional
+        function showConfirm(message, title = 'Confirmar Ação') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const titleEl = document.getElementById('confirm-title');
+                const messageEl = document.getElementById('confirm-message');
+                const btnOk = document.getElementById('confirm-ok');
+                const btnCancel = document.getElementById('confirm-cancel');
+                
+                titleEl.textContent = title;
+                messageEl.innerHTML = message.replace(/\n/g, '<br>');
+                modal.classList.remove('hidden');
+                
+                const handleOk = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                
+                const cleanup = () => {
+                    modal.classList.add('hidden');
+                    btnOk.removeEventListener('click', handleOk);
+                    btnCancel.removeEventListener('click', handleCancel);
+                };
+                
+                btnOk.addEventListener('click', handleOk);
+                btnCancel.addEventListener('click', handleCancel);
+            });
+        }
+
+        // Atualizar mensagem do loading
+        function setLoadingMessage(message) {
+            const loadingMessage = document.getElementById('loading-message');
+            if (loadingMessage) {
+                loadingMessage.textContent = message;
+            }
+        }
+    </script>
 
     <script>
         (async () => {
