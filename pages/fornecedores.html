@@ -409,12 +409,13 @@
             // ============ MONTAR DADOS ============
             const fornecedor = {
                 nome: nome,
-                cpf_cnpj: document.getElementById('fornecedor-cpf-cnpj').value?.trim() || null,
+                razao_social: nome, // Usa o mesmo valor de nome (formulário simplificado)
+                cnpj: document.getElementById('fornecedor-cpf-cnpj').value?.trim() || null,
                 inscricao_estadual: document.getElementById('fornecedor-ie').value?.trim() || null,
                 observacoes: document.getElementById('fornecedor-observacoes').value?.trim() || null,
                 email: document.getElementById('fornecedor-email').value?.trim() || null,
                 telefone: document.getElementById('fornecedor-telefone').value?.trim() || null,
-                contato: document.getElementById('fornecedor-contato').value?.trim() || null,
+                contato_telefone: document.getElementById('fornecedor-contato').value?.trim() || null,
                 site: document.getElementById('fornecedor-site').value?.trim() || null,
                 cep: document.getElementById('fornecedor-cep').value?.trim() || null,
                 estado: document.getElementById('fornecedor-estado').value || null,
@@ -547,11 +548,11 @@
                             <div class="text-sm font-medium text-gray-900">${f.nome || 'Nome não informado'}</div>
                             ${f.site ? `<div class="text-xs text-blue-600"><i class="fas fa-globe mr-1"></i>${f.site}</div>` : ''}
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-600">${f.cpf_cnpj ? formatCNPJ(f.cpf_cnpj) : '-'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${f.cnpj ? formatCNPJ(f.cnpj) : '-'}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${f.cidade && f.estado ? `${f.cidade}/${f.estado}` : '-'}</td>
                         <td class="px-6 py-4 text-sm">
                             ${f.email ? `<div class="text-gray-600"><i class="fas fa-envelope mr-1"></i>${f.email}</div>` : ''}
-                            ${f.contato ? `<div class="text-green-600"><a href="https://wa.me/${f.contato.replace(/\\D/g, '')}" target="_blank" class="hover:underline"><i class="fab fa-whatsapp mr-1"></i>${f.contato}</a></div>` : ''}
+                            ${f.contato_telefone ? `<div class="text-green-600"><a href="https://wa.me/${f.contato_telefone.replace(/\\D/g, '')}" target="_blank" class="hover:underline"><i class="fab fa-whatsapp mr-1"></i>${f.contato_telefone}</a></div>` : ''}
                         </td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex justify-center gap-2">
@@ -582,13 +583,13 @@
                 document.getElementById('modal-title').textContent = 'Editar Fornecedor';
                 
                 // Preencher campos
-                document.getElementById('fornecedor-nome').value = fornecedor.nome || '';
-                document.getElementById('fornecedor-cpf-cnpj').value = fornecedor.cpf_cnpj || '';
+                document.getElementById('fornecedor-nome').value = fornecedor.nome || fornecedor.razao_social || '';
+                document.getElementById('fornecedor-cpf-cnpj').value = fornecedor.cnpj || '';
                 document.getElementById('fornecedor-ie').value = fornecedor.inscricao_estadual || '';
                 document.getElementById('fornecedor-observacoes').value = fornecedor.observacoes || '';
                 document.getElementById('fornecedor-email').value = fornecedor.email || '';
                 document.getElementById('fornecedor-telefone').value = fornecedor.telefone || '';
-                document.getElementById('fornecedor-contato').value = fornecedor.contato || '';
+                document.getElementById('fornecedor-contato').value = fornecedor.contato_telefone || '';
                 document.getElementById('fornecedor-site').value = fornecedor.site || '';
                 document.getElementById('fornecedor-cep').value = fornecedor.cep || '';
                 document.getElementById('fornecedor-estado').value = fornecedor.estado || '';

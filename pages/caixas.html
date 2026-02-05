@@ -432,8 +432,8 @@
             
             try {
                 const { data, error } = id ? 
-                    await supabase.from('caixas').update(caixaData).eq('id', id).select() :
-                    await supabase.from('caixas').insert([caixaData]).select();
+                    await window.supabase.from('caixas').update(caixaData).eq('id', id).select() :
+                    await window.supabase.from('caixas').insert([caixaData]).select();
                 
                 if (error) throw error;
                 
@@ -510,14 +510,14 @@
                         <td class="px-6 py-4 text-sm text-gray-900">${c.nome}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${c.terminal || '-'}</td>
                         <td class="px-6 py-4 text-sm">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                ${c.active ? 'Ativo' : 'Inativo'}
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${c.ativo ? 'Ativo' : 'Inativo'}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm space-x-2">
-                            <button onclick="editarCaixa('${c.id}')" class="text-blue-600 hover:text-blue-800">Editar</button>
-                            <button onclick="toggleCaixa('${c.id}', ${!c.active})" class="text-${c.active ? 'red' : 'green'}-600 hover:text-${c.active ? 'red' : 'green'}-800">
-                                ${c.active ? 'Desativar' : 'Ativar'}
+                            <button onclick="abrirModalCaixa(${JSON.stringify(c)})" class="text-blue-600 hover:text-blue-800">Editar</button>
+                            <button onclick="toggleCaixa('${c.id}', ${!c.ativo})" class="text-${c.ativo ? 'red' : 'green'}-600 hover:text-${c.ativo ? 'red' : 'green'}-800">
+                                ${c.ativo ? 'Desativar' : 'Ativar'}
                             </button>
                         </td>
                     </tr>
@@ -526,7 +526,7 @@
                 // Atualizar select de caixas
                 const selectCaixa = document.getElementById('select-caixa');
                 selectCaixa.innerHTML = '<option value="">Selecione um caixa</option>' + 
-                    caixas.filter(c => c.active).map(c => `<option value="${c.id}">${c.numero} - ${c.nome}</option>`).join('');
+                    caixas.filter(c => c.ativo).map(c => `<option value="${c.id}">${c.numero} - ${c.nome}</option>`).join('');
 
             } catch (error) {
                 console.error('Erro ao carregar caixas:', error);
@@ -534,134 +534,16 @@
             }
         }
 
-        async function abrirModalCaixa() {
-            editingCaixaId = null;
-            document.getElementById('modal-titulo').textContent = 'Novo Caixa';
-            document.getElementById('form-caixa').reset();
-            
-            // Sugerir próximo número disponível
-            try {
-                const { data: caixas } = await window.supabase
-                    .from('caixas')
-                    .select('numero')
-                    .order('numero');
-                
-                let proximoNumero = 1;
-                if (caixas && caixas.length > 0) {
-                    const numerosUsados = caixas.map(c => c.numero).sort((a, b) => a - b);
-                    
-                    // Encontrar o próximo número disponível
-                    for (let i = 1; i <= numerosUsados.length + 1; i++) {
-                        if (!numerosUsados.includes(i)) {
-                            proximoNumero = i;
-                            break;
-                        }
-                    }
-                }
-                
-                document.getElementById('caixa-numero').value = proximoNumero;
-            } catch (error) {
-                console.error('Erro ao buscar próximo número:', error);
-                document.getElementById('caixa-numero').value = '';
-            }
-            
-            document.getElementById('modal-caixa').classList.remove('hidden');
-        }
-
-        function fecharModalCaixa() {
-            document.getElementById('modal-caixa').classList.add('hidden');
-        }
-
-        async function editarCaixa(id) {
-            try {
-                const { data: caixa, error } = await window.supabase
-                    .from('caixas')
-                    .select('*')
-                    .eq('id', id)
-                    .single();
-
-                if (error) throw error;
-
-                editingCaixaId = id;
-                document.getElementById('modal-titulo').textContent = 'Editar Caixa';
-                document.getElementById('caixa-numero').value = caixa.numero;
-                document.getElementById('caixa-nome').value = caixa.nome;
-                document.getElementById('caixa-terminal').value = caixa.terminal || '';
-                document.getElementById('caixa-impressora-nfce').value = caixa.impressora_nfce || '';
-                document.getElementById('caixa-impressora-cupom').value = caixa.impressora_cupom || '';
-                document.getElementById('modal-caixa').classList.remove('hidden');
-            } catch (error) {
-                console.error('Erro ao carregar caixa:', error);
-                showToast('Erro ao carregar dados do caixa', 'error');
-            }
-        }
-
-        async function salvarCaixa() {
-            try {
-                const numero = parseInt(document.getElementById('caixa-numero').value);
-                
-                // Verificar se o número já existe (apenas para novos caixas)
-                if (!editingCaixaId) {
-                    const { data: existingCaixa } = await window.supabase
-                        .from('caixas')
-                        .select('id')
-                        .eq('numero', numero)
-                        .single();
-                        
-                    if (existingCaixa) {
-                        showToast('Este número de caixa já existe', 'error');
-                        return;
-                    }
-                }
-                
-                const caixa = {
-                    numero: numero,
-                    nome: document.getElementById('caixa-nome').value,
-                    terminal: document.getElementById('caixa-terminal').value || null,
-                    impressora_nfce: document.getElementById('caixa-impressora-nfce').value || null,
-                    impressora_cupom: document.getElementById('caixa-impressora-cupom').value || null
-                };
-
-                let error;
-                if (editingCaixaId) {
-                    const result = await window.supabase
-                        .from('caixas')
-                        .update(caixa)
-                        .eq('id', editingCaixaId);
-                    error = result.error;
-                } else {
-                    const result = await window.supabase
-                        .from('caixas')
-                        .insert([caixa]);
-                    error = result.error;
-                }
-
-                if (error) throw error;
-
-                showToast(editingCaixaId ? 'Caixa atualizado' : 'Caixa criado', 'success');
-                fecharModalCaixa();
-                await loadCaixas();
-                
-            } catch (error) {
-                console.error('Erro ao salvar caixa:', error);
-                if (error.code === '23505') {
-                    showToast('Este número de caixa já existe', 'error');
-                } else {
-                    showToast('Erro ao salvar caixa', 'error');
-                }
-            }
-        }
-
         async function toggleCaixa(id, ativo) {
             try {
                 const { error } = await window.supabase
                     .from('caixas')
-                    .update({ active: ativo })
+                    .update({ ativo: ativo })
                     .eq('id', id);
 
                 if (error) throw error;
 
-                showToast(`Caixa ${ativo ? 'ativado' : 'desativado'}`, 'success');
+                showToast(`Caixa ${ativo ? 'ativado' : 'desativado'} com sucesso!`, 'success');
                 await loadCaixas();
                 
             } catch (error) {
@@ -673,7 +555,7 @@
         // =====================================================
         // SESSÕES DE CAIXA
         // =====================================================
-        
+
         async function loadSessoes() {
             try {
                 const { data: sessoes, error } = await window.supabase
@@ -761,6 +643,10 @@
             }
         }
 
+        // =====================================================
+        // ABRIR/FECHAR CAIXA (PDV)
+        // =====================================================
+        
         function abrirCaixa() {
             document.getElementById('modal-abrir-caixa').classList.remove('hidden');
         }

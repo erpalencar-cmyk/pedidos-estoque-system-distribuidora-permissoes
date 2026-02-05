@@ -201,8 +201,8 @@
         async function loadUsuarios() {
             const usuarios = await listUsuarios();
             
-            const pendentes = usuarios.filter(u => !u.active);
-            const aprovados = usuarios.filter(u => u.active);
+            const pendentes = usuarios.filter(u => !u.ativo);
+            const aprovados = usuarios.filter(u => u.ativo);
 
             // Atualizar estatísticas
             document.getElementById('stat-pendentes').textContent = pendentes.length;
@@ -295,9 +295,9 @@
         async function confirmarAprovacao() {
             showLoading(true);
             try {
-                const { error } = await supabase
+                const { error } = await window.supabase
                     .from('users')
-                    .update({ active: true })
+                    .update({ ativo: true })
                     .eq('id', usuarioSelecionado);
 
                 if (error) throw error;
@@ -377,9 +377,9 @@
 
             showLoading(true);
             try {
-                const { error } = await supabase
+                const { error } = await window.supabase
                     .from('users')
-                    .update({ active: false })
+                    .update({ ativo: false })
                     .eq('id', id);
 
                 if (error) throw error;

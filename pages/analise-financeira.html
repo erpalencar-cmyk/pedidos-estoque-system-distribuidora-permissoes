@@ -419,7 +419,7 @@
                 const { data: cats } = await supabase
                     .from('categorias')
                     .select('*')
-                    .eq('active', true)
+                    .eq('ativo', true)
                     .order('nome');
                 categorias = cats || [];
                 
@@ -430,19 +430,27 @@
                     selectCategoria.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
                 });
 
+                // Carregar marcas
+                const { data: marcasData } = await supabase
+                    .from('marcas')
+                    .select('*')
+                    .eq('ativo', true)
+                    .order('nome');
+                const marcasMap = {};
+                (marcasData || []).forEach(m => marcasMap[m.id] = m.nome);
+                
                 // Carregar produtos
                 const { data: prods } = await supabase
                     .from('produtos')
-                    .select('*, categoria:categorias(nome)')
+                    .select('*')
                     .eq('ativo', true);
                 produtos = prods || [];
                 
                 // Popular filtro de marcas
-                const marcas = [...new Set(produtos.map(p => p.marca).filter(m => m))];
                 const selectMarca = document.getElementById('filter-marca');
                 selectMarca.innerHTML = '<option value="">Todas as marcas</option>';
-                marcas.sort().forEach(marca => {
-                    selectMarca.innerHTML += `<option value="${marca}">${marca}</option>`;
+                Object.entries(marcasMap).forEach(([id, nome]) => {
+                    selectMarca.innerHTML += `<option value="${id}">${nome}</option>`;
                 });
 
                 // Carregar vendas finalizadas
@@ -468,15 +476,30 @@
                         
                         venda.venda_itens = itensData || [];
                         
-                        // Para cada item, carregar produto e lote
+                        // Para cada item, carregar produto, marca, lote e fornecedor
                         for (let item of venda.venda_itens) {
                             // Carregar produto
                             const { data: prodData } = await supabase
                                 .from('produtos')
-                                .select('*, fornecedores:fornecedores(id, nome)')
+                                .select('*')
                                 .eq('id', item.produto_id)
                                 .single();
                             item.produtos = prodData;
+                            
+                            // Adicionar nome da marca ao produto
+                            if (prodData && prodData.marca_id && marcasMap[prodData.marca_id]) {
+                                prodData.marca_nome = marcasMap[prodData.marca_id];
+                            }
+                            
+                            // Carregar fornecedor se existir
+                            if (prodData?.fornecedor_id) {
+                                const { data: fornData } = await supabase
+                                    .from('fornecedores')
+                                    .select('id, nome')
+                                    .eq('id', prodData.fornecedor_id)
+                                    .single();
+                                if (prodData) prodData.fornecedores = fornData;
+                            }
                             
                             // Carregar lote se existir
                             if (item.lote_id) {
@@ -491,21 +514,75 @@
                     }
                     
                     console.log('✅ Vendas carregadas:', vendas.length);
+                    console.log('📊 [DEBUG] Primeira venda:', vendas[0]);
+                    console.log('📊 [DEBUG] Total de itens na primeira venda:', vendas[0]?.venda_itens?.length || 0);
+                    if (vendas[0]?.venda_itens?.[0]) {
+                        console.log('📊 [DEBUG] Primeiro item:', vendas[0].venda_itens[0]);
+                        console.log('📊 [DEBUG] Produto do item:', vendas[0].venda_itens[0].produtos);
+                        console.log('📊 [DEBUG] Preço custo do item:', vendas[0].venda_itens[0].preco_custo);
+                    }
                 }
 
                 // Carregar contas a pagar (pagas no período)
                 const { data: cpData } = await supabase
                     .from('contas_pagar')
                     .select('*')
-                    .eq('status_pagamento', 'PAGO');
+                    .eq('status', 'PAGO');
                 contasPagar = cpData || [];
 
                 // Carregar contas a receber (recebidas no período)
                 const { data: crData } = await supabase
                     .from('contas_receber')
                     .select('*')
-                    .eq('status_pagamento', 'RECEBIDO');
+                    .eq('status', 'RECEBIDO');
                 contasReceber = crData || [];
+                
+                // Carregar pedidos de compra aprovados e recebidos (para fluxo de caixa)
+                const { data: pedidosData, error: erroPedidos } = await supabase
+                    .from('pedidos_compra')
+                    .select('*')
+                    .in('status', ['APROVADO', 'RECEBIDO'])
+                    .order('created_at', { ascending: false });
+                
+                if (erroPedidos) {
+                    console.error('Erro ao carregar pedidos:', erroPedidos);
+                    window.pedidosCompra = [];
+                } else {
+                    // Carregar fornecedor e itens de cada pedido
+                    for (let pedido of (pedidosData || [])) {
+                        if (pedido.fornecedor_id) {
+                            const { data: fornData } = await supabase
+                                .from('fornecedores')
+                                .select('id, nome')
+                                .eq('id', pedido.fornecedor_id)
+                                .single();
+                            pedido.fornecedor = fornData;
+                        }
+                        
+                        // Carregar itens do pedido (para variação de preço)
+                        const { data: itensData } = await supabase
+                            .from('pedido_compra_itens')
+                            .select('*')
+                            .eq('pedido_id', pedido.id);
+                        pedido.pedido_compra_itens = itensData || [];
+                        
+                        // Carregar produtos dos itens
+                        for (let item of pedido.pedido_compra_itens) {
+                            const { data: prodData } = await supabase
+                                .from('produtos')
+                                .select('id, nome, categoria_id, marca_id')
+                                .eq('id', item.produto_id)
+                                .single();
+                            item.produtos = prodData;
+                        }
+                    }
+                    window.pedidosCompra = pedidosData || [];
+                }
+                
+                console.log('✅ Pedidos de compra carregados:', window.pedidosCompra.length);
+                if (window.pedidosCompra[0]) {
+                    console.log('📊 [DEBUG] Primeiro pedido:', window.pedidosCompra[0]);
+                }
 
                 calcularResumo();
                 renderizarTabAtiva();
@@ -597,7 +674,7 @@
                     
                     // Aplicar filtros de categoria e marca
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
-                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
+                    if (filtroAtual.marca && produto.marca_id !== filtroAtual.marca) return;
                     
                     receitaTotal += (item.preco_unitario || 0) * (item.quantidade || 0);
                     // Usar custo histórico correto (item > lote > produto)
@@ -609,7 +686,7 @@
             // Adicionar despesas das contas a pagar no período filtrado
             let despesasExtras = 0;
             contasPagar.forEach(cp => {
-                if (cp.status_pagamento === 'PAGO') {
+                if (cp.status === 'PAGO') {
                     if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
                         if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
                             despesasExtras += cp.valor_pago || 0;
@@ -815,7 +892,7 @@
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
                     if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
                     
-                    const marca = produto.marca || 'SEM MARCA';
+                    const marca = produto.marca_nome || 'SEM MARCA';
                     if (!dadosPorMarca[marca]) dadosPorMarca[marca] = { receita: 0, custo: 0 };
                     
                     dadosPorMarca[marca].receita += (item.preco_unitario || 0) * (item.quantidade || 0);
@@ -930,17 +1007,13 @@
         function criarGraficoFornecedores(vendasFiltradas) {
             const dadosPorFornecedor = {};
             
-            // Agrupar vendas por fornecedor usando o fornecedor_id do produto
-            vendasFiltradas.forEach(venda => {
-                (venda.venda_itens || []).forEach(item => {
-                    const produto = item.produtos;
-                    if (!produto) return;
-                    
-                    if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
-                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
-                    
-                    // Usar nome do fornecedor se disponível, senão "Sem Fornecedor"
-                    const fornecedorNome = produto.fornecedores?.nome || 'Sem Fornecedor';
+            console.log('📊 [FORNECEDOR] Analisando pedidos de compra...');
+            console.log('📊 [FORNECEDOR] Total de pedidos:', window.pedidosCompra?.length || 0);
+            
+            // Agrupar COMPRAS por fornecedor (não vendas!)
+            if (window.pedidosCompra && window.pedidosCompra.length > 0) {
+                window.pedidosCompra.forEach(pedido => {
+                    const fornecedorNome = pedido.fornecedor?.nome || 'Sem Fornecedor';
                     
                     if (!dadosPorFornecedor[fornecedorNome]) {
                         dadosPorFornecedor[fornecedorNome] = { 
@@ -950,39 +1023,47 @@
                         };
                     }
                     
-                    const receita = (item.preco_unitario || 0) * (item.quantidade || 0);
-                    const custo = getCustoItem(item) * (item.quantidade || 0);
-                    
-                    dadosPorFornecedor[fornecedorNome].receita += receita;
-                    dadosPorFornecedor[fornecedorNome].custo += custo;
-                    dadosPorFornecedor[fornecedorNome].quantidade += item.quantidade || 0;
+                    // Em pedidos de compra, o total é o custo (saída de dinheiro)
+                    dadosPorFornecedor[fornecedorNome].custo += pedido.total || 0;
+                    dadosPorFornecedor[fornecedorNome].quantidade += 1; // Número de pedidos
                 });
-            });
+            }
+            
+            console.log('📊 [FORNECEDOR] Fornecedores encontrados:', Object.keys(dadosPorFornecedor).length);
 
-            // Ordenar por receita e pegar top 10
+            // Ordenar por custo (valor das compras) e pegar top 10
             const topFornecedores = Object.entries(dadosPorFornecedor)
-                .sort((a, b) => b[1].receita - a[1].receita)
+                .sort((a, b) => b[1].custo - a[1].custo)
                 .slice(0, 10);
+            
+            if (topFornecedores.length === 0) {
+                const ctx = document.getElementById('chart-fornecedores');
+                if (chartInstances.fornecedores) chartInstances.fornecedores.destroy();
+                return;
+            }
 
             const ctx = document.getElementById('chart-fornecedores');
+            if (chartInstances.fornecedores) chartInstances.fornecedores.destroy();
+            
             chartInstances.fornecedores = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: topFornecedores.map(f => f[0]),
                     datasets: [
                         {
-                            label: 'Receita',
-                            data: topFornecedores.map(f => f[1].receita),
-                            backgroundColor: 'rgba(99, 102, 241, 0.8)',
-                            borderColor: 'rgba(99, 102, 241, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Custo',
+                            label: 'Total Comprado',
                             data: topFornecedores.map(f => f[1].custo),
                             backgroundColor: 'rgba(239, 68, 68, 0.8)',
                             borderColor: 'rgba(239, 68, 68, 1)',
                             borderWidth: 1
+                        },
+                        {
+                            label: 'Nº de Pedidos',
+                            data: topFornecedores.map(f => f[1].quantidade),
+                            backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
                         }
                     ]
                 },
@@ -1012,22 +1093,24 @@
         }
 
         function criarGraficoVariacaoFornecedor(vendasFiltradas) {
+            console.log('📊 [VARIACAO FORNECEDOR] Analisando variação de preço de compra por fornecedor');
+            console.log('📊 [VARIACAO FORNECEDOR] Total de pedidos de compra:', window.pedidosCompra?.length);
+            
             const precoPorFornecedorData = {};
             
-            // Agrupar por fornecedor e data
-            vendasFiltradas.forEach(venda => {
-                const data = venda.created_at?.split('T')[0];
+            // Agrupar por fornecedor e data - ANALISANDO PEDIDOS DE COMPRA
+            (window.pedidosCompra || []).forEach(pedido => {
+                const data = pedido.created_at?.split('T')[0];
                 if (!data) return;
                 
-                (venda.venda_itens || []).forEach(item => {
-                    const produto = item.produtos;
-                    if (!produto) return;
+                const fornecedorNome = pedido.fornecedor?.nome || 'Sem Fornecedor';
+                
+                // Analisar os itens do pedido
+                (pedido.pedido_compra_itens || []).forEach(item => {
+                    if (filtroAtual.categoria && item.produtos?.categoria_id !== filtroAtual.categoria) return;
+                    if (filtroAtual.marca && item.produtos?.marca_id !== filtroAtual.marca) return;
                     
-                    if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
-                    if (filtroAtual.marca && produto.marca !== filtroAtual.marca) return;
-                    
-                    const fornecedorNome = produto.fornecedores?.nome || 'Sem Fornecedor';
-                    const precoCusto = getCustoItem(item);
+                    const precoCusto = item.preco_custo || 0;
                     
                     if (!precoPorFornecedorData[fornecedorNome]) {
                         precoPorFornecedorData[fornecedorNome] = {};
@@ -1042,6 +1125,8 @@
                 });
             });
 
+            console.log('📊 [VARIACAO FORNECEDOR] Fornecedores encontrados:', Object.keys(precoPorFornecedorData));
+
             // Calcular média por data para cada fornecedor
             const fornecedoresComDados = Object.entries(precoPorFornecedorData)
                 .filter(([_, datas]) => Object.keys(datas).length > 0)
@@ -1049,7 +1134,12 @@
 
             if (fornecedoresComDados.length === 0) {
                 const ctx = document.getElementById('chart-variacao-fornecedor');
+                if (chartInstances.variacaoFornecedor) {
+                    chartInstances.variacaoFornecedor.destroy();
+                    chartInstances.variacaoFornecedor = null;
+                }
                 ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                console.log('📊 [VARIACAO FORNECEDOR] Nenhum dado encontrado');
                 return;
             }
 
@@ -1188,7 +1278,7 @@
                     
                     if (filtroAtual.categoria && produto.categoria_id !== filtroAtual.categoria) return;
                     
-                    const marca = produto.marca || 'SEM MARCA';
+                    const marca = produto.marca_nome || 'SEM MARCA';
                     
                     if (!lucrosPorMarca[marca]) {
                         lucrosPorMarca[marca] = { quantidade: 0, receita: 0, custo: 0 };
@@ -1299,6 +1389,12 @@
         function renderFluxoCaixa() {
             const movimentacoes = [];
             
+            console.log('🔍 [FLUXO] Iniciando renderização do fluxo de caixa...');
+            console.log('🔍 [FLUXO] Vendas:', filtrarVendas().length);
+            console.log('🔍 [FLUXO] Contas a receber:', contasReceber.length);
+            console.log('🔍 [FLUXO] Contas a pagar:', contasPagar.length);
+            console.log('🔍 [FLUXO] Pedidos de compra:', window.pedidosCompra?.length || 0);
+            
             // Vendas (entradas)
             filtrarVendas().forEach(venda => {
                 movimentacoes.push({
@@ -1312,54 +1408,88 @@
 
             // Recebimentos de contas a receber
             contasReceber.forEach(cr => {
-                if (!filtroAtual.dataInicio || cr.data_recebimento >= filtroAtual.dataInicio) {
-                    if (!filtroAtual.dataFim || cr.data_recebimento <= filtroAtual.dataFim) {
-                        movimentacoes.push({
-                            data: cr.data_recebimento,
-                            tipo: 'ENTRADA',
-                            descricao: `Recebimento: ${cr.descricao}`,
-                            entrada: cr.valor_recebido || 0,
-                            saida: 0
-                        });
-                    }
+                const dataMovimento = cr.data_recebimento || cr.created_at;
+                if (dataMovimento) {
+                    movimentacoes.push({
+                        data: dataMovimento,
+                        tipo: 'ENTRADA',
+                        descricao: `Recebimento: ${cr.descricao}`,
+                        entrada: cr.valor_recebido || 0,
+                        saida: 0
+                    });
                 }
             });
 
             // Pagamentos de contas a pagar
             contasPagar.forEach(cp => {
-                if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
-                    if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
-                        movimentacoes.push({
-                            data: cp.data_pagamento,
-                            tipo: 'SAÍDA',
-                            descricao: `Pagamento: ${cp.descricao}`,
-                            entrada: 0,
-                            saida: cp.valor_pago || 0
-                        });
-                    }
+                const dataMovimento = cp.data_pagamento || cp.created_at;
+                if (dataMovimento) {
+                    movimentacoes.push({
+                        data: dataMovimento,
+                        tipo: 'SAÍDA',
+                        descricao: `Pagamento: ${cp.descricao}`,
+                        entrada: 0,
+                        saida: cp.valor_pago || cp.valor || 0
+                    });
                 }
             });
+            
+            // Pedidos de compra aprovados (saídas)
+            if (window.pedidosCompra && window.pedidosCompra.length > 0) {
+                console.log('💰 [FLUXO] Processando', window.pedidosCompra.length, 'pedidos de compra');
+                window.pedidosCompra.forEach(pedido => {
+                    const dataMovimento = pedido.data_aprovacao || pedido.updated_at || pedido.created_at;
+                    if (dataMovimento) {
+                        const fornecedor = pedido.fornecedor?.nome || 'Fornecedor não informado';
+                        movimentacoes.push({
+                            data: dataMovimento,
+                            tipo: 'SAÍDA',
+                            descricao: `Compra de ${fornecedor}`,
+                            entrada: 0,
+                            saida: pedido.total || 0
+                        });
+                        console.log('💸 [FLUXO] Adicionada saída:', fornecedor, formatCurrency(pedido.total || 0));
+                    }
+                });
+            }
 
             // Ordenar por data
             movimentacoes.sort((a, b) => new Date(a.data) - new Date(b.data));
+            
+            // Aplicar filtro de data APÓS criar todas as movimentações
+            let movimentacoesFiltradas = movimentacoes;
+            if (filtroAtual.dataInicio || filtroAtual.dataFim) {
+                movimentacoesFiltradas = movimentacoes.filter(m => {
+                    const dataMovimento = m.data.split('T')[0];
+                    if (filtroAtual.dataInicio && dataMovimento < filtroAtual.dataInicio) return false;
+                    if (filtroAtual.dataFim && dataMovimento > filtroAtual.dataFim) return false;
+                    return true;
+                });
+            }
+            
+            console.log('📊 [FLUXO] Total de movimentações:', movimentacoes.length);
+            console.log('📊 [FLUXO] Após filtro de data:', movimentacoesFiltradas.length);
+            console.log('📊 [FLUXO] Entradas:', movimentacoesFiltradas.filter(m => m.tipo === 'ENTRADA').length);
+            console.log('📊 [FLUXO] Saídas:', movimentacoesFiltradas.filter(m => m.tipo === 'SAÍDA').length);
+            console.log('📊 [FLUXO] Primeiras 5 movimentações:', movimentacoesFiltradas.slice(0, 5));
 
             // Calcular saldo acumulado
             let saldoAtual = 0;
-            movimentacoes.forEach(mov => {
+            movimentacoesFiltradas.forEach(mov => {
                 saldoAtual += mov.entrada - mov.saida;
                 mov.saldo = saldoAtual;
             });
 
             // Calcular resumo
-            const totalEntradas = movimentacoes.reduce((sum, m) => sum + m.entrada, 0);
-            const totalSaidas = movimentacoes.reduce((sum, m) => sum + m.saida, 0);
+            const totalEntradas = movimentacoesFiltradas.reduce((sum, m) => sum + m.entrada, 0);
+            const totalSaidas = movimentacoesFiltradas.reduce((sum, m) => sum + m.saida, 0);
             const saldoFinal = totalEntradas - totalSaidas;
 
             // Atualizar cards
             document.getElementById('card-fc-entradas').textContent = formatCurrency(totalEntradas);
             document.getElementById('card-fc-saidas').textContent = formatCurrency(totalSaidas);
             document.getElementById('card-fc-saldo').textContent = formatCurrency(saldoFinal);
-            document.getElementById('card-fc-movimentacoes').textContent = movimentacoes.length;
+            document.getElementById('card-fc-movimentacoes').textContent = movimentacoesFiltradas.length;
 
             // Atualizar cor do saldo
             const cardSaldo = document.getElementById('card-fc-saldo');
@@ -1367,10 +1497,10 @@
 
             // Renderizar tabela
             const tbody = document.getElementById('tbody-fluxo-caixa');
-            if (movimentacoes.length === 0) {
+            if (movimentacoesFiltradas.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-gray-500">Nenhuma movimentação encontrada</td></tr>';
             } else {
-                tbody.innerHTML = movimentacoes.map(m => `
+                tbody.innerHTML = movimentacoesFiltradas.map(m => `
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 text-sm text-gray-600">${formatDate(m.data)}</td>
                         <td class="px-4 py-3 text-sm">
@@ -1393,7 +1523,7 @@
             }
 
             // Renderizar gráfico
-            renderGraficoFluxoCaixa(movimentacoes);
+            renderGraficoFluxoCaixa(movimentacoesFiltradas);
         }
 
         function renderGraficoFluxoCaixa(movimentacoes) {
@@ -1490,7 +1620,7 @@
             // Pagamentos no período (despesas operacionais, excluindo compras de mercadorias)
             let despesasOperacionais = 0;
             contasPagar.forEach(cp => {
-                if (cp.status_pagamento === 'PAGO') {
+                if (cp.status === 'PAGO') {
                     if (!filtroAtual.dataInicio || cp.data_pagamento >= filtroAtual.dataInicio) {
                         if (!filtroAtual.dataFim || cp.data_pagamento <= filtroAtual.dataFim) {
                             // Considerar despesas operacionais (não compras de mercadorias)
@@ -1661,7 +1791,7 @@
                     const produto = item.produtos;
                     if (!produto) return;
                     
-                    const marca = produto.marca || 'SEM MARCA';
+                    const marca = produto.marca_nome || 'SEM MARCA';
                     
                     if (!lucros[marca]) lucros[marca] = { quantidade: 0, receita: 0, custo: 0 };
                     

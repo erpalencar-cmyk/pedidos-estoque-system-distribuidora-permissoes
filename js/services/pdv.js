@@ -961,6 +961,32 @@ class PDVSystem {
                 return false;
             }
 
+            // ✅ VALIDAR ESTOQUE ANTES DE FINALIZAR
+            console.log('🔍 [PDV] Validando estoque disponível...');
+            for (const item of this.itensCarrinho) {
+                const { data: produto } = await supabase
+                    .from('produtos')
+                    .select('nome, estoque_atual')
+                    .eq('id', item.produto_id)
+                    .single();
+                
+                if (!produto) {
+                    this.exibirErro(`Produto não encontrado: ${item.nome}`);
+                    return false;
+                }
+                
+                const estoqueDisponivel = produto.estoque_atual || 0;
+                if (item.quantidade > estoqueDisponivel) {
+                    this.exibirErro(
+                        `Estoque insuficiente para ${produto.nome}\n` +
+                        `Disponível: ${estoqueDisponivel.toFixed(2)} ${item.unidade}\n` +
+                        `Solicitado: ${item.quantidade.toFixed(2)} ${item.unidade}`
+                    );
+                    return false;
+                }
+            }
+            console.log('✅ [PDV] Estoque validado - todos os itens disponíveis');
+
             const usuario = await getCurrentUser();
             const numeroVenda = this.gerarNumeroVenda();
             
@@ -1022,20 +1048,30 @@ class PDVSystem {
 
             const vendaId = venda.id;
 
-            // Inserir itens
+            // Inserir itens (buscar preco_custo do produto para salvar historicamente)
             for (const item of this.itensCarrinho) {
-                // Preparar dados do item sem campos que não existem na tabela
+                // Buscar preço de custo atual do produto (para análise financeira)
+                const { data: produto } = await supabase
+                    .from('produtos')
+                    .select('preco_custo')
+                    .eq('id', item.produto_id)
+                    .single();
+                
+                const precoCusto = produto?.preco_custo || 0;
+                
+                // Preparar dados do item COM preco_custo para análise financeira
                 const itemData = {
                     venda_id: vendaId,
                     produto_id: item.produto_id,
                     quantidade: item.quantidade,
                     preco_unitario: item.preco_unitario,
+                    preco_custo: precoCusto, // ✅ ADICIONAR custo histórico para análise
                     desconto_percentual: item.desconto_percentual || 0,
                     desconto_valor: item.desconto || 0,
                     subtotal: item.subtotal
                 };
                 
-                console.log('📦 Inserindo item:', itemData);
+                console.log('📦 Inserindo item com custo:', itemData);
                 
                 const { error: erroItem } = await supabase
                     .from('venda_itens')
@@ -1071,57 +1107,24 @@ class PDVSystem {
 
     /**
      * Registrar movimento de estoque
+     * ATUALIZADO: Agora usa EstoqueService centralizado
      */
     static async registrarMovimentoEstoque(vendaId, itens) {
         try {
-            const usuario = await getCurrentUser();
-
-            for (const item of itens) {
-                // 1. Inserir movimento de estoque
-                const { error: erroMov } = await supabase
-                    .from('estoque_movimentacoes')
-                    .insert({
-                        produto_id: item.produto_id,
-                        tipo_movimento: 'SAIDA',
-                        quantidade: item.quantidade,
-                        unidade_medida: item.unidade_medida,
-                        preco_unitario: item.preco_unitario,
-                        motivo: 'Venda PDV',
-                        referencia_id: vendaId,
-                        referencia_tipo: 'VENDA',
-                        usuario_id: usuario.id
-                    });
-
-                if (erroMov) {
-                    console.error('❌ Erro ao registrar movimento:', erroMov);
-                    throw erroMov;
-                }
-
-                // 2. Atualizar estoque atual do produto (REDUZIR)
-                const { data: produto } = await supabase
-                    .from('produtos')
-                    .select('estoque_atual')
-                    .eq('id', item.produto_id)
-                    .single();
-
-                if (produto) {
-                    const novoEstoque = Math.max(0, (produto.estoque_atual || 0) - item.quantidade);
-                    const { error: erroUpdate } = await supabase
-                        .from('produtos')
-                        .update({ estoque_atual: novoEstoque })
-                        .eq('id', item.produto_id);
-                    
-                    if (erroUpdate) {
-                        console.error('❌ Erro ao atualizar estoque:', erroUpdate);
-                        throw erroUpdate;
-                    }
-                    
-                    console.log(`📦 Estoque atualizado: ${produto.estoque_atual} → ${novoEstoque}`);
-                }
+            console.log('📦 [PDV] Registrando saída de estoque via EstoqueService...');
+            
+            // Usar EstoqueService centralizado para processar baixa de estoque
+            const resultado = await EstoqueService.saidaPorVenda(vendaId);
+            
+            if (!resultado.sucesso) {
+                throw new Error(resultado.mensagem || 'Erro ao processar saída de estoque');
             }
-            console.log('✅ Movimento de estoque registrado com sucesso');
+            
+            console.log(`✅ [PDV] ${resultado.itens_processados} produtos baixados do estoque`);
+            
         } catch (error) {
-            console.error('❌ Erro ao registrar movimento de estoque:', error);
+            console.error('❌ [PDV] Erro ao registrar movimento de estoque:', error);
+            throw error; // Propagar erro para interromper finalização
         }
     }
 

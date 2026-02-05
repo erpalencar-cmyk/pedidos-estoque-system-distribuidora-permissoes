@@ -181,17 +181,21 @@ class SharedUtils {
     static async fazerLogoutSeguro() {
         try {
             // Limpar sessionStorage
-            sessionStorage.clear();
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.clear();
+            }
 
             // Limpar localStorage (exceto preferências essenciais)
-            const preferenciasEssenciais = ['tema', 'idioma'];
-            const keys = Object.keys(localStorage);
-            
-            keys.forEach(key => {
-                if (!preferenciasEssenciais.includes(key)) {
-                    localStorage.removeItem(key);
-                }
-            });
+            if (typeof localStorage !== 'undefined') {
+                const preferenciasEssenciais = ['tema', 'idioma'];
+                const keys = Object.keys(localStorage);
+                
+                keys.forEach(key => {
+                    if (!preferenciasEssenciais.includes(key)) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            }
 
             // Logout do Supabase
             await supabase.auth.signOut();

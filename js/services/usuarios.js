@@ -51,6 +51,67 @@ async function getUsuario(id) {
     }
 }
 
+// Criar usuário com senha (auth + tabela)
+async function createUsuarioComSenha(email, password, usuarioData) {
+    try {
+        showLoading(true);
+
+        // 1. Criar no Auth do Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password
+        });
+
+        if (authError) throw authError;
+
+        // 2. Inserir na tabela users
+        const { data, error } = await supabase
+            .from('users')
+            .insert([{
+                id: authData.user.id,
+                email: email,
+                ...usuarioData
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        showToast('Usuário criado com sucesso!', 'success');
+        return data;
+        
+    } catch (error) {
+        handleError(error, 'Erro ao criar usuário');
+        return null;
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Criar usuário (tabela apenas - sem auth)
+async function createUsuario(usuario) {
+    try {
+        showLoading(true);
+
+        const { data, error } = await supabase
+            .from('users')
+            .insert([usuario])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        showToast('Usuário criado com sucesso!', 'success');
+        return data;
+        
+    } catch (error) {
+        handleError(error, 'Erro ao criar usuário');
+        return null;
+    } finally {
+        showLoading(false);
+    }
+}
+
 // Atualizar usuário
 async function updateUsuario(id, usuario) {
     try {

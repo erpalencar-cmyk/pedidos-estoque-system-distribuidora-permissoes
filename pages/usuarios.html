@@ -303,7 +303,7 @@
                 document.getElementById('usuario-email').readOnly = true;
                 document.getElementById('usuario-whatsapp').value = usuario.whatsapp || '';
                 document.getElementById('usuario-role').value = usuario.role || '';
-                document.getElementById('usuario-ativo').checked = usuario.active !== false;
+                document.getElementById('usuario-ativo').checked = usuario.ativo !== false;
                 document.getElementById('usuario-senha').required = false;
             } else {
                 document.getElementById('form-usuario').reset();
@@ -332,7 +332,7 @@
             
             if (!nome) erros.push({ campo: 'Nome', tab: 'tab-basico' });
             if (!email) erros.push({ campo: 'Email', tab: 'tab-acesso' });
-            if (!id && !senha) erros.push({ campo: 'Senha', tab: 'tab-acesso' });
+            if (!id && !senha) erros.push({ campo: 'Senha obrigatória para novo usuário', tab: 'tab-acesso' });
             if (!role) erros.push({ campo: 'Perfil de Acesso', tab: 'tab-permissoes' });
             
             if (erros.length > 0) {
@@ -341,33 +341,32 @@
             }
             
             const usuarioData = {
+                nome_completo: nome,
                 full_name: nome,
                 email: email,
                 role: role,
                 whatsapp: document.getElementById('usuario-whatsapp').value.trim() || null,
-                active: document.getElementById('usuario-ativo').checked
+                ativo: document.getElementById('usuario-ativo').checked
             };
-            
-            if (senha) {
-                usuarioData.password = senha;
-            }
             
             try {
                 showLoading(true);
                 
                 if (id) {
+                    // Editando: sem senha
                     await updateUsuario(id, usuarioData);
                     showToast('Usuário atualizado com sucesso!', 'success');
                 } else {
-                    await createUsuario(usuarioData);
-                    showToast('Usuário cadastrado com sucesso!', 'success');
+                    // Novo: criar com auth.signUp + tabela users
+                    await createUsuarioComSenha(email, senha, usuarioData);
+                    showToast('Usuário criado com sucesso!', 'success');
                 }
                 
                 closeModal('modal-usuario');
                 await loadUsuarios();
             } catch (error) {
                 console.error('Erro ao salvar usuário:', error);
-                showToast(error.message || 'Erro ao salvar usuário', 'error');
+                showToast('Erro ao salvar usuário: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -460,15 +459,15 @@
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-600">${u.whatsapp || '-'}</td>
                         <td class="px-6 py-4 text-sm">
-                            <span class="px-2 py-1 text-xs font-medium rounded-full ${u.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                <i class="fas fa-circle text-xs mr-1"></i>${u.active ? 'Ativo' : 'Inativo'}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${u.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                <i class="fas fa-circle text-xs mr-1"></i>${u.ativo ? 'Ativo' : 'Inativo'}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-center text-sm">
                             <button onclick='openModalUsuario(${JSON.stringify(u)})' class="text-blue-600 hover:text-blue-800 font-medium mr-3 btn-action">
                                 <i class="fas fa-edit mr-1"></i>Editar
                             </button>
-                            ${u.active ? 
+                            ${u.ativo ? 
                                 `<button onclick="toggleUsuarioStatus('${u.id}', false)" class="text-red-600 hover:text-red-800 font-medium btn-action">
                                     <i class="fas fa-ban mr-1"></i>Desativar
                                 </button>` :
@@ -490,7 +489,7 @@
             
             try {
                 showLoading(true);
-                await updateUsuario(id, { active: activate });
+                await updateUsuario(id, { ativo: activate });
                 showToast(`Usuário ${activate ? 'ativado' : 'desativado'} com sucesso!`, 'success');
                 await loadUsuarios();
             } catch (error) {

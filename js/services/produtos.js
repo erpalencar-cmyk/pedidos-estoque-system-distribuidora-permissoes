@@ -120,7 +120,10 @@ async function deleteProduto(id) {
     try {
         const { error } = await window.supabase
             .from('produtos')
-            .update({ ativo: false })
+            .update({ 
+                ativo: false,
+                codigo_barras: null // Limpa código para permitir reutilização
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -372,6 +375,7 @@ async function updateProdutoComSabores(id, produto, sabores) {
 // Listar marcas
 async function getMarcas() {
     try {
+        console.log('🔍 getMarcas() chamada');
         const { data, error } = await window.supabase
             .from('marcas')
             .select('id, nome')
@@ -380,6 +384,14 @@ async function getMarcas() {
 
         if (error) throw error;
 
+        console.log('✅ getMarcas() retornou:', data);
+        console.log('   Tipo:', Array.isArray(data) ? 'Array' : typeof data);
+        if (data && data.length > 0) {
+            console.log('   Primeiro item:', data[0]);
+            console.log('   Tem .id?', 'id' in data[0]);
+            console.log('   Tem .nome?', 'nome' in data[0]);
+        }
+        
         return data || [];
         
     } catch (error) {
@@ -389,16 +401,25 @@ async function getMarcas() {
 }
 
 // Listar produtos por marca
-async function getProdutosPorMarca(marca) {
+async function getProdutosPorMarca(marcaId) {
     try {
+        console.log('🔍 getProdutosPorMarca() chamada');
+        console.log('   marcaId recebido:', marcaId);
+        console.log('   Tipo:', typeof marcaId);
+        
         const { data, error } = await window.supabase
             .from('produtos')
             .select('*')
-            .eq('marca', marca)
+            .eq('marca_id', marcaId)
             .eq('ativo', true)
             .order('nome');
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Erro na consulta:', error);
+            throw error;
+        }
+        
+        console.log('✅ getProdutosPorMarca() retornou:', data?.length, 'produtos');
         return data || [];
         
     } catch (error) {

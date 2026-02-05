@@ -340,7 +340,7 @@
                 tipo: document.getElementById('cliente-tipo').value,
                 cpf_cnpj: document.getElementById('cliente-cpf-cnpj').value?.trim() || null,
                 email: document.getElementById('cliente-email').value?.trim() || null,
-                contato: document.getElementById('cliente-contato').value?.trim() || null,
+                telefone: document.getElementById('cliente-contato').value?.trim() || null,
                 whatsapp: document.getElementById('cliente-whatsapp').value?.trim() || null,
                 cep: document.getElementById('cliente-cep').value?.trim() || null,
                 estado: document.getElementById('cliente-estado').value || null,
@@ -464,13 +464,13 @@
                     : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">PF</span>';
                 
                 const cidadeUf = [cliente.cidade, cliente.estado].filter(Boolean).join(' - ') || '-';
-                const contato = cliente.contato || cliente.whatsapp || '-';
+                const contato = cliente.telefone || cliente.whatsapp || '-';
                 
                 return `
                     <tr class="table-row-hover">
                         <td class="px-6 py-4">
-                            <div class="font-medium text-gray-900">${escapeHtml(cliente.nome)}</div>
-                            ${cliente.email ? `<div class="text-sm text-gray-500">${escapeHtml(cliente.email)}</div>` : ''}
+                            <div class="font-medium text-gray-900">${cliente.nome}</div>
+                            ${cliente.email ? `<div class="text-sm text-gray-500">${cliente.email}</div>` : ''}
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-700">
                             ${cliente.cpf_cnpj || '-'}
@@ -527,7 +527,7 @@
             document.getElementById('cliente-tipo').value = cliente.tipo || 'PF';
             document.getElementById('cliente-cpf-cnpj').value = cliente.cpf_cnpj || '';
             document.getElementById('cliente-email').value = cliente.email || '';
-            document.getElementById('cliente-contato').value = cliente.contato || '';
+            document.getElementById('cliente-contato').value = cliente.telefone || '';
             document.getElementById('cliente-whatsapp').value = cliente.whatsapp || '';
             document.getElementById('cliente-cep').value = cliente.cep || '';
             document.getElementById('cliente-estado').value = cliente.estado || '';

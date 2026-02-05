@@ -367,6 +367,7 @@
     <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/services/estoque-central.js"></script>
     <script src="../js/services/focus-nfe.js"></script>
     <script src="../js/services/pedidos.js"></script>
     <script src="../js/services/fornecedores.js"></script>
@@ -1203,11 +1204,24 @@
             
             // Adicionar itens se houver
             if (itens && itens.length > 0) {
+                // Função para gerar UUID
+                const generateUUID = () => {
+                    return crypto.randomUUID ? crypto.randomUUID() : 
+                        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                            const r = Math.random() * 16 | 0;
+                            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                            return v.toString(16);
+                        });
+                };
+                
                 const itensComPedido = itens.map(item => ({
-                    pedido_compra_id: pedido.id,
+                    id: generateUUID(),                      // UUID gerado no cliente
+                    pedido_id: pedido.id,                    // FK correta
                     produto_id: item.produto_id,
                     quantidade: item.quantidade,
-                    preco_unitario: item.preco_unitario
+                    quantidade_recebida: 0,                  // DEFAULT 0
+                    preco_unitario: item.preco_unitario,
+                    subtotal: item.quantidade * item.preco_unitario
                 }));
                 
                 await supabase.from('pedido_compra_itens').insert(itensComPedido);
@@ -1448,27 +1462,32 @@
                         unidade: prod.unidade_comercial || prod.uCom || 'UN',
                         ncm: prod.ncm || prod.NCM || ''
                     });
+                    
+                    const quantidade = parseFloat(prod.quantidade_comercial || prod.qCom || 0);
+                    const precoUnitario = parseFloat(prod.valor_unitario_comercial || prod.vUnCom || 0);
 
-                    // Adicionar item ao pedido
-                    await supabase.from('pedido_itens').insert([{
+                    // Adicionar item ao pedido de compra
+                    await supabase.from('pedido_compra_itens').insert([{
                         pedido_id: pedido.id,
                         produto_id: produto.id,
-                        quantidade: parseFloat(prod.quantidade_comercial || prod.qCom || 0),
-                        preco_unitario: parseFloat(prod.valor_unitario_comercial || prod.vUnCom || 0),
+                        quantidade: quantidade,
+                        preco_unitario: precoUnitario,
                         subtotal: parseFloat(prod.valor_bruto || prod.vProd || 0)
-                    }]);
-
-                    // Dar entrada no estoque
-                    await supabase.from('movimentacoes_estoque').insert([{
-                        produto_id: produto.id,
-                        tipo_movimentacao: 'ENTRADA',
-                        quantidade: parseFloat(prod.quantidade_comercial || prod.qCom || 0),
-                        motivo: `Entrada NFe ${nfeConsultada.numero || nfeConsultada.nNF} - Pedido #${pedido.id}`,
-                        pedido_id: pedido.id
                     }]);
 
                     itensProcessados++;
                 }
+                
+                // Dar entrada no estoque usando EstoqueService
+                console.log('📦 [NFE] Dando entrada no estoque para pedido:', pedido.id);
+                const resultadoEstoque = await EstoqueService.entradaPorCompra(pedido.id);
+                
+                if (!resultadoEstoque.sucesso) {
+                    console.error('❌ [NFE] Erro ao dar entrada no estoque:', resultadoEstoque.mensagem);
+                    throw new Error('Erro ao dar entrada no estoque: ' + resultadoEstoque.mensagem);
+                }
+                
+                console.log('✅ [NFE] Entrada de estoque concluída:', resultadoEstoque.itens_processados, 'produtos');
 
                 showToast(`✅ Pedido criado! ${itensProcessados} produtos processados e entrada no estoque realizada!`, 'success');
                 
@@ -1642,13 +1661,33 @@
         }
 
         async function receberPedido(id) {
-            if (!await confirmAction('Deseja dar entrada no estoque para este pedido?')) {
+            if (!await confirmAction('Marcar pedido como RECEBIDO?\n\n⚠️ O estoque JÁ FOI atualizado na aprovação.\n\nEste botão apenas confirma o recebimento físico das mercadorias.')) {
                 return;
             }
             
             showLoading(true);
             try {
-                // Atualizar status do pedido
+                console.log('📦 Marcando pedido como recebido:', id);
+
+                // 1. Buscar itens para atualizar quantidade_recebida (FK CORRETA: pedido_id)
+                const { data: itens, error: errItens } = await supabase
+                    .from('pedido_compra_itens')
+                    .select('id, quantidade')
+                    .eq('pedido_id', id);
+
+                if (errItens) throw errItens;
+
+                // 2. Atualizar quantidade_recebida de cada item (marca como fisicamente recebido)
+                if (itens && itens.length > 0) {
+                    for (const item of itens) {
+                        await supabase
+                            .from('pedido_compra_itens')
+                            .update({ quantidade_recebida: item.quantidade })
+                            .eq('id', item.id);
+                    }
+                }
+
+                // 3. Atualizar status do pedido para RECEBIDO
                 await supabase
                     .from('pedidos_compra')
                     .update({ 
@@ -1657,32 +1696,9 @@
                     })
                     .eq('id', id);
 
-                // Buscar itens do pedido
-                const { data: itens } = await supabase
-                    .from('pedido_compra_itens')
-                    .select('produto_id, quantidade')
-                    .eq('pedido_compra_id', id);
-
-                // Atualizar estoque de cada produto
-                for (const item of (itens || [])) {
-                    const { data: produto } = await supabase
-                        .from('produtos')
-                        .select('estoque_atual')
-                        .eq('id', item.produto_id)
-                        .single();
-
-                    if (produto) {
-                        await supabase
-                            .from('produtos')
-                            .update({ 
-                                estoque_atual: (produto.estoque_atual || 0) + item.quantidade 
-                            })
-                            .eq('id', item.produto_id);
-                    }
-                }
-
-                showToast('Entrada no estoque realizada com sucesso!', 'success');
+                showToast('Pedido marcado como recebido com sucesso!', 'success');
                 await loadPedidos();
+
             } catch (error) {
                 handleError(error, 'Erro ao receber pedido');
             } finally {

@@ -49,14 +49,9 @@ async function createFornecedor(fornecedor) {
     try {
         showLoading(true);
         
-        const user = await getCurrentUser();
-        
         const { data, error } = await window.supabase
             .from('fornecedores')
-            .insert([{
-                ...fornecedor,
-                created_by: user.id
-            }])
+            .insert([fornecedor])
             .select()
             .single();
 

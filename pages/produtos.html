@@ -229,9 +229,19 @@
                 <!-- TAB: ESTOQUE -->
                 <div id="tab-estoque" class="tab-content hidden space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Estoque Atual</label>
-                            <input type="number" id="produto-estoque" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <div class="bg-blue-50 p-4 rounded-lg border-2 border-blue-300">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-lock mr-1 text-blue-600"></i>
+                                Estoque Atual (Somente Leitura)
+                            </label>
+                            <input type="number" id="produto-estoque" step="0.01" min="0" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" 
+                                   readonly disabled
+                                   title="Este campo é calculado automaticamente pelas movimentações de estoque">
+                            <p class="text-xs text-gray-600 mt-2">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Alimentado automaticamente pelos pedidos de compra e vendas
+                            </p>
                         </div>
                         <div class="bg-yellow-50 p-4 rounded-lg">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Estoque Mínimo</label>
@@ -1078,7 +1088,7 @@
         }
 
         async function saveProduto() {
-            const id = document.getElementById('produto-id').value;
+            const id = document.getElementById('produto-id').value || null; // Garante null se vazio
             
             // ============ VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ============
             const erros = [];
@@ -1190,7 +1200,7 @@
                 categoria_id: document.getElementById('produto-categoria')?.value || null,
                 unidade: document.getElementById('produto-unidade')?.value || 'UN',
                 descricao: document.getElementById('produto-descricao')?.value || null,
-                estoque_atual: parseFloat(document.getElementById('produto-estoque')?.value) || 0,
+                // estoque_atual: NÃO EDITAR - alimentado automaticamente
                 estoque_minimo: parseFloat(document.getElementById('produto-estoque-minimo')?.value) || 0,
                 estoque_maximo: parseFloat(document.getElementById('produto-estoque-maximo')?.value) || 0,
                 controla_validade: document.getElementById('produto-controla-validade')?.value === 'true',
@@ -1246,6 +1256,25 @@
 
             try {
                 showLoading(true);
+                
+                // Validar código de barras antes de salvar
+                if (data.codigo_barras) {
+                    console.log('🔍 VALIDAÇÃO SAVE - Código:', data.codigo_barras);
+                    console.log('🔍 VALIDAÇÃO SAVE - ID Produto:', id, 'Tipo:', typeof id);
+                    
+                    const duplicata = await verificarDuplicataCodigoBarras(data.codigo_barras, id);
+                    
+                    console.log('🔍 VALIDAÇÃO SAVE - Resultado duplicata:', duplicata);
+                    
+                    if (duplicata) {
+                        console.error('❌ BLOQUEADO - Produto duplicado:', duplicata);
+                        showToast(`❌ IMPOSSÍVEL SALVAR\n\nCódigo de barras já cadastrado no produto:\n"${duplicata.nome}"\n(Código: ${duplicata.codigo || 'Sem código'})\n\nAltere o código de barras para continuar.`, 'error');
+                        return; // Bloqueia salvamento
+                    }
+                    
+                    console.log('✅ VALIDAÇÃO SAVE - Código de barras disponível');
+                }
+                
                 let result;
 
                 if (id) {
@@ -1308,7 +1337,10 @@
         async function deleteProduto(id) {
             const { error } = await window.supabase
                 .from('produtos')
-                .update({ ativo: false })
+                .update({ 
+                    ativo: false,
+                    codigo_barras: null // Limpa código para permitir reutilização
+                })
                 .eq('id', id);
             
             if (error) throw error;
@@ -1374,21 +1406,25 @@
             try {
                 let query = window.supabase
                     .from('produtos')
-                    .select('id, nome, codigo_barras, ativo')
+                    .select('id, nome, codigo, codigo_barras, ativo')
                     .eq('codigo_barras', codigo.trim())
-                    .eq('ativo', true);
+                    .eq('ativo', true); // IMPORTANTE: Só verifica produtos ATIVOS
                 
+                // Se está editando um produto, exclui ele mesmo da busca
                 if (produtoAtualId) {
                     query = query.neq('id', produtoAtualId);
                 }
                 
                 const { data, error } = await query;
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('❌ Erro ao verificar duplicata:', error);
+                    throw error;
+                }
                 
                 return data && data.length > 0 ? data[0] : null;
             } catch (error) {
-                console.error('Erro ao verificar duplicata:', error);
+                console.error('❌ Erro ao verificar duplicata:', error);
                 return null;
             }
         }
@@ -1428,16 +1464,22 @@
                 return;
             }
             
-            // Verifica duplicata
+            // Verifica duplicata (somente produtos ATIVOS)
             const produtoAtualId = document.getElementById('produto-id').value || null;
             const duplicada = await verificarDuplicataCodigoBarras(codigoBarras, produtoAtualId);
             
             if (duplicada) {
-                showToast(`⚠️ Código de barras já existe no produto: "${duplicada.nome}"`, 'warning');
+                // Mostra mensagem clara quando encontra duplicata
+                showToast(`⚠️ Código de barras JÁ CADASTRADO no produto:\n"${duplicada.nome}"\n(Código: ${duplicada.codigo || 'Sem código'})`, 'warning');
                 exibirFeedbackCodigoBarras(elemento, 'duplicado');
+                
+                // Adiciona tooltip
+                elemento.title = `⚠️ Este código já existe no produto: "${duplicada.nome}"`;
             } else {
-                showToast(`✅ Código de barras válido!`, 'success');
+                // Código válido e disponível
+                showToast(`✅ Código de barras válido e disponível!`, 'success');
                 exibirFeedbackCodigoBarras(elemento, 'valido');
+                elemento.title = '✓ Código válido';
             }
         }
 

@@ -41,14 +41,9 @@ async function getClienteById(id) {
 // Criar novo cliente
 async function createCliente(clienteData) {
     try {
-        const user = await getCurrentUser();
-        
         const { data, error } = await supabase
             .from('clientes')
-            .insert([{
-                ...clienteData,
-                created_by: user.id
-            }])
+            .insert([clienteData])
             .select()
             .single();
 

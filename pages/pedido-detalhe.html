@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
+    
+    <!-- Serviço Centralizado de Estoque -->
+    <script src="../js/services/estoque-central.js"></script>
 </head>
 <body class="bg-gray-100">
     <div id="navbar"></div>
@@ -225,51 +228,40 @@
             </div>
             <div class="px-6 py-4">
                 <!-- Seleção de Marca e Produto -->
-                <div class="grid grid-cols-2 gap-4 mb-4 pb-4 border-b">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Marca*</label>
-                        <select id="item-marca" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarProdutosPorMarca()">
-                            <option value="">Selecione a marca...</option>
-                        </select>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Marca*</label>
+                            <select id="item-marca" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarProdutosPorMarca()">
+                                <option value="">Selecione a marca...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Produto*</label>
+                            <select id="item-produto" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="preencherPrecoAutomatico()" disabled>
+                                <option value="">Selecione o produto...</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Produto*</label>
-                        <select id="item-produto" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarSaboresProduto()" disabled>
-                            <option value="">Selecione o produto...</option>
-                        </select>
-                    </div>
-                </div>
 
-                <!-- Lista de Sabores para Compra -->
-                <div id="area-adicionar-sabor" class="hidden">
-                    <h4 class="font-semibold text-gray-900 mb-3">Sabores do Produto</h4>
-                    <p class="text-sm text-gray-600 mb-3">Informe a quantidade e preço para os sabores que deseja comprar:</p>
-                    
-                    <div class="border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-100 sticky top-0">
-                                <tr>
-                                    <th class="px-3 py-2 text-left w-1/3">Sabor</th>
-                                    <th class="px-3 py-2 text-left">Estoque Atual</th>
-                                    <th class="px-3 py-2 text-left">Quantidade</th>
-                                    <th class="px-3 py-2 text-left">Preço Un.</th>
-                                    <th class="px-3 py-2 text-left">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-sabores-lista"></tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex justify-between items-center">
-                        <span class="text-sm text-blue-800">Total da Compra:</span>
-                        <span id="total-compra" class="font-bold text-xl text-blue-900">R$ 0,00</span>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade*</label>
+                            <input type="number" id="item-quantidade" step="1" min="1" value="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Preço Unitário (R$)*</label>
+                            <input type="number" id="item-preco" step="0.01" min="0.01" value="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="0.00">
+                        </div>
                     </div>
                 </div>
 
                 <!-- Botões de Ação -->
                 <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                    <button type="button" onclick="cancelarEFecharModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
-                    <button type="button" onclick="salvarTodosSabores()" id="btn-salvar-todos" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hidden">Salvar Compra</button>
+                    <button type="button" onclick="closeModal('modal-item')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+                    <button type="button" onclick="adicionarItemPedido()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-plus mr-2"></i>Adicionar Item
+                    </button>
                 </div>
             </div>
         </div>
@@ -280,16 +272,16 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../js/config.js"></script>
-    <script src="../js/session-manager.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/services/pedidos.js"></script>
-    <script src="../js/services/produtos.js"></script>
-    <script src="../js/services/impressao.js"></script>
-    <script src="../components/navbar.js"></script>
-    <script src="../components/sidebar.js"></script>
-    <script src="../components/modal.js"></script>
+    <script src="../js/config.js?v=20260205-003"></script>
+    <script src="../js/session-manager.js?v=20260205-003"></script>
+    <script src="../js/utils.js?v=20260205-003"></script>
+    <script src="../js/auth.js?v=20260205-003"></script>
+    <script src="../js/services/pedidos.js?v=20260205-003"></script>
+    <script src="../js/services/produtos.js?v=20260205-003"></script>
+    <script src="../js/services/impressao.js?v=20260205-003"></script>
+    <script src="../components/navbar.js?v=20260205-002"></script>
+    <script src="../components/sidebar.js?v=20260205-002"></script>
+    <script src="../components/modal.js?v=20260205-002"></script>
     
     <script>
         let pedidoId = null;
@@ -323,14 +315,17 @@
             try {
                 showLoading(true);
                 const marcas = await getMarcas();
+                console.log('🔍 Marcas recebidas:', marcas);
                 const selectMarca = document.getElementById('item-marca');
                 selectMarca.innerHTML = '<option value="">Selecione a marca...</option>';
                 marcas.forEach(marca => {
+                    console.log('  → Adicionando marca:', marca);
                     const option = document.createElement('option');
-                    option.value = marca;
-                    option.textContent = marca;
+                    option.value = marca.id;
+                    option.textContent = marca.nome;
                     selectMarca.appendChild(option);
                 });
+                console.log('✅ Total de marcas carregadas:', marcas.length);
             } finally {
                 showLoading(false);
             }
@@ -338,11 +333,13 @@
 
         // Carregar produtos ao selecionar marca
         async function carregarProdutosPorMarca() {
-            const marca = document.getElementById('item-marca').value;
+            const marcaId = document.getElementById('item-marca').value;
             const selectProduto = document.getElementById('item-produto');
             const areaSabores = document.getElementById('area-adicionar-sabor');
             
-            console.log('Marca selecionada:', marca);
+            console.log('🔍 carregarProdutosPorMarca() chamada');
+            console.log('   marcaId recuperado do select:', marcaId);
+            console.log('   Tipo de marcaId:', typeof marcaId);
             
             // Resetar select de produto
             selectProduto.innerHTML = '<option value="">Selecione o produto...</option>';
@@ -354,14 +351,15 @@
                 if (tbody) tbody.innerHTML = '';
             }
             
-            if (!marca) {
+            if (!marcaId) {
                 selectProduto.disabled = true;
                 return;
             }
             
             try {
                 showLoading(true);
-                const produtos = await getProdutosPorMarca(marca);
+                console.log('📞 Chamando getProdutosPorMarca com:', marcaId);
+                const produtos = await getProdutosPorMarca(marcaId);
                 console.log('Produtos encontrados:', produtos);
                 
                 if (produtos.length === 0) {
@@ -371,7 +369,7 @@
                 }
                 
                 produtos.forEach(p => {
-                    const precoCompra = p.preco_compra || p.preco || 0;
+                    const precoCompra = p.preco_custo || p.preco || 0;
                     const option = document.createElement('option');
                     option.value = p.id;
                     option.textContent = `${p.nome}`;
@@ -390,221 +388,109 @@
             }
         }
 
-        // Carregar sabores ao selecionar produto
-        async function carregarSaboresProduto() {
-            const produtoId = document.getElementById('item-produto').value;
-            const areaAdicionar = document.getElementById('area-adicionar-sabor');
-            
-            if (!produtoId) {
-                areaAdicionar.classList.add('hidden');
-                return;
-            }
-            
-            // Pegar dados do produto selecionado
+        // Preencher preço automaticamente quando selecionar produto
+        function preencherPrecoAutomatico() {
             const selectProduto = document.getElementById('item-produto');
-            const option = selectProduto.options[selectProduto.selectedIndex];
-            produtoAtual = {
-                id: produtoId,
-                nome: option.textContent,
-                preco: parseFloat(option.dataset.preco || 0)
-            };
+            const precoInput = document.getElementById('item-preco');
             
-            const sabores = await getSaboresProduto(produtoId);
-            if (sabores.length === 0) {
-                showToast('Este produto não possui sabores cadastrados', 'warning');
-                areaAdicionar.classList.add('hidden');
-                return;
+            if (selectProduto.value) {
+                const option = selectProduto.options[selectProduto.selectedIndex];
+                const preco = parseFloat(option.dataset.preco || 0);
+                precoInput.value = preco.toFixed(2);
+            } else {
+                precoInput.value = '0.00';
             }
-            
-            // Ordenar sabores alfabeticamente
-            sabores.sort((a, b) => a.sabor.localeCompare(b.sabor));
-            
-            // Renderizar lista de sabores
-            renderListaSabores(sabores);
-            
-            // Mostrar área e botão de salvar
-            areaAdicionar.classList.remove('hidden');
-            document.getElementById('btn-salvar-todos').classList.remove('hidden');
         }
 
-        // Renderizar lista de sabores com campos de quantidade
-        function renderListaSabores(sabores) {
-            const tbody = document.getElementById('tbody-sabores-lista');
-            
-            tbody.innerHTML = sabores.map(s => `
-                <tr class="border-t hover:bg-gray-50">
-                    <td class="px-3 py-3 font-medium">${s.sabor}</td>
-                    <td class="px-3 py-3 text-gray-600">${s.quantidade} UN</td>
-                    <td class="px-3 py-3">
-                        <input type="number" 
-                            step="1" 
-                            min="0" 
-                            value="0"
-                            data-sabor-id="${s.id}"
-                            data-sabor-nome="${s.sabor}"
-                            class="sabor-quantidade w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" 
-                            placeholder="0"
-                            oninput="calcularTotalCompra()">
-                    </td>
-                    <td class="px-3 py-3">
-                        <input type="number" 
-                            step="0.01" 
-                            min="0.01" 
-                            value="${produtoAtual.preco.toFixed(2)}"
-                            data-sabor-id="${s.id}"
-                            class="sabor-preco w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" 
-                            placeholder="0.00"
-                            oninput="calcularTotalCompra()">
-                    </td>
-                    <td class="px-3 py-3">
-                        <span class="sabor-subtotal font-medium text-gray-900" data-sabor-id="${s.id}">R$ 0,00</span>
-                    </td>
-                </tr>
-            `).join('');
-            
-            calcularTotalCompra();
-        }
-
-        // Calcular total da compra
-        function calcularTotalCompra() {
-            let total = 0;
-            
-            const quantidadeInputs = document.querySelectorAll('.sabor-quantidade');
-            quantidadeInputs.forEach(input => {
-                const saborId = input.dataset.saborId;
-                const quantidade = parseFloat(input.value) || 0;
-                const precoInput = document.querySelector(`.sabor-preco[data-sabor-id="${saborId}"]`);
-                const preco = parseFloat(precoInput.value) || 0;
-                const subtotal = quantidade * preco;
-                
-                // Atualizar subtotal do sabor
-                const subtotalSpan = document.querySelector(`.sabor-subtotal[data-sabor-id="${saborId}"]`);
-                subtotalSpan.textContent = formatCurrency(subtotal);
-                
-                total += subtotal;
-            });
-            
-            document.getElementById('total-compra').textContent = formatCurrency(total);
-        }
-
-        // Atualizar estoque quando selecionar sabor (não usado mais)
-        function atualizarEstoqueSabor() {
-            // Função mantida para compatibilidade mas não é mais usada
-        }
-
-        // Adicionar sabor na lista temporária (não usado mais)
-        function adicionarSaborNaLista() {
-            // Função mantida para compatibilidade mas não é mais usada
-        }
-        
-        // Renderizar lista de sabores temporários (não usado mais)
-        function renderSaboresTemporarios() {
-            // Função mantida para compatibilidade mas não é mais usada
-        }
-        
-        // Remover sabor da lista temporária (não usado mais)
-        function removerSaborTemporario(index) {
-            // Função mantida para compatibilidade mas não é mais usada
-        }
-        
-        // Salvar todos os sabores de uma vez
-        async function salvarTodosSabores() {
-            // ✅ PROTEÇÃO: Impedir cliques duplos
-            const btnSalvar = document.getElementById('btn-salvar-todos');
-            if (btnSalvar.disabled) {
-                console.warn('⚠️ Salvamento já em andamento, ignorando clique duplo');
-                return;
-            }
-            
-            btnSalvar.disabled = true;
-            btnSalvar.textContent = '⏳ Salvando...';
-            btnSalvar.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            showLoading(true);
+        // Adicionar item ao pedido (SEM SABORES)
+        async function adicionarItemPedido() {
             try {
-                // Coletar todos os sabores com quantidade > 0
-                const quantidadeInputs = document.querySelectorAll('.sabor-quantidade');
-                const saboresParaSalvar = [];
-                
-                quantidadeInputs.forEach(input => {
-                    const quantidade = parseFloat(input.value) || 0;
-                    if (quantidade > 0) {
-                        const saborId = input.dataset.saborId;
-                        const saborNome = input.dataset.saborNome;
-                        const precoInput = document.querySelector(`.sabor-preco[data-sabor-id="${saborId}"]`);
-                        const preco = parseFloat(precoInput.value) || 0;
-                        
-                        if (preco > 0) {
-                            saboresParaSalvar.push({
-                                sabor_id: saborId,
-                                sabor_nome: saborNome,
-                                quantidade: quantidade,
-                                preco_unitario: preco
-                            });
-                        }
-                    }
-                });
-                
-                if (saboresParaSalvar.length === 0) {
-                    showToast('Informe a quantidade e preço para pelo menos um sabor', 'warning');
+                const produtoId = document.getElementById('item-produto').value;
+                const quantidade = parseFloat(document.getElementById('item-quantidade').value);
+                const precoUnitario = parseFloat(document.getElementById('item-preco').value);
+
+                // Validações
+                if (!produtoId) {
+                    showToast('Selecione um produto', 'warning');
                     return;
                 }
-                
-                console.log('📦 Salvando', saboresParaSalvar.length, 'sabor(es)...');
-                
-                // Salvar cada sabor
-                for (const sabor of saboresParaSalvar) {
-                    const itemData = {
-                        produto_id: produtoAtual.id,
-                        sabor_id: sabor.sabor_id,
-                        quantidade: sabor.quantidade,
-                        preco_unitario: sabor.preco_unitario
-                    };
-                    
-                    console.log('  → Adicionando:', sabor.sabor_nome, '-', sabor.quantidade, 'UN');
-                    
-                    const result = await addItemPedido(pedidoId, itemData);
-                    if (!result) {
-                        throw new Error('Erro ao adicionar item');
-                    }
+
+                if (!quantidade || quantidade <= 0) {
+                    showToast('Informe uma quantidade válida', 'warning');
+                    return;
                 }
-                
-                console.log('✅ Todos os sabores salvos com sucesso!');
-                showToast(`${saboresParaSalvar.length} sabor(es) adicionado(s) com sucesso!`, 'success');
-                
-                // ✅ RECALCULAR O TOTAL DO PEDIDO
-                console.log('🔄 Recalculando total do pedido...');
+
+                if (!precoUnitario || precoUnitario <= 0) {
+                    showToast('Informe um preço válido', 'warning');
+                    return;
+                }
+
+                showLoading(true);
+
+                // Gerar UUID para o item (UUID v4)
+                const itemId = crypto.randomUUID ? crypto.randomUUID() : 
+                    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                        const r = Math.random() * 16 | 0;
+                        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+
+                // Preparar dados do item COM TODOS OS CAMPOS DO SCHEMA
+                const itemData = {
+                    id: itemId,                          // UUID gerado no cliente
+                    pedido_id: pedidoId,                 // FK para pedidos_compra
+                    produto_id: produtoId,               // FK para produtos
+                    quantidade: quantidade,              // numeric NOT NULL
+                    quantidade_recebida: 0,              // numeric DEFAULT 0
+                    preco_unitario: precoUnitario,       // numeric NOT NULL
+                    subtotal: quantidade * precoUnitario // numeric NOT NULL
+                    // numero_lote: null (opcional)
+                    // data_validade: null (opcional)
+                    // created_at: será preenchido automaticamente
+                };
+
+                console.log('📦 Adicionando item:', itemData);
+
+                // Inserir item na tabela pedido_compra_itens
+                const { data, error } = await supabase
+                    .from('pedido_compra_itens')
+                    .insert([itemData])
+                    .select();
+
+                if (error) {
+                    console.error('❌ Erro ao adicionar item:', error);
+                    throw error;
+                }
+
+                console.log('✅ Item adicionado com sucesso!', data);
+                console.log('✅ Item salvo com pedido_id:', itemData.pedido_id);
+                showToast('Item adicionado com sucesso!', 'success');
+
+                // Recalcular total do pedido
                 await recalcularTotalPedido(pedidoId);
-                
-                // Resetar modal
-                cancelarEFecharModal();
-                
+
+                // Limpar campos e fechar modal
+                limparModalItem();
+                closeModal('modal-item');
+
                 // Recarregar pedido
                 await loadPedido();
+
             } catch (error) {
-                handleError(error, 'Erro ao salvar sabores');
+                handleError(error, 'Erro ao adicionar item');
             } finally {
                 showLoading(false);
-                // Reabilitar botão
-                btnSalvar.disabled = false;
-                btnSalvar.textContent = 'Salvar Compra';
-                btnSalvar.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
-        
-        // Cancelar e fechar modal
-        function cancelarEFecharModal() {
-            saboresTemporarios = [];
-            produtoAtual = null;
+
+        // Limpar campos do modal
+        function limparModalItem() {
             document.getElementById('item-marca').value = '';
             document.getElementById('item-produto').value = '';
             document.getElementById('item-produto').disabled = true;
             document.getElementById('item-produto').innerHTML = '<option value="">Selecione o produto...</option>';
-            document.getElementById('tbody-sabores-lista').innerHTML = '';
-            document.getElementById('total-compra').textContent = 'R$ 0,00';
-            document.getElementById('area-adicionar-sabor').classList.add('hidden');
-            document.getElementById('btn-salvar-todos').classList.add('hidden');
-            closeModal('modal-item');
+            document.getElementById('item-quantidade').value = '1';
+            document.getElementById('item-preco').value = '0.00';
         }
 
         async function loadPedido() {
@@ -814,10 +700,15 @@
 
                 if (error) throw error;
                 
+                console.log('✅ Item removido com sucesso');
+                
+                // Recalcular total do pedido
+                await recalcularTotalPedido(pedidoId);
+                
                 showToast('Item removido com sucesso', 'success');
                 await loadPedido();
             } catch (error) {
-                console.error('Erro ao remover item:', error);
+                console.error('❌ Erro ao remover item:', error);
                 showToast('Erro ao remover item: ' + error.message, 'error');
             } finally {
                 showLoading(false);
@@ -857,68 +748,55 @@
             try {
                 showLoading(true);
                 
-                // 1. Buscar todos os itens do pedido com dados de unidade
-                const { data: itensRaw } = await supabase
+                console.log('📦 [PEDIDO] Aprovando pedido:', pedidoId);
+                console.log('📦 [PEDIDO] Tipo do pedidoId:', typeof pedidoId);
+                
+                // Verificar se há itens ANTES de aprovar
+                const { data: verificaItens, error: errVerifica } = await supabase
                     .from('pedido_compra_itens')
-                    .select(`
-                        id,
-                        quantidade,
-                        produto_id,
-                        produtos:produto_id(
-                            id,
-                            estoque_atual,
-                            unidade_medida_padrao,
-                            unidade_venda,
-                            quantidade_por_embalagem
-                        )
-                    `)
+                    .select('id, produto_id, quantidade')
                     .eq('pedido_id', pedidoId);
                 
-                // 2. Atualizar estoque de cada produto COM CONVERSÃO
-                if (itensRaw && itensRaw.length > 0) {
-                    console.log('📦 Atualizando estoque para', itensRaw.length, 'produtos...');
-                    
-                    for (const item of itensRaw) {
-                        if (item.produtos) {
-                            const produto = item.produtos;
-                            
-                            // Converter quantidade para unidade de armazenamento (estoque)
-                            const quantidadeEmEstoque = converterQuantidade(
-                                item.quantidade,
-                                produto.unidade_venda || 'UN',
-                                produto.unidade_medida_padrao || 'UN',
-                                produto.quantidade_por_embalagem || 1
-                            );
-                            
-                            const novoEstoque = (produto.estoque_atual || 0) + quantidadeEmEstoque;
-                            
-                            console.log(`  → Produto ${item.produto_id}:`);
-                            console.log(`     Unidade venda: ${produto.unidade_venda}, Qtd: ${item.quantidade}`);
-                            console.log(`     Conversão (${produto.quantidade_por_embalagem} por embalagem): ${quantidadeEmEstoque} ${produto.unidade_medida_padrao}`);
-                            console.log(`     Estoque: ${produto.estoque_atual} + ${quantidadeEmEstoque} = ${novoEstoque}`);
-                            
-                            await supabase
-                                .from('produtos')
-                                .update({ estoque_atual: novoEstoque })
-                                .eq('id', item.produto_id);
-                        }
-                    }
+                console.log('🔍 [PEDIDO] Itens encontrados antes de aprovar:', verificaItens);
+                
+                if (errVerifica) {
+                    console.error('❌ [PEDIDO] Erro ao verificar itens:', errVerifica);
+                    throw new Error('Erro ao verificar itens do pedido');
                 }
                 
-                // 3. Atualizar status do pedido
+                if (!verificaItens || verificaItens.length === 0) {
+                    throw new Error('Não há itens no pedido. Adicione pelo menos um item antes de aprovar.');
+                }
+                
+                // Usar EstoqueService para dar entrada no estoque (centralizado)
+                const resultado = await EstoqueService.entradaPorCompra(pedidoId);
+                
+                if (!resultado.sucesso) {
+                    throw new Error(resultado.mensagem || 'Erro ao processar entrada de estoque');
+                }
+                
+                // Atualizar status do pedido para APROVADO
                 const { error } = await supabase
                     .from('pedidos_compra')
-                    .update({ status: 'APROVADO' })
+                    .update({ 
+                        status: 'APROVADO',
+                        data_recebimento: new Date().toISOString()
+                    })
                     .eq('id', pedidoId);
 
                 if (error) throw error;
                 
-                console.log('✅ Pedido aprovado e estoque atualizado com conversão de unidades!');
-                showToast('Pedido aprovado e estoque atualizado com sucesso!', 'success');
+                console.log('✅ [PEDIDO] Pedido aprovado com sucesso!');
+                showToast(
+                    `✅ Pedido aprovado com sucesso!\n` +
+                    `📦 ${resultado.itens_processados} produtos atualizados\n` +
+                    `💰 Preços de custo atualizados`,
+                    'success'
+                );
                 await loadPedido();
             } catch (error) {
-                console.error('❌ Erro ao aprovar:', error);
-                showToast('Erro ao aprovar pedido: ' + error.message, 'error');
+                console.error('❌ [PEDIDO] Erro ao aprovar:', error);
+                showToast('❌ Erro ao aprovar pedido: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -932,122 +810,55 @@
             try {
                 showLoading(true);
                 
-                // 1. Buscar todos os itens do pedido com dados de unidade
-                const { data: itensRaw } = await supabase
-                    .from('pedido_compra_itens')
-                    .select(`
-                        id,
-                        quantidade,
-                        produto_id,
-                        produtos:produto_id(
-                            id,
-                            estoque_atual,
-                            unidade_medida_padrao,
-                            unidade_venda,
-                            quantidade_por_embalagem
-                        )
-                    `)
-                    .eq('pedido_id', pedidoId);
+                console.log('🔄 [PEDIDO] Revertendo aprovação:', pedidoId);
                 
-                // 2. REVERTER estoque de cada produto COM CONVERSÃO
-                if (itensRaw && itensRaw.length > 0) {
-                    console.log('📦 Revertendo estoque de', itensRaw.length, 'produtos...');
-                    
-                    for (const item of itensRaw) {
-                        if (item.produtos) {
-                            const produto = item.produtos;
-                            
-                            // Converter quantidade para unidade de armazenamento (estoque)
-                            const quantidadeEmEstoque = converterQuantidade(
-                                item.quantidade,
-                                produto.unidade_venda || 'UN',
-                                produto.unidade_medida_padrao || 'UN',
-                                produto.quantidade_por_embalagem || 1
-                            );
-                            
-                            const novoEstoque = Math.max(0, (produto.estoque_atual || 0) - quantidadeEmEstoque);
-                            console.log(`  → Produto ${item.produto_id}: ${produto.estoque_atual} - ${quantidadeEmEstoque} = ${novoEstoque}`);
-                            
-                            await supabase
-                                .from('produtos')
-                                .update({ estoque_atual: novoEstoque })
-                                .eq('id', item.produto_id);
-                        }
-                    }
+                // Usar EstoqueService para reverter entrada (centralizado)
+                const resultado = await EstoqueService.reverterEntradaCompra(pedidoId);
+                
+                if (!resultado.sucesso) {
+                    throw new Error(resultado.mensagem || 'Erro ao reverter entrada de estoque');
                 }
                 
-                // 3. Voltar status do pedido para PENDENTE
+                // Voltar status do pedido para PENDENTE
                 const { error } = await supabase
                     .from('pedidos_compra')
-                    .update({ status: 'PENDENTE' })
+                    .update({ 
+                        status: 'PENDENTE',
+                        data_recebimento: null
+                    })
                     .eq('id', pedidoId);
 
                 if (error) throw error;
                 
-                console.log('✅ Aprovação revertida e estoque desfazido com conversão de unidades!');
-                showToast('Aprovação revertida com sucesso! Estoque foi desfazido.', 'success');
+                console.log('✅ [PEDIDO] Aprovação revertida com sucesso!');
+                showToast(
+                    `✅ Aprovação revertida com sucesso!\n` +
+                    `📦 ${resultado.itens_processados} produtos revertidos`,
+                    'success'
+                );
                 await loadPedido();
             } catch (error) {
-                console.error('❌ Erro ao reverter aprovação:', error);
-                showToast('Erro ao reverter aprovação: ' + error.message, 'error');
+                console.error('❌ [PEDIDO] Erro ao reverter aprovação:', error);
+                showToast('❌ Erro ao reverter aprovação: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
 
         async function reverterRecebimento() {
-            if (!confirm('Deseja REVERTER o recebimento?\n\nIsso vai desfazer o estoque de todos os itens e voltar o pedido para APROVADO.')) {
+            // ⚠️ IMPORTANTE: O estoque é dado entrada na APROVAÇÃO, não no RECEBIMENTO
+            // Reverter recebimento apenas muda o status, NÃO mexe no estoque
+            if (!confirm('Deseja REVERTER o recebimento?\n\nIsso vai voltar o pedido para APROVADO.\n\n⚠️ O estoque NÃO será alterado (foi registrado na aprovação).')) {
                 return;
             }
 
             try {
                 showLoading(true);
                 
-                // 1. Buscar todos os itens do pedido com dados de unidade
-                const { data: itensRaw } = await supabase
-                    .from('pedido_compra_itens')
-                    .select(`
-                        id,
-                        quantidade,
-                        produto_id,
-                        produtos:produto_id(
-                            id,
-                            estoque_atual,
-                            unidade_medida_padrao,
-                            unidade_venda,
-                            quantidade_por_embalagem
-                        )
-                    `)
-                    .eq('pedido_id', pedidoId);
+                console.log('🔄 [PEDIDO] Revertendo recebimento (sem alterar estoque):', pedidoId);
                 
-                // 2. REVERTER estoque de cada produto COM CONVERSÃO
-                if (itensRaw && itensRaw.length > 0) {
-                    console.log('📦 Revertendo estoque de', itensRaw.length, 'produtos...');
-                    
-                    for (const item of itensRaw) {
-                        if (item.produtos) {
-                            const produto = item.produtos;
-                            
-                            // Converter quantidade para unidade de armazenamento (estoque)
-                            const quantidadeEmEstoque = converterQuantidade(
-                                item.quantidade,
-                                produto.unidade_venda || 'UN',
-                                produto.unidade_medida_padrao || 'UN',
-                                produto.quantidade_por_embalagem || 1
-                            );
-                            
-                            const novoEstoque = Math.max(0, (produto.estoque_atual || 0) - quantidadeEmEstoque);
-                            console.log(`  → Produto ${item.produto_id}: ${produto.estoque_atual} - ${quantidadeEmEstoque} = ${novoEstoque}`);
-                            
-                            await supabase
-                                .from('produtos')
-                                .update({ estoque_atual: novoEstoque })
-                                .eq('id', item.produto_id);
-                        }
-                    }
-                }
-                
-                // 3. Voltar status do pedido para APROVADO
+                // Apenas voltar status do pedido para APROVADO
+                // O estoque foi dado entrada na APROVAÇÃO, então só será revertido na reversão da aprovação
                 const { error } = await supabase
                     .from('pedidos_compra')
                     .update({ status: 'APROVADO' })
@@ -1055,8 +866,8 @@
 
                 if (error) throw error;
                 
-                console.log('✅ Recebimento revertido e estoque desfazido com conversão de unidades!');
-                showToast('Recebimento revertido com sucesso! Estoque foi desfazido.', 'success');
+                console.log('✅ [PEDIDO] Recebimento revertido (status: APROVADO)');
+                showToast('✅ Recebimento revertido!\n📦 Estoque mantido (foi registrado na aprovação).', 'success');
                 await loadPedido();
             } catch (error) {
                 console.error('❌ Erro ao reverter recebimento:', error);
@@ -1067,42 +878,60 @@
         }
 
         async function cancelarPedido() {
-            if (!confirm('Deseja cancelar este pedido?')) return;
-
-            try {
-                showLoading(true);
-                const { error } = await supabase
-                    .from('pedidos_compra')
-                    .update({ status: 'CANCELADO' })
-                    .eq('id', pedidoId);
-
-                if (error) throw error;
-                showToast('Pedido cancelado com sucesso!', 'success');
-                await loadPedido();
-            } catch (error) {
-                console.error('Erro ao cancelar:', error);
-                showToast('Erro ao cancelar pedido', 'error');
-            } finally {
-                showLoading(false);
-            }
+            // ⚠️ REDIRECIONAMENTO: Usar o handler completo com validação de estoque
+            // Esta função curta não tem as proteções necessárias
+            cancelarPedidoHandler('CANCELADO');
         }
 
         async function receberPedido() {
-            if (!confirm('Dar entrada no estoque para este pedido?')) return;
+            if (!confirm('Marcar pedido como RECEBIDO?\n\n⚠️ O estoque JÁ FOI atualizado na aprovação.\n\nEste botão apenas confirma o recebimento físico das mercadorias.')) return;
 
             try {
                 showLoading(true);
-                const { error } = await supabase
+                console.log('📦 Marcando pedido como recebido:', pedidoId);
+
+                // 1. Buscar itens para atualizar quantidade_recebida
+                const { data: itens, error: errItens } = await supabase
+                    .from('pedido_compra_itens')
+                    .select('id, quantidade')
+                    .eq('pedido_id', pedidoId);
+
+                if (errItens) {
+                    console.error('❌ Erro ao buscar itens:', errItens);
+                    throw errItens;
+                }
+
+                // 2. Atualizar quantidade_recebida de cada item (marca como fisicamente recebido)
+                if (itens && itens.length > 0) {
+                    for (const item of itens) {
+                        await supabase
+                            .from('pedido_compra_itens')
+                            .update({ quantidade_recebida: item.quantidade })
+                            .eq('id', item.id);
+                    }
+                }
+
+                // 3. Atualizar status do pedido para RECEBIDO
+                const { error: errStatus } = await supabase
                     .from('pedidos_compra')
-                    .update({ status: 'RECEBIDO', data_recebimento: new Date().toISOString() })
+                    .update({ 
+                        status: 'RECEBIDO', 
+                        data_recebimento: new Date().toISOString() 
+                    })
                     .eq('id', pedidoId);
 
-                if (error) throw error;
-                showToast('Pedido recebido com sucesso!', 'success');
+                if (errStatus) {
+                    console.error('❌ Erro ao atualizar status:', errStatus);
+                    throw errStatus;
+                }
+
+                console.log('✅ Pedido marcado como recebido!');
+                showToast('✅ Pedido marcado como recebido com sucesso!', 'success');
                 await loadPedido();
+
             } catch (error) {
-                console.error('Erro ao receber:', error);
-                showToast('Erro ao receber pedido', 'error');
+                console.error('❌ Erro ao receber pedido:', error);
+                showToast('Erro ao receber pedido: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -1112,49 +941,6 @@
             showToast('Gerando impressão...', 'info');
             // Implementar impressão conforme necessário
         }
-
-        async function removeItem(itemId) {
-            if (confirm('Deseja remover este item?')) {
-                try {
-                    showLoading(true);
-                    const success = await removeItemPedido(itemId);
-                    if (success) {
-                        // ✅ RECALCULAR O TOTAL DO PEDIDO
-                        console.log('🔄 Recalculando total do pedido...');
-                        await recalcularTotalPedido(pedidoId);
-                        await loadPedido();
-                    }
-                } finally {
-                    showLoading(false);
-                }
-            }
-        }
-
-        window.editarItem = async function(itemId, quantidadeAtual, precoAtual) {
-            // Buscar informações completas do item
-            const itens = await getItensPedido(pedidoId);
-            const item = itens.find(i => i.id === itemId);
-            if (!item) {
-                showToast('Item não encontrado', 'error');
-                return;
-            }
-
-            // Preencher o modal
-            document.getElementById('editar-item-id').value = itemId;
-            
-            const produtoNome = item.produto?.nome || 'N/A';
-            const sabor = item.sabor?.sabor ? ` - ${item.sabor.sabor}` : '';
-            document.getElementById('editar-item-nome').value = produtoNome + sabor;
-            
-            document.getElementById('editar-item-quantidade').value = quantidadeAtual;
-            document.getElementById('editar-item-preco').value = precoAtual;
-            
-            // Calcular e mostrar subtotal
-            atualizarSubtotalEdicao();
-            
-            // Abrir modal
-            openModal('modal-editar-item');
-        };
 
         function atualizarSubtotalEdicao() {
             const quantidade = parseFloat(document.getElementById('editar-item-quantidade').value) || 0;
@@ -1288,69 +1074,69 @@
                 return;
             }
             
-            // ⚠️ VALIDAÇÃO PRÉVIA: Se for cancelamento definitivo de COMPRA, verificar estoque
-            if (novoStatus === 'CANCELADO' && pedido.status === 'FINALIZADO' && pedido.tipo_pedido === 'COMPRA') {
+            // ⚠️ VALIDAÇÃO PRÉVIA: Verificar estoque antes de cancelar/reabrir COMPRA que tem estoque
+            const statusComEstoque = ['FINALIZADO', 'APROVADO', 'RECEBIDO'];
+            if (statusComEstoque.includes(pedido.status) && pedido.tipo_pedido === 'COMPRA') {
                 try {
-                    console.log('🔍 Validando estoque antes de cancelar compra...');
+                    console.log('🔍 Validando estoque antes de cancelar/reabrir compra...');
                     const itensPedido = await getItensPedido(pedidoId);
                     const problemas = [];
                     
                     for (const item of itensPedido) {
-                        if (item.sabor_id) {
-                            const { data: saborAtual, error } = await supabase
-                                .from('produto_sabores')
-                                .select('quantidade, sabor, produtos(sku)')
-                                .eq('id', item.sabor_id)
-                                .single();
-                            
-                            console.log('📊 Item do pedido:', {
-                                produto: item.produto?.sku,
-                                sabor: item.sabor?.sabor,
-                                quantidade_pedido: item.quantidade,
-                                estoque_atual: saborAtual?.quantidade,
-                                erro: error
+                        // Buscar estoque atual do produto
+                        const { data: produtoAtual, error } = await supabase
+                            .from('produtos')
+                            .select('estoque_atual, nome, codigo')
+                            .eq('id', item.produto_id)
+                            .single();
+                        
+                        console.log('📊 Item do pedido:', {
+                            produto: produtoAtual?.codigo,
+                            nome: produtoAtual?.nome,
+                            quantidade_pedido: item.quantidade,
+                            estoque_atual: produtoAtual?.estoque_atual,
+                            erro: error
+                        });
+                        
+                        if (error) {
+                            console.error('❌ Erro ao buscar estoque:', error);
+                            throw new Error(`Erro ao verificar estoque: ${error.message}`);
+                        }
+                        
+                        if (produtoAtual && produtoAtual.estoque_atual < item.quantidade) {
+                            const faltam = item.quantidade - produtoAtual.estoque_atual;
+                            console.warn('⚠️ Estoque insuficiente detectado:', {
+                                produto: produtoAtual.codigo,
+                                nome: produtoAtual.nome,
+                                necessario: item.quantidade,
+                                disponivel: produtoAtual.estoque_atual,
+                                faltam: faltam
                             });
-                            
-                            if (error) {
-                                console.error('❌ Erro ao buscar estoque:', error);
-                                throw new Error(`Erro ao verificar estoque: ${error.message}`);
-                            }
-                            
-                            if (saborAtual && saborAtual.quantidade < item.quantidade) {
-                                const faltam = item.quantidade - saborAtual.quantidade;
-                                console.warn('⚠️ Estoque insuficiente detectado:', {
-                                    produto: saborAtual.produtos.codigo,
-                                    sabor: saborAtual.sabor,
-                                    necessario: item.quantidade,
-                                    disponivel: saborAtual.quantidade,
-                                    faltam: faltam
-                                });
-                                problemas.push(
-                                    `• ${saborAtual.produtos.codigo} (${saborAtual.sabor}): ` +
-                                    `Necessário: ${item.quantidade}, Disponível: ${saborAtual.quantidade}, Faltam: ${faltam}`
-                                );
-                            } else {
-                                console.log('✅ Estoque OK para este item');
-                            }
+                            problemas.push(
+                                `• ${produtoAtual.codigo} (${produtoAtual.nome}): ` +
+                                `Necessário: ${item.quantidade}, Disponível: ${produtoAtual.estoque_atual}, Faltam: ${faltam}`
+                            );
+                        } else {
+                            console.log('✅ Estoque OK para este item');
                         }
                     }
                     
                     if (problemas.length > 0) {
+                        const acao = novoStatus === 'CANCELADO' ? 'CANCELAR' : 'REABRIR';
                         alert(
-                            '⚠️ NÃO É POSSÍVEL CANCELAR ESTA COMPRA!\n\n' +
+                            `⚠️ NÃO É POSSÍVEL ${acao} ESTA COMPRA!\n\n` +
                             'Os produtos já foram vendidos e não há estoque suficiente:\n\n' +
                             problemas.join('\n') +
                             '\n\n💡 OPÇÕES:\n' +
-                            '1. Use "Cancelar e Reabrir" para editar o pedido\n' +
-                            '2. Compre mais unidades antes de cancelar\n' +
-                            '3. Faça um ajuste manual no estoque (com cuidado!)'
+                            '1. Aguarde receber mais produtos\n' +
+                            '2. Faça um ajuste manual no estoque (com cuidado!)'
                         );
                         closeModal('modal-cancelar');
                         return;
                     }
                 } catch (error) {
                     console.error('Erro ao validar estoque:', error);
-                    handleError(error, 'Erro ao validar estoque para cancelamento');
+                    handleError(error, 'Erro ao validar estoque');
                     closeModal('modal-cancelar');
                     return;
                 }
@@ -1397,42 +1183,46 @@
                     
                     console.log('✅ Pedido cancelado com sucesso via função SQL');
                     
-                } else if (novoStatus === 'RASCUNHO' && pedido.status === 'FINALIZADO') {
-                    // ⚠️ REABERTURA COMO RASCUNHO: NÃO REVERTER ESTOQUE!
+                } else if (novoStatus === 'RASCUNHO' && (pedido.status === 'FINALIZADO' || pedido.status === 'APROVADO' || pedido.status === 'RECEBIDO')) {
+                    // ⚠️ CRÍTICO: SEMPRE reverter estoque ao sair de status com estoque processado
+                    // Se não reverter, ao refinalizar vai DUPLICAR a entrada!
                     // 
                     // LÓGICA CORRETA:
-                    // 1. Quando reabrir, manter o pedido FINALIZADO no histórico de estoque
-                    // 2. Quando refinalizar, o sistema vai detectar que JÁ foi finalizado antes
-                    //    e NÃO vai duplicar movimentações
-                    // 3. Se o usuário mudar quantidades/itens, a finalização vai calcular a diferença
-                    //
-                    // PROBLEMA SE REVERTER:
-                    // - Reabrir: Remove do estoque (ex: COMPRA volta a -20)
-                    // - Refinalizar: Adiciona de novo (+20) → DUPLICA!
+                    // 1. Reabrir → Reverter estoque (desfazer a entrada)
+                    // 2. Editar o pedido se necessário
+                    // 3. Refinalizar → Faz nova entrada de estoque (com valores atualizados)
                     
-                    console.log('🔄 Reabrindo pedido como RASCUNHO (SEM mexer no estoque)');
+                    console.log('🔄 Reabrindo pedido como RASCUNHO - REVERTENDO ESTOQUE');
                     
-                    // ✅ APENAS mudar status para RASCUNHO
-                    // NÃO mexer no estoque - ele já está correto
+                    // ✅ REVERTER ESTOQUE antes de mudar status
+                    const resultado = await EstoqueService.reverterEntradaCompra(pedidoId);
+                    
+                    if (!resultado.sucesso) {
+                        throw new Error(resultado.mensagem || 'Erro ao reverter estoque');
+                    }
+                    
+                    console.log(`✅ [PEDIDO] ${resultado.itens_processados} produtos revertidos do estoque`);
+                    
+                    // Agora sim, mudar status para RASCUNHO
                     const { error } = await supabase
                         .from('pedidos_compra')
                         .update({ 
                             status: 'RASCUNHO',
-                            data_finalizacao: null
+                            data_finalizacao: null,
+                            data_aprovacao: null
                         })
                         .eq('id', pedidoId);
                     
                     if (error) throw error;
                     
-                    console.log('✅ Pedido reaberto como RASCUNHO. Estoque mantido intacto.');
+                    console.log('✅ Pedido reaberto como RASCUNHO. Estoque revertido corretamente.');
                     
                 } else {
                     // Outros casos (ex: APROVADO → RASCUNHO sem reverter estoque)
                     const { error } = await supabase
                         .from('pedidos_compra')
                         .update({ 
-                            status: novoStatus,
-                            aprovador_id: novoStatus === 'CANCELADO' ? currentUser.id : null
+                            status: novoStatus
                         })
                         .eq('id', pedidoId);
                     
@@ -1543,6 +1333,77 @@
                 handleError(error, 'Erro ao salvar observações');
             } finally {
                 showLoading(false);
+            }
+        }
+
+        async function getItensPedido(pedidoId) {
+            try {
+                // Buscar itens do pedido (SEM JOIN porque não há FK para produto_id)
+                const { data: itens, error } = await supabase
+                    .from('pedido_compra_itens')
+                    .select('id, produto_id, quantidade, preco_unitario, subtotal')
+                    .eq('pedido_id', pedidoId);
+                
+                if (error) {
+                    console.error('❌ Erro ao buscar itens:', error);
+                    throw error;
+                }
+
+                if (!itens || itens.length === 0) {
+                    return [];
+                }
+
+                // Buscar dados dos produtos separadamente
+                const produtoIds = itens.map(item => item.produto_id);
+                const { data: produtos, error: errProdutos } = await supabase
+                    .from('produtos')
+                    .select('id, nome, codigo')
+                    .in('id', produtoIds);
+
+                if (errProdutos) {
+                    console.error('❌ Erro ao buscar produtos:', errProdutos);
+                    throw errProdutos;
+                }
+
+                // Criar mapa de produtos
+                const produtosMap = new Map();
+                produtos?.forEach(p => produtosMap.set(p.id, p));
+
+                // Adicionar dados do produto aos itens
+                const itensComProdutos = itens.map(item => ({
+                    ...item,
+                    produtos: produtosMap.get(item.produto_id)
+                }));
+                
+                return itensComProdutos;
+            } catch (error) {
+                console.error('❌ Erro em getItensPedido:', error);
+                throw error;
+            }
+        }
+
+        async function removeItemPedido(itemId) {
+            try {
+                console.log('🗑️ Removendo item:', itemId);
+                
+                const { error } = await supabase
+                    .from('pedido_compra_itens')
+                    .delete()
+                    .eq('id', itemId);
+                
+                if (error) {
+                    console.error('❌ Erro ao remover item:', error);
+                    showToast('Erro ao remover item: ' + error.message, 'error');
+                    return false;
+                }
+                
+                console.log('✅ Item removido com sucesso');
+                showToast('Item removido com sucesso!', 'success');
+                return true;
+            } catch (error) {
+                console.error('❌ Erro em removeItemPedido:', error);
+                showToast('Erro ao remover item', 'error');
+                return false;
             }
         }
 
