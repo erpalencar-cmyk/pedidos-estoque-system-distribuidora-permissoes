@@ -1896,7 +1896,8 @@ class PDVSystem {
                         status_fiscal: 'EMITIDA_NFCE',
                         numero_nfce: resultado.numero,
                         chave_acesso_nfce: resultado.chave_nfe,
-                        protocolo_nfce: resultado.protocolo
+                        protocolo_nfce: resultado.protocolo,
+                        nfce_id: resultado.nfce_id // ✅ Salvar ID da nota (Nuvem Fiscal)
                     })
                     .eq('id', resultadoVenda.venda_id);
 
@@ -1904,16 +1905,28 @@ class PDVSystem {
                     console.warn('⚠️ Erro ao atualizar dados fiscais na venda:', erroUpdate);
                 }
 
-                // Salvar documento fiscal com venda_id agora que temos o ID
+                // ✅ Salvar documento fiscal (tanto Focus NFe quanto Nuvem Fiscal)
                 if (resultado.documentoFiscalData) {
                     try {
+                        // Adicionar venda_id aos dados do documento fiscal
                         resultado.documentoFiscalData.venda_id = resultadoVenda.venda_id;
-                        await FocusNFe.salvarDocumentoFiscal(resultado.documentoFiscalData);
-                        console.log('✅ [PDV] Documento fiscal salvo com sucesso');
+                        
+                        // Salvar na tabela documentos_fiscais
+                        const { error: erroDocFiscal } = await supabase
+                            .from('documentos_fiscais')
+                            .insert([resultado.documentoFiscalData]);
+                        
+                        if (erroDocFiscal) {
+                            console.warn('⚠️ Erro ao salvar documento fiscal:', erroDocFiscal);
+                        } else {
+                            console.log('✅ [PDV] Documento fiscal salvo com sucesso em documentos_fiscais');
+                        }
                     } catch (erroDoc) {
                         console.warn('⚠️ Erro ao salvar documento fiscal:', erroDoc);
                         // Não bloquear o fluxo, apenas avisar
                     }
+                } else {
+                    console.warn('⚠️ [PDV] Nenhum documento fiscal para salvar (resultado.documentoFiscalData não existe)');
                 }
 
                 // Exibir sucesso com toast
@@ -1924,24 +1937,49 @@ class PDVSystem {
                 
                 // Mostrar detalhes em toast separado
                 setTimeout(() => {
+                    const ref = resultado.ref || resultado.numero || resultadoVenda.numero_venda;
                     showToast(
-                        `📋 Venda: ${numeroVenda} | 📄 Ref: ${resultado.ref}`,
+                        `📋 Venda: ${numeroVenda} | 📄 Ref: ${ref}`,
                         'info'
                     );
                 }, 500);
                 
-                // Se tiver DANFE, oferecer para visualizar
-                if (resultado.caminho_danfe) {
-                    setTimeout(async () => {
-                        const visualizar = await showConfirm(
-                            'A NFC-e foi autorizada com sucesso!\n\nDeseja visualizar o DANFE agora?',
-                            '✅ NFC-e Autorizada'
-                        );
-                        if (visualizar) {
-                            window.open(resultado.caminho_danfe, '_blank');
+                // ✅ SEMPRE oferecer para visualizar o DANFE (para Nuvem Fiscal e Focus NFe)
+                setTimeout(async () => {
+                    const visualizar = await showConfirm(
+                        'A NFC-e foi autorizada com sucesso!\n\nDeseja visualizar o DANFE agora?',
+                        '✅ NFC-e Autorizada'
+                    );
+                    if (visualizar) {
+                        try {
+                            // Para Nuvem Fiscal, chave de acesso é usada para buscar o PDF
+                            const chaveAcesso = resultado.chave_nfe;
+                            if (!chaveAcesso) {
+                                throw new Error('Chave de acesso não disponível');
+                            }
+                            
+                            // Consultar nota para obter PDF
+                            const notaConsultada = await FiscalService.consultarDocumento(chaveAcesso, 'nfce');
+                            
+                            // Nuvem Fiscal usa método obterPDF() com autenticação
+                            if (notaConsultada.caminho_danfe === 'USE_OBTER_PDF_METHOD' && notaConsultada.obterPDF) {
+                                const pdfUrl = await notaConsultada.obterPDF();
+                                window.open(pdfUrl, '_blank');
+                            } else if (notaConsultada.caminho_danfe) {
+                                // Focus NFe retorna URL direta
+                                window.open(notaConsultada.caminho_danfe, '_blank');
+                            } else if (resultado.caminho_danfe && resultado.caminho_danfe !== 'USE_OBTER_PDF_METHOD') {
+                                // Fallback: usar URL do resultado da emissão
+                                window.open(resultado.caminho_danfe, '_blank');
+                            } else {
+                                throw new Error('DANFE não disponível');
+                            }
+                        } catch (error) {
+                            console.error('❌ Erro ao abrir DANFE:', error);
+                            showToast('❌ Erro ao abrir DANFE: ' + error.message, 'error');
                         }
-                    }, 1000);
-                }
+                    }
+                }, 1000);
                 
             } else {
                 // ❌ NOTA NÃO FOI AUTORIZADA - NÃO FINALIZAR A VENDA

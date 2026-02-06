@@ -355,6 +355,9 @@
                             <button onclick="imprimirDANFE('${doc.id}')" class="text-purple-600 hover:text-purple-900 mr-3" title="Imprimir DANFE">
                                 <i class="fas fa-print"></i>
                             </button>
+                            <button onclick="cancelarNota('${doc.id}')" class="text-red-600 hover:text-red-900" title="Cancelar Nota">
+                                <i class="fas fa-ban"></i>
+                            </button>
                         ` : ''}
                     </td>
                 </tr>
@@ -503,6 +506,81 @@
             } catch (error) {
                 console.error('Erro ao gerar DANFE:', error);
                 showToastSafe('Erro ao gerar DANFE: ' + error.message, 'error');
+            }
+        }
+
+        async function cancelarNota(docId) {
+            try {
+                const doc = documentos.find(d => d.id === docId);
+                if (!doc || !doc.chave_acesso) {
+                    showToastSafe('Documento sem chave de acesso', 'error');
+                    return;
+                }
+                if (doc.status_sefaz !== '100') {
+                    showToastSafe('Só é possível cancelar notas autorizadas!', 'error');
+                    return;
+                }
+
+                // Verificar prazo de cancelamento (24h para NF-e, 30min para NFC-e)
+                const prazo = doc.tipo_documento === 'NFCE' ? 30 : 1440; // minutos
+                const dataEmissao = new Date(doc.data_emissao);
+                const agora = new Date();
+                const diferencaMinutos = (agora - dataEmissao) / 1000 / 60;
+
+                if (diferencaMinutos > prazo) {
+                    const prazoTexto = doc.tipo_documento === 'NFCE' ? '30 minutos' : '24 horas';
+                    showToastSafe(`⚠️ Prazo para cancelamento expirado! ${doc.tipo_documento} pode ser cancelada em até ${prazoTexto} após a emissão.`, 'error');
+                    return;
+                }
+
+                // Solicitar justificativa
+                const justificativa = prompt('📝 Informe a justificativa do cancelamento:\n\n(mínimo 15 caracteres)');
+                
+                if (!justificativa) return;
+                
+                if (justificativa.length < 15) {
+                    showToastSafe('A justificativa deve ter no mínimo 15 caracteres', 'error');
+                    return;
+                }
+
+                if (!confirm(`⚠️ Confirma o cancelamento da ${doc.tipo_documento}?\n\nNúmero: ${doc.numero_documento}\nJustificativa: ${justificativa}`)) {
+                    return;
+                }
+
+                showToastSafe('Cancelando nota fiscal...', 'info');
+
+                // Cancelar via FiscalService
+                const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
+                const resultado = await FiscalService.cancelarDocumento(doc.chave_acesso, justificativa, tipo);
+
+                if (resultado.status === 'cancelado' || resultado.status_sefaz === '135') {
+                    // Atualizar status no banco
+                    await supabase
+                        .from('documentos_fiscais')
+                        .update({
+                            status_sefaz: '135',
+                            mensagem_sefaz: 'Cancelamento autorizado'
+                        })
+                        .eq('id', docId);
+
+                    // Atualizar também na tabela vendas se houver venda_id
+                    if (doc.venda_id) {
+                        await supabase
+                            .from('vendas')
+                            .update({
+                                status_fiscal: doc.tipo_documento === 'NFCE' ? 'CANCELADA_NFCE' : 'CANCELADA_NFE'
+                            })
+                            .eq('id', doc.venda_id);
+                    }
+
+                    showToastSafe('✅ Nota fiscal cancelada com sucesso!', 'success');
+                    await carregarDocumentos(); // Recarregar lista
+                } else {
+                    throw new Error('Erro ao cancelar nota: ' + (resultado.mensagem_sefaz || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('❌ Erro ao cancelar nota:', error);
+                showToastSafe('Erro ao cancelar nota: ' + error.message, 'error');
             }
         }
 

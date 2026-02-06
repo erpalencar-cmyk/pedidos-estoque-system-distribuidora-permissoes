@@ -65,6 +65,27 @@ class FiscalSystem {
 
                 // Mapear resposta da Nuvem Fiscal para formato padrão
                 if (resultado.status === 'autorizado') {
+                    // ✅ Preparar dados do documento fiscal para salvar no banco
+                    const documentoFiscalData = {
+                        // venda_id será adicionado depois pelo PDV
+                        tipo_documento: 'NFCE',
+                        numero_documento: resultado.numero?.toString() || '0',
+                        serie: parseInt(resultado.serie || '1'),
+                        chave_acesso: resultado.chave_acesso || resultado.chave,
+                        protocolo_autorizacao: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
+                        status_sefaz: '100', // Autorizado
+                        mensagem_sefaz: resultado.autorizacao?.mensagem || 'Autorizado o uso da NFC-e',
+                        valor_total: vendaData.total,
+                        natureza_operacao: 'VENDA',
+                        data_emissao: vendaData.data_emissao || new Date().toISOString(),
+                        data_autorizacao: new Date().toISOString(),
+                        xml_nota: resultado.caminho_xml || null,
+                        xml_retorno: JSON.stringify(resultado),
+                        tentativas_emissao: 1,
+                        ultima_tentativa: new Date().toISOString(),
+                        api_provider: 'nuvem_fiscal'
+                    };
+
                     return {
                         success: true,
                         status: 'autorizado',
@@ -74,8 +95,11 @@ class FiscalSystem {
                         protocolo: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
                         caminho_xml_nota_fiscal: resultado.caminho_xml,
                         caminho_danfe: resultado.caminho_danfe,
+                        nfce_id: resultado.id, // ✅ ID da nota na Nuvem Fiscal
+                        ref: resultado.referencia || resultado.id, // ✅ Referência para exibição
                         provider: 'nuvem_fiscal',
-                        mensagem: 'NFC-e autorizada pela SEFAZ via Nuvem Fiscal'
+                        mensagem: 'NFC-e autorizada pela SEFAZ via Nuvem Fiscal',
+                        documentoFiscalData // ✅ Dados para salvar na tabela documentos_fiscais
                     };
                 } else {
                     const mensagens = resultado.mensagens?.map(m => m.mensagem).join('; ') || 'Erro desconhecido';
@@ -642,10 +666,10 @@ class FiscalSystem {
                     .from('vendas')
                     .select('nfce_id')
                     .eq('chave_acesso_nfce', chaveAcesso)
-                    .single();
+                    .maybeSingle();
 
                 if (!venda?.nfce_id) {
-                    throw new Error('ID da nota não encontrado no banco de dados');
+                    throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal.');
                 }
 
                 return await NuvemFiscal.consultarNFCe(venda.nfce_id);
@@ -675,7 +699,19 @@ class FiscalSystem {
             const provider = config?.api_fiscal_provider || 'focus_nfe';
 
             if (provider === 'nuvem_fiscal') {
-                return await NuvemFiscal.cancelarNFCe(chaveAcesso, justificativa);
+                // Nuvem Fiscal usa ID da nota, não chave de acesso
+                // Buscar ID da nota no banco pela chave de acesso
+                const { data: venda } = await supabase
+                    .from('vendas')
+                    .select('nfce_id')
+                    .eq('chave_acesso_nfce', chaveAcesso)
+                    .maybeSingle();
+
+                if (!venda?.nfce_id) {
+                    throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal.');
+                }
+
+                return await NuvemFiscal.cancelarNFCe(venda.nfce_id, justificativa);
             } else {
                 return await FocusNFe.cancelarDocumento(chaveAcesso, justificativa, tipo);
             }
@@ -701,7 +737,19 @@ class FiscalSystem {
             const provider = config?.api_fiscal_provider || 'focus_nfe';
 
             if (provider === 'nuvem_fiscal') {
-                return await NuvemFiscal.baixarPDF(referencia);
+                // Nuvem Fiscal usa ID da nota, não chave de acesso
+                // Buscar ID da nota no banco pela chave de acesso
+                const { data: venda } = await supabase
+                    .from('vendas')
+                    .select('nfce_id')
+                    .eq('chave_acesso_nfce', referencia)
+                    .maybeSingle();
+
+                if (!venda?.nfce_id) {
+                    throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal.');
+                }
+
+                return await NuvemFiscal.baixarPDF(venda.nfce_id);
             } else {
                 return await FocusNFe.baixarDANFE(referencia, tipo);
             }
@@ -727,7 +775,19 @@ class FiscalSystem {
             const provider = config?.api_fiscal_provider || 'focus_nfe';
 
             if (provider === 'nuvem_fiscal') {
-                return await NuvemFiscal.baixarXML(referencia);
+                // Nuvem Fiscal usa ID da nota, não chave de acesso
+                // Buscar ID da nota no banco pela chave de acesso
+                const { data: venda } = await supabase
+                    .from('vendas')
+                    .select('nfce_id')
+                    .eq('chave_acesso_nfce', referencia)
+                    .maybeSingle();
+
+                if (!venda?.nfce_id) {
+                    throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal.');
+                }
+
+                return await NuvemFiscal.baixarXML(venda.nfce_id);
             } else {
                 return await FocusNFe.baixarXML(referencia, tipo);
             }
