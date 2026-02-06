@@ -20,57 +20,100 @@ class ServicoVencimento {
             const dataLimite = new Date();
             dataLimite.setDate(dataLimite.getDate() + diasBusca);
 
-            const { data: lotes, error } = await supabase
-                .from('produto_lotes')
-                .select(`
-                    *,
-                    produtos (
-                        id,
-                        nome,
-                        codigo_produto,
-                        codigo_barras,
-                        categoria_id,
-                        categorias (
-                            nome
+            console.log(`🔍 [Vencimentos] Buscando produtos próximos ao vencimento (${diasBusca} dias)...`);
+
+            try {
+                const { data: lotes, error } = await supabase
+                    .from('produto_lotes')
+                    .select(`
+                        *,
+                        produtos (
+                            id,
+                            nome,
+                            codigo,
+                            codigo_barras,
+                            categoria_id,
+                            categorias (
+                                nome
+                            )
                         )
-                    )
-                `)
-                .gte('quantidade_atual', 0.01) // Apenas lotes com estoque
-                .lte('data_vencimento', dataLimite.toISOString().split('T')[0])
-                .order('data_vencimento', { ascending: true });
+                    `)
+                    .gte('quantidade_atual', 0.01) // Apenas lotes com estoque
+                    .lte('data_vencimento', dataLimite.toISOString().split('T')[0])
+                    .order('data_vencimento', { ascending: true });
 
-            if (error) throw error;
-
-            // Calcular dias restantes e classificar por urgência
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-
-            const lotesProcessados = lotes.map(lote => {
-                const dataVencimento = new Date(lote.data_vencimento);
-                const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
+                if (error) throw error;
                 
-                let urgencia = 'normal';
-                if (diasRestantes <= 0) {
-                    urgencia = 'vencido';
-                } else if (diasRestantes <= this.diasAlertaCritico) {
-                    urgencia = 'critico';
-                } else if (diasRestantes <= this.diasAlertaVencimento) {
-                    urgencia = 'alerta';
+                console.log(`✅ [Vencimentos] ${lotes?.length || 0} lotes encontrados`);
+                return this._processarLotes(lotes);
+            } catch (erroStorage) {
+                // Se erro for de storage, tentar novamente sem contexto de storage
+                if (erroStorage.message?.includes('storage')) {
+                    console.warn('⚠️ [Vencimentos] Erro de storage, tentando novamente sem cache...');
+                    await new Promise(r => setTimeout(r, 500));
+                    
+                    const { data: lotes, error } = await supabase
+                        .from('produto_lotes')
+                        .select(`
+                            *,
+                            produtos (
+                                id,
+                                nome,
+                                codigo,
+                                codigo_barras,
+                                categoria_id,
+                                categorias (
+                                    nome
+                                )
+                            )
+                        `)
+                        .gte('quantidade_atual', 0.01)
+                        .lte('data_vencimento', dataLimite.toISOString().split('T')[0])
+                        .order('data_vencimento', { ascending: true });
+
+                    if (error) throw error;
+                    console.log(`✅ [Vencimentos] Tentativa 2: ${lotes?.length || 0} lotes encontrados`);
+                    return this._processarLotes(lotes);
+                } else {
+                    throw erroStorage;
                 }
+            }
 
-                return {
-                    ...lote,
-                    diasRestantes,
-                    urgencia,
-                    produto: lote.produtos
-                };
-            });
-
-            return lotesProcessados;
         } catch (erro) {
-            console.error('Erro ao buscar produtos próximos do vencimento:', erro);
+            console.error('❌ [Vencimentos] Erro ao buscar produtos próximos do vencimento:', erro);
             throw erro;
         }
+    }
+
+    /**
+     * Processar lotes: calcular dias restantes e classificar
+     */
+    _processarLotes(lotes) {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        const lotesProcessados = (lotes || []).map(lote => {
+            const dataVencimento = new Date(lote.data_vencimento);
+            const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
+            
+            let urgencia = 'normal';
+            if (diasRestantes <= 0) {
+                urgencia = 'vencido';
+            } else if (diasRestantes <= this.diasAlertaCritico) {
+                urgencia = 'critico';
+            } else if (diasRestantes <= this.diasAlertaVencimento) {
+                urgencia = 'alerta';
+            }
+
+            return {
+                ...lote,
+                diasRestantes,
+                urgencia,
+                produto: lote.produtos
+            };
+        });
+
+        return lotesProcessados;
     }
 
     /**
@@ -87,7 +130,7 @@ class ServicoVencimento {
                     produtos (
                         id,
                         nome,
-                        codigo_produto,
+                        codigo,
                         codigo_barras,
                         categoria_id,
                         categorias (nome)

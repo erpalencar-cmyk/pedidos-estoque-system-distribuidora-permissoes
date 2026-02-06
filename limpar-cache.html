@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - Sistema Distribuidora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="container" class="w-96 bg-white rounded-lg shadow-2xl p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">🧹 Limpeza de Cache</h1>
+            <p class="text-gray-600 mt-2">Sistema de Distribuidora</p>
+        </div>
+
+        <div id="progress" class="space-y-4">
+            <div class="flex items-center gap-4 pb-4 border-b">
+                <div id="step-1" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">1</div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">LocalStorage</p>
+                    <p class="text-sm text-gray-600">Limpando dados locais...</p>
+                </div>
+                <div id="status-1" class="text-gray-400">⏳</div>
+            </div>
+
+            <div class="flex items-center gap-4 pb-4 border-b">
+                <div id="step-2" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">2</div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">SessionStorage</p>
+                    <p class="text-sm text-gray-600">Limpando sessão...</p>
+                </div>
+                <div id="status-2" class="text-gray-400">⏳</div>
+            </div>
+
+            <div class="flex items-center gap-4 pb-4 border-b">
+                <div id="step-3" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">3</div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">Service Workers</p>
+                    <p class="text-sm text-gray-600">Desregistrando...</p>
+                </div>
+                <div id="status-3" class="text-gray-400">⏳</div>
+            </div>
+
+            <div class="flex items-center gap-4 pb-4 border-b">
+                <div id="step-4" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">4</div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">Cache API</p>
+                    <p class="text-sm text-gray-600">Limpando cache...</p>
+                </div>
+                <div id="status-4" class="text-gray-400">⏳</div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div id="step-5" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">5</div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">Cookies</p>
+                    <p class="text-sm text-gray-600">Limpando cookies...</p>
+                </div>
+                <div id="status-5" class="text-gray-400">⏳</div>
+            </div>
+        </div>
+
+        <div id="resultado" class="mt-8 p-4 rounded-lg bg-green-50 border border-green-200 hidden">
+            <p class="text-green-800 font-semibold">✅ Cache limpo com sucesso!</p>
+            <p class="text-green-700 text-sm mt-2">Redirecionando para Controle de Validade em 3 segundos...</p>
+            <div id="countdown" class="text-center text-green-600 font-bold text-2xl mt-4">3</div>
+        </div>
+
+        <div id="erro" class="mt-8 p-4 rounded-lg bg-red-50 border border-red-200 hidden">
+            <p class="text-red-800 font-semibold">⚠️ Erro durante limpeza</p>
+            <p class="text-red-700 text-sm mt-2" id="erro-msg"></p>
+            <button onclick="tentarNovamente()" class="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 w-full">
+                Tentar novamente
+            </button>
+        </div>
+    </div>
+
+    <script>
+        async function limparCache() {
+            try {
+                // Passo 1: LocalStorage
+                console.log('Limpando LocalStorage...');
+                localStorage.clear();
+                document.getElementById('status-1').textContent = '✅';
+                document.getElementById('step-1').classList.add('bg-green-100', 'text-green-600');
+                await esperar(500);
+
+                // Passo 2: SessionStorage
+                console.log('Limpando SessionStorage...');
+                sessionStorage.clear();
+                document.getElementById('status-2').textContent = '✅';
+                document.getElementById('step-2').classList.add('bg-green-100', 'text-green-600');
+                await esperar(500);
+
+                // Passo 3: Service Workers
+                console.log('Desregistrando Service Workers...');
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let sw of registrations) {
+                        await sw.unregister();
+                    }
+                }
+                document.getElementById('status-3').textContent = '✅';
+                document.getElementById('step-3').classList.add('bg-green-100', 'text-green-600');
+                await esperar(500);
+
+                // Passo 4: Cache API
+                console.log('Limpando Cache API...');
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    for (let name of cacheNames) {
+                        await caches.delete(name);
+                    }
+                }
+                document.getElementById('status-4').textContent = '✅';
+                document.getElementById('step-4').classList.add('bg-green-100', 'text-green-600');
+                await esperar(500);
+
+                // Passo 5: Cookies
+                console.log('Limpando Cookies...');
+                document.cookie.split(';').forEach(c => {
+                    const eqPos = c.indexOf('=');
+                    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
+                    if (name) {
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                    }
+                });
+                document.getElementById('status-5').textContent = '✅';
+                document.getElementById('step-5').classList.add('bg-green-100', 'text-green-600');
+
+                // Sucesso!
+                document.getElementById('progress').classList.add('hidden');
+                document.getElementById('resultado').classList.remove('hidden');
+
+                // Countdown
+                let contador = 3;
+                const interval = setInterval(() => {
+                    document.getElementById('countdown').textContent = contador;
+                    contador--;
+                    if (contador < 0) {
+                        clearInterval(interval);
+                        // Redirecionar para Controle de Validade
+                        window.location.href = '/pages/controle-validade.html?cache-cleared=true';
+                    }
+                }, 1000);
+
+            } catch (erro) {
+                console.error('Erro:', erro);
+                document.getElementById('progress').classList.add('hidden');
+                document.getElementById('erro').classList.remove('hidden');
+                document.getElementById('erro-msg').textContent = erro.message;
+            }
+        }
+
+        function esperar(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+
+        function tentarNovamente() {
+            location.reload();
+        }
+
+        // Iniciar limpeza quando página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            limparCache();
+        });
+    </script>
+</body>
+</html>

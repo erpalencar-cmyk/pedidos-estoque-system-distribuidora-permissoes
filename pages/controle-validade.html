@@ -213,7 +213,7 @@
     <script src="../js/auth.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
-    <script src="../js/services/vencimentos.js"></script>
+    <script src="../js/services/vencimentos.js?v=20260206-001"></script>
     
     <script>
         let todosLotes = [];
@@ -243,7 +243,19 @@
         async function carregarDados() {
             try {
                 const dias = parseInt(document.getElementById('filtro-dias')?.value || 30);
-                todosLotes = await ServicoVencimentoService.buscarProdutosProximosVencimento(dias);
+                console.log(`🔍 [Controle Validade] Carregando dados de vencimento (${dias} dias)...`);
+                
+                try {
+                    todosLotes = await ServicoVencimentoService.buscarProdutosProximosVencimento(dias);
+                } catch (erroCarregamento) {
+                    // Se primeiro erro for de coluna/permissão, vai dar mensagem clara
+                    if (erroCarregamento.message?.includes('does not exist')) {
+                        console.error('❌ Erro de schema:', erroCarregamento.message);
+                        throw new Error(`❌ Erro ao carregar dados: Campo não encontrado no banco. Contacte suporte.\n\nErro: ${erroCarregamento.message}`);
+                    }
+                    throw erroCarregamento;
+                }
+                
                 lotesFiltrados = [...todosLotes];
                 
                 const contagem = await ServicoVencimentoService.contarPorUrgencia();
@@ -252,12 +264,18 @@
                 document.getElementById('count-alertas').textContent = contagem.alertas;
                 
                 renderizarTabela(lotesFiltrados);
+                console.log(`✅ [Controle Validade] Dados carregados com sucesso`);
             } catch (erro) {
-                console.error('Erro ao carregar dados:', erro);
-                alert('Erro ao carregar dados de vencimento');
+                console.error('❌ Erro ao carregar dados:', erro);
+                
+                const mensagem = erro.message || 'Erro desconhecido ao carregar dados';
+                const tipoErro = erro.message?.includes('does not exist') ? 'Erro de schema' : 
+                                  erro.message?.includes('storage') ? 'Erro de armazenamento' :
+                                  'Erro ao carregar';
+                
+                alert(`${tipoErro}: ${mensagem}\n\nTente recarregar a página.`);
             }
         }
-
         function renderizarTabela(lotes) {
             const tbody = document.getElementById('tabela-vencimentos');
             
@@ -285,7 +303,7 @@
                 
                 return `
                     <tr class="${rowClass} hover:bg-gray-100 cursor-pointer transition" onclick="abrirDetalhesLote(${lote.id})">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${produto.codigo_produto || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${produto.codigo || '-'}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${produto.nome}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${categoria}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -321,7 +339,7 @@
             lotesFiltrados = todosLotes.filter(lote => {
                 const matchProduto = !filtroProduto || 
                     lote.produto.nome.toLowerCase().includes(filtroProduto) ||
-                    lote.produto.codigo_produto?.toLowerCase().includes(filtroProduto);
+                    lote.produto.codigo?.toLowerCase().includes(filtroProduto);
                 
                 const matchUrgencia = !filtroUrgencia || lote.urgencia === filtroUrgencia;
                 const matchCategoria = !filtroCategoria || lote.produto.categoria_id == filtroCategoria;
@@ -340,13 +358,13 @@
         async function carregarProdutosSelect() {
             const { data: produtos } = await supabase
                 .from('produtos')
-                .select('id, nome, codigo_produto')
+                .select('id, nome, codigo')
                 .eq('ativo', true)
                 .order('nome');
 
             const select = document.getElementById('lote-produto');
             select.innerHTML = '<option value="">Selecione...</option>' + 
-                produtos.map(p => `<option value="${p.id}">${p.codigo_produto || ''} - ${p.nome}</option>`).join('');
+                produtos.map(p => `<option value="${p.id}">${p.codigo || ''} - ${p.nome}</option>`).join('');
         }
 
         async function carregarCategoriasSelect() {
@@ -430,7 +448,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Código</p>
-                        <p class="font-medium">${produto.codigo_produto || '-'}</p>
+                        <p class="font-medium">${produto.codigo || '-'}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Lote</p>
