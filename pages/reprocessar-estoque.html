@@ -335,11 +335,10 @@
             addLog('Criando backup do estoque atual...', 'process');
             
             try {
-                // Buscar todos os produtos com estoque
+                // Buscar TODOS os produtos (com ou sem estoque)
                 const { data: produtos, error } = await supabaseClient
                     .from('produtos')
-                    .select('id, nome, estoque_atual, sku')
-                    .gt('estoque_atual', 0);
+                    .select('id, nome, estoque_atual, sku');
                 
                 if (error) throw error;
 
@@ -347,31 +346,53 @@
                 const backupData = {
                     data_backup: timestamp,
                     total_produtos: produtos.length,
-                    total_unidades: produtos.reduce((sum, p) => sum + p.estoque_atual, 0),
+                    total_unidades: produtos.reduce((sum, p) => sum + (p.estoque_atual || 0), 0),
                     produtos: produtos
                 };
 
-                // Salvar backup em estoque_backup table (que deve ser criada)
-                const { error: backupError } = await supabaseClient
-                    .from('estoque_backups')
-                    .insert({
-                        data_backup: timestamp,
-                        total_produtos: backupData.total_produtos,
-                        total_unidades: backupData.total_unidades,
-                        dados_backup: JSON.stringify(backupData)
-                    });
-                
-                // Se a tabela de backup não existe, apenas logar
-                if (backupError && backupError.code === '42P01') {
-                    addLog('⚠️ Tabela de backup não existe, mas dados foram registrados no log', 'warning');
-                    document.getElementById('status-passo2').innerHTML = '<span class="text-yellow-600">⚠️ Backup registrado (tabela não existe)</span>';
-                } else if (backupError) {
-                    throw backupError;
-                } else {
+                let backupSalvo = false;
+
+                // Tentar salvar em tabela do banco
+                try {
+                    const { error: backupError } = await supabaseClient
+                        .from('estoque_backups')
+                        .insert({
+                            data_backup: timestamp,
+                            total_produtos: backupData.total_produtos,
+                            total_unidades: backupData.total_unidades,
+                            dados_backup: backupData
+                        });
+                    
+                    if (!backupError) {
+                        backupSalvo = true;
+                        addLog('✅ Backup salvo em banco de dados', 'success');
+                    }
+                } catch (tableError) {
+                    // Tabela não existe, usar localStorage
+                    addLog('⚠️ Tabela estoque_backups não encontrada, usando backup local', 'warning');
+                }
+
+                // Se não salvou em banco, salvar em localStorage
+                if (!backupSalvo) {
+                    try {
+                        localStorage.setItem(
+                            `backup_estoque_${timestamp}`,
+                            JSON.stringify(backupData)
+                        );
+                        addLog('✅ Backup salvo localmente no navegador', 'success');
+                        backupSalvo = true;
+                    } catch (e) {
+                        addLog('⚠️ Não conseguiu salvar backup (banco e local falharam)', 'warning');
+                    }
+                }
+
+                if (backupSalvo) {
                     document.getElementById('status-passo2').innerHTML = '<span class="text-green-600">✅ Backup criado com sucesso!</span>';
                     document.getElementById('status-backup').innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Criado agora</span>';
-                    addLog(`✅ Backup criado: ${backupData.total_produtos} produtos, ${backupData.total_unidades} unidades`, 'success');
+                    addLog(`✅ Backup: ${backupData.total_produtos} produtos, ${backupData.total_unidades} unidades`, 'success');
                     showToast('Backup criado com sucesso!', 'success');
+                } else {
+                    throw new Error('Não conseguiu criar backup em nenhuma localização');
                 }
                 
             } catch (error) {
@@ -406,13 +427,11 @@
             try {
                 // ETAPA 1: Zerar estoque
                 addLog('⏳ Etapa 1: Zerando estoque de todos os produtos...', 'process');
-                const { data: zeroResult, error: zeroError } = await supabaseClient
-                    .from('produtos')
-                    .update({ estoque_atual: 0 })
-                    .select('id');
+                const { error: zeroError } = await supabaseClient
+                    .rpc('zerar_estoque_completo');
                 
                 if (zeroError) throw new Error('Erro ao zerar: ' + zeroError.message);
-                addLog(`✅ Zeraram ${zeroResult?.length || 0} produtos`, 'success');
+                addLog(`✅ Estoque zerado com sucesso`, 'success');
 
                 // ETAPA 2: Processar ENTRADAS (Pedidos de Compra Recebidos)
                 addLog('⏳ Etapa 2: Processando ENTRADAS (pedidos recebidos)...', 'process');

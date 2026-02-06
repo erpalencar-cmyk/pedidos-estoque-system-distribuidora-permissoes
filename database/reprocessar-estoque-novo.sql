@@ -25,11 +25,11 @@
 CREATE OR REPLACE FUNCTION zerar_estoque_completo()
 RETURNS void AS $$
 BEGIN
-    -- Zerar estoque dos produtos
-    UPDATE public.produtos SET estoque_atual = 0;
+    -- Zerar estoque dos produtos (WHERE garante segurança)
+    UPDATE public.produtos SET estoque_atual = 0 WHERE estoque_atual <> 0;
     
-    -- Zerar quantidade dos lotes
-    UPDATE public.produto_lotes SET quantidade_atual = 0;
+    -- Zerar quantidade dos lotes (WHERE garante segurança)
+    UPDATE public.produto_lotes SET quantidade_atual = 0 WHERE quantidade_atual <> 0;
     
     RAISE NOTICE '✅ Estoque zerado com sucesso';
 END;
@@ -204,15 +204,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 6️⃣ EXECUTAR REPROCESSAMENTO COMPLETO
+-- 6️⃣ EXECUTAR REPROCESSAMENTO COMPLETO (Orquestração)
+-- ⚠️ Nota: Esta função serve apenas de referência/documentação
+-- Use o frontend em pages/reprocessar-estoque.html para executar
+-- pois ele chama cada função individualmente e registra logs
 CREATE OR REPLACE FUNCTION reprocessar_estoque_novo()
-RETURNS TABLE (
-    etapa VARCHAR,
-    status VARCHAR,
-    registros_afetados INTEGER
-) AS $$
-DECLARE
-    v_registros INTEGER;
+RETURNS void AS $$
 BEGIN
     -- Log de início
     RAISE NOTICE '========================================';
@@ -222,48 +219,30 @@ BEGIN
     -- ETAPA 1: Zerar
     RAISE NOTICE '1️⃣  Zerando estoque...';
     PERFORM zerar_estoque_completo();
-    INSERT INTO (etapa, status, registros_afetados) VALUES 
-        ('ZERAR_ESTOQUE', 'CONCLUÍDO', 1);
-    RETURN NEXT;
+    RAISE NOTICE '   ✅ Estoque zerado com sucesso';
     
     -- ETAPA 2: Processar Entradas
     RAISE NOTICE '2️⃣  Processando entradas de compras...';
-    SELECT COUNT(*)::INTEGER INTO v_registros 
-    FROM processar_entradas_compras();
-    INSERT INTO (etapa, status, registros_afetados) VALUES 
-        ('PROCESSAR_ENTRADAS', 'CONCLUÍDO', v_registros);
-    RETURN NEXT;
-    RAISE NOTICE '   ✅ %s produtos atualizados com entradas', v_registros;
+    PERFORM processar_entradas_compras();
+    RAISE NOTICE '   ✅ Entradas processadas com sucesso';
     
     -- ETAPA 3: Processar Saídas
     RAISE NOTICE '3️⃣  Processando saídas de vendas...';
-    SELECT COUNT(*)::INTEGER INTO v_registros 
-    FROM processar_saidas_vendas();
-    INSERT INTO (etapa, status, registros_afetados) VALUES 
-        ('PROCESSAR_SAIDAS', 'CONCLUÍDO', v_registros);
-    RETURN NEXT;
-    RAISE NOTICE '   ✅ %s produtos atualizados com saídas', v_registros;
+    PERFORM processar_saidas_vendas();
+    RAISE NOTICE '   ✅ Saídas processadas com sucesso';
     
     -- ETAPA 4: Atualizar Lotes
     RAISE NOTICE '4️⃣  Atualizando quantidade de lotes...';
-    SELECT COUNT(*)::INTEGER INTO v_registros 
-    FROM atualizar_quantidade_lotes();
-    INSERT INTO (etapa, status, registros_afetados) VALUES 
-        ('ATUALIZAR_LOTES', 'CONCLUÍDO', v_registros);
-    RETURN NEXT;
-    RAISE NOTICE '   ✅ %s lotes atualizados', v_registros;
+    PERFORM atualizar_quantidade_lotes();
+    RAISE NOTICE '   ✅ Lotes atualizados com sucesso';
     
     -- ETAPA 5: Validar
     RAISE NOTICE '5️⃣  Validando consistência...';
-    SELECT COUNT(*)::INTEGER INTO v_registros 
-    FROM validar_consistencia_estoque();
-    INSERT INTO (etapa, status, registros_afetados) VALUES 
-        ('VALIDAR_CONSISTENCIA', 'CONCLUÍDO', v_registros);
-    RETURN NEXT;
-    RAISE NOTICE '   ✅ %s produtos validados', v_registros;
+    PERFORM validar_consistencia_estoque();
+    RAISE NOTICE '   ✅ Validação concluída com sucesso';
     
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'REPROCESSAMENTO CONCLUÍDO COM SUCESSO!';
+    RAISE NOTICE 'REPROCESSAMENTO CONCLUÍDO!';
     RAISE NOTICE '========================================';
 END;
 $$ LANGUAGE plpgsql;
