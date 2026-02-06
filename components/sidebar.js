@@ -178,6 +178,13 @@ function createSidebar() {
                         </svg>
                         Testes Focus NFe
                     </a>
+
+                    <a href="/pages/teste-nuvem-fiscal.html" id="menu-teste-nuvem" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition">
+                        <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                        </svg>
+                        Testes Nuvem Fiscal
+                    </a>
                 </div>
 
                 <div class="mt-6 pb-8">

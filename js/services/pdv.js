@@ -1861,13 +1861,13 @@ class PDVSystem {
             }
 
             // ⚡ EMITIR NFC-e PRIMEIRO (antes de finalizar a venda)
-            console.log('📤 [PDV] Emitindo NFC-e via Focus NFe...');
+            console.log('📤 [PDV] Emitindo NFC-e via API Fiscal configurada...');
             if (typeof setLoadingMessage === 'function') {
                 setLoadingMessage('Enviando dados para a SEFAZ... Aguarde até 45 segundos.');
             }
             
             const resultado = await Promise.race([
-                FocusNFe.emitirNFCe(vendaNFe, itensNFe, pagamentosNFe, cliente),
+                FiscalService.emitirNFCeDireto(vendaNFe, itensNFe, pagamentosNFe, cliente),
                 new Promise((_, reject) => 
                     setTimeout(() => reject(new Error('Timeout: A requisição demorou muito. Verifique sua conexão.')), 45000)
                 )
@@ -1894,9 +1894,9 @@ class PDVSystem {
                     .from('vendas')
                     .update({
                         status_fiscal: 'EMITIDA_NFCE',
-                        nfce_referencia: resultado.ref,
-                        nfce_chave: resultado.chave_nfe,
-                        nfce_numero: resultado.numero
+                        numero_nfce: resultado.numero,
+                        chave_acesso_nfce: resultado.chave_nfe,
+                        protocolo_nfce: resultado.protocolo
                     })
                     .eq('id', resultadoVenda.venda_id);
 

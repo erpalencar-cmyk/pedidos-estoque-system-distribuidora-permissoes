@@ -12,6 +12,98 @@ class FiscalSystem {
     }
 
     /**
+     * Emitir NFC-e com dados da venda diretamente (usado pelo PDV antes de salvar a venda)
+     * @param {Object} vendaData - Dados da venda
+     * @param {Array} itensData - Itens da venda
+     * @param {Array} pagamentosData - Pagamentos da venda
+     * @param {Object} clienteData - Cliente (opcional)
+     * @returns {Object} Resultado da emissão
+     */
+    static async emitirNFCeDireto(vendaData, itensData, pagamentosData, clienteData = null) {
+        try {
+            console.log('🔄 [FiscalSystem] Iniciando emissão NFC-e com dados diretos...');
+
+            // Verificar qual provedor de API fiscal está configurado
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider, cnpj, razao_social')
+                .single();
+
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
+            
+            console.log(`📋 [FiscalSystem] Provedor configurado: ${provider}`);
+            console.log(`🏢 [FiscalSystem] Empresa: ${config?.razao_social} - CNPJ: ${config?.cnpj}`);
+
+            let resultado;
+
+            if (provider === 'nuvem_fiscal') {
+                console.log('☁️ [FiscalSystem] Usando Nuvem Fiscal para emissão...');
+                
+                // ===== EMISSÃO VIA NUVEM FISCAL =====
+                const { data: empresa } = await supabase
+                    .from('empresa_config')
+                    .select('*')
+                    .single();
+
+                // Montar objeto venda com estrutura esperada
+                const venda = {
+                    ...vendaData,
+                    venda_itens: itensData,
+                    clientes: clienteData
+                };
+
+                // Montar payload para Nuvem Fiscal
+                const payload = await NuvemFiscal.montarPayloadNFCe(venda, empresa);
+
+                // Emitir via Nuvem Fiscal
+                resultado = await NuvemFiscal.emitirNFCe(payload);
+
+                // Validar resultado
+                NuvemFiscal.validarResposta(resultado);
+
+                console.log('✅ [FiscalSystem] Resposta Nuvem Fiscal:', resultado);
+
+                // Mapear resposta da Nuvem Fiscal para formato padrão
+                if (resultado.status === 'autorizado') {
+                    return {
+                        success: true,
+                        status: 'autorizado',
+                        status_sefaz: 'autorizado',
+                        numero: resultado.numero,
+                        chave_nfe: resultado.chave_acesso || resultado.chave,
+                        protocolo: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
+                        caminho_xml_nota_fiscal: resultado.caminho_xml,
+                        caminho_danfe: resultado.caminho_danfe,
+                        provider: 'nuvem_fiscal',
+                        mensagem: 'NFC-e autorizada pela SEFAZ via Nuvem Fiscal'
+                    };
+                } else {
+                    const mensagens = resultado.mensagens?.map(m => m.mensagem).join('; ') || 'Erro desconhecido';
+                    throw new Error('NFC-e rejeitada SEFAZ: ' + mensagens);
+                }
+            } else {
+                console.log('🎯 [FiscalSystem] Usando Focus NFe para emissão...');
+                
+                // ===== EMISSÃO VIA FOCUS NFE =====
+                const venda = {
+                    ...vendaData,
+                    venda_itens: itensData,
+                    clientes: clienteData
+                };
+
+                resultado = await FocusNFe.emitirNFCe(venda, itensData, pagamentosData, clienteData);
+
+                console.log('✅ [FiscalSystem] Resposta Focus NFe:', resultado);
+
+                return resultado;
+            }
+        } catch (error) {
+            console.error('❌ [FiscalSystem] Erro ao emitir NFC-e:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Emitir NFC-e (Nota Fiscal do Consumidor Eletrônica)
      * Fluxo: Venda finalizada → Emissão NFC-e → Atualizar status
      */
@@ -57,60 +149,127 @@ class FiscalSystem {
                 .update({ status_fiscal: 'PENDENTE_EMISSAO' })
                 .eq('id', vendaId);
 
-            // Montar XML da NFC-e
-            const xml = await this.montarXmlNFCe(venda);
+            // Verificar qual provedor de API fiscal está configurado
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider')
+                .single();
 
-            // Enviar para Focus NFe via Edge Function
-            const { data: resultado, error: erroEmissao } = await supabase.functions
-                .invoke('emitir-nfce', {
-                    body: {
-                        xml: xml,
-                        vendor_id: venda.id
-                    }
-                });
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
 
-            if (erroEmissao) {
-                if (tentativa < maxTentativas) {
-                    console.log(`Tentativa ${tentativa}/${maxTentativas} falhou. Aguardando ${delayRetry}ms...`);
-                    setTimeout(() => this.emitirNFCe(vendaId, tentativa + 1), delayRetry);
-                    return;
-                } else {
-                    throw new Error('Máximo de tentativas atingido');
+            let resultado;
+
+            if (provider === 'nuvem_fiscal') {
+                // ===== EMISSÃO VIA NUVEM FISCAL =====
+                // Buscar dados da empresa
+                const { data: empresa } = await supabase
+                    .from('empresa_config')
+                    .select('*')
+                    .single();
+
+                // Montar payload para Nuvem Fiscal
+                const payload = await NuvemFiscal.montarPayloadNFCe(venda, empresa);
+
+                // Emitir via Nuvem Fiscal
+                resultado = await NuvemFiscal.emitirNFCe(payload);
+
+                // Validar resultado
+                NuvemFiscal.validarResposta(resultado);
+
+                // Mapear resposta da Nuvem Fiscal para formato padrão
+                if (resultado.status === 'autorizado') {
+                    await supabase
+                        .from('vendas')
+                        .update({
+                            status_fiscal: 'EMITIDA_NFCE',
+                            numero_nfce: resultado.numero,
+                            chave_acesso_nfce: resultado.chave_acesso || resultado.chave,
+                            protocolo_nfce: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
+                            xml_nfce: resultado.xml || null
+                        })
+                        .eq('id', vendaId);
+
+                    await this.registrarDocumentoFiscal(vendaId, 'NFCE', resultado);
+
+                    return {
+                        sucesso: true,
+                        numero: resultado.numero,
+                        chave: resultado.chave_acesso || resultado.chave,
+                        protocolo: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
+                        provider: 'nuvem_fiscal'
+                    };
+                } else if (resultado.status === 'rejeitado' || resultado.status === 'erro') {
+                    const mensagens = resultado.mensagens?.map(m => m.mensagem).join('; ') || 'Erro desconhecido';
+                    await supabase
+                        .from('vendas')
+                        .update({
+                            status_fiscal: 'REJEITADA_SEFAZ',
+                            mensagem_erro_fiscal: mensagens
+                        })
+                        .eq('id', vendaId);
+
+                    throw new Error('NFC-e rejeitada SEFAZ: ' + mensagens);
                 }
-            }
+            } else {
+                // ===== EMISSÃO VIA FOCUS NFE (ORIGINAL) =====
+                // Montar XML da NFC-e
+                const xml = await this.montarXmlNFCe(venda);
 
-            // Atualizar venda com dados da NFC-e
-            if (resultado.status === 'autorizada') {
-                await supabase
-                    .from('vendas')
-                    .update({
-                        status_fiscal: 'EMITIDA_NFCE',
-                        numero_nfce: resultado.numero,
-                        chave_acesso_nfce: resultado.chave,
-                        protocolo_nfce: resultado.protocolo,
-                        xml_nfce: xml
-                    })
-                    .eq('id', vendaId);
+                // Enviar para Focus NFe via Edge Function
+                const { data: resultadoFocus, error: erroEmissao } = await supabase.functions
+                    .invoke('emitir-nfce', {
+                        body: {
+                            xml: xml,
+                            vendor_id: venda.id
+                        }
+                    });
 
-                // Registrar documento fiscal
-                await this.registrarDocumentoFiscal(vendaId, 'NFCE', resultado);
+                if (erroEmissao) {
+                    if (tentativa < maxTentativas) {
+                        console.log(`Tentativa ${tentativa}/${maxTentativas} falhou. Aguardando ${delayRetry}ms...`);
+                        setTimeout(() => this.emitirNFCe(vendaId, tentativa + 1), delayRetry);
+                        return;
+                    } else {
+                        throw new Error('Máximo de tentativas atingido');
+                    }
+                }
 
-                return {
-                    sucesso: true,
-                    numero: resultado.numero,
-                    chave: resultado.chave,
-                    protocolo: resultado.protocolo
-                };
-            } else if (resultado.status === 'rejeitada') {
-                await supabase
-                    .from('vendas')
-                    .update({
-                        status_fiscal: 'REJEITADA_SEFAZ',
-                        mensagem_erro_fiscal: resultado.mensagem
-                    })
-                    .eq('id', vendaId);
+                resultado = resultadoFocus;
 
-                throw new Error('NFC-e rejeitada SEFAZ: ' + resultado.mensagem);
+                // Atualizar venda com dados da NFC-e
+                if (resultado.status === 'autorizada') {
+                    await supabase
+                        .from('vendas')
+                        .update({
+                            status_fiscal: 'EMITIDA_NFCE',
+                            numero_nfce: resultado.numero,
+                            chave_acesso_nfce: resultado.chave,
+                            protocolo_nfce: resultado.protocolo,
+                            xml_nfce: xml
+                        })
+                        .eq('id', vendaId);
+
+                    // Registrar documento fiscal
+                    await this.registrarDocumentoFiscal(vendaId, 'NFCE', resultado);
+
+                    return {
+                        sucesso: true,
+                        numero: resultado.numero,
+                        chave: resultado.chave,
+                        protocolo: resultado.protocolo,
+                        provider: 'focus_nfe'
+                    };
+                } else if (resultado.status === 'rejeitada') {
+                    await supabase
+                        .from('vendas')
+                        .update({
+                            status_fiscal: 'REJEITADA_SEFAZ',
+                            mensagem_erro_fiscal: resultado.mensagem
+                        })
+                        .eq('id', vendaId);
+
+                    throw new Error('NFC-e rejeitada SEFAZ: ' + resultado.mensagem);
+                }
             }
         } catch (error) {
             console.error('Erro ao emitir NFC-e:', error);
@@ -462,6 +621,123 @@ class FiscalSystem {
     }
 
     /**
+     * Consultar documento fiscal (NFC-e ou NF-e)
+     * @param {string} chaveAcesso - Chave de acesso do documento
+     * @param {string} tipo - Tipo do documento ('nfce' ou 'nfe')
+     * @returns {Object} Dados do documento consultado
+     */
+    static async consultarDocumento(chaveAcesso, tipo = 'nfce') {
+        try {
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider')
+                .single();
+
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
+
+            if (provider === 'nuvem_fiscal') {
+                // Nuvem Fiscal usa ID da nota, não chave de acesso
+                // Buscar ID da nota no banco pela chave de acesso
+                const { data: venda } = await supabase
+                    .from('vendas')
+                    .select('nfce_id')
+                    .eq('chave_acesso_nfce', chaveAcesso)
+                    .single();
+
+                if (!venda?.nfce_id) {
+                    throw new Error('ID da nota não encontrado no banco de dados');
+                }
+
+                return await NuvemFiscal.consultarNFCe(venda.nfce_id);
+            } else {
+                return await FocusNFe.consultarDocumento(chaveAcesso, tipo);
+            }
+        } catch (erro) {
+            console.error('Erro ao consultar documento:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Cancelar documento fiscal (NFC-e ou NF-e)
+     * @param {string} chaveAcesso - Chave de acesso do documento
+     * @param {string} justificativa - Justificativa do cancelamento (mínimo 15 caracteres)
+     * @param {string} tipo - Tipo do documento ('nfce' ou 'nfe')
+     * @returns {Object} Resultado do cancelamento
+     */
+    static async cancelarDocumento(chaveAcesso, justificativa, tipo = 'nfce') {
+        try {
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider')
+                .single();
+
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
+
+            if (provider === 'nuvem_fiscal') {
+                return await NuvemFiscal.cancelarNFCe(chaveAcesso, justificativa);
+            } else {
+                return await FocusNFe.cancelarDocumento(chaveAcesso, justificativa, tipo);
+            }
+        } catch (erro) {
+            console.error('Erro ao cancelar documento:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Baixar DANFE (PDF) de um documento
+     * @param {string} referencia - Referência ou chave de acesso
+     * @param {string} tipo - Tipo do documento ('nfce' ou 'nfe')
+     * @returns {string} URL do PDF
+     */
+    static async baixarDANFE(referencia, tipo = 'nfce') {
+        try {
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider')
+                .single();
+
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
+
+            if (provider === 'nuvem_fiscal') {
+                return await NuvemFiscal.baixarPDF(referencia);
+            } else {
+                return await FocusNFe.baixarDANFE(referencia, tipo);
+            }
+        } catch (erro) {
+            console.error('Erro ao baixar DANFE:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Baixar XML de um documento
+     * @param {string} referencia - Referência ou chave de acesso
+     * @param {string} tipo - Tipo do documento ('nfce' ou 'nfe')
+     * @returns {string} Conteúdo XML
+     */
+    static async baixarXML(referencia, tipo = 'nfce') {
+        try {
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('api_fiscal_provider')
+                .single();
+
+            const provider = config?.api_fiscal_provider || 'focus_nfe';
+
+            if (provider === 'nuvem_fiscal') {
+                return await NuvemFiscal.baixarXML(referencia);
+            } else {
+                return await FocusNFe.baixarXML(referencia, tipo);
+            }
+        } catch (erro) {
+            console.error('Erro ao baixar XML:', erro);
+            throw erro;
+        }
+    }
+
+    /**
      * Obter empresa
      */
     static async obterEmpresa() {
@@ -514,6 +790,9 @@ class FiscalSystem {
         return '3550308'; // São Paulo padrão
     }
 }
+
+// Criar alias para compatibilidade
+const FiscalService = FiscalSystem;
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', () => FiscalSystem.init());

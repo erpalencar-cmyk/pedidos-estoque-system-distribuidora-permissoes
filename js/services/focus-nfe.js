@@ -20,9 +20,20 @@ const FocusNFe = {
         if (!config) {
             throw new Error('Configurações da empresa não encontradas');
         }
-        if (!config.focusnfe_token) {
-            throw new Error('Token Focus NFe não configurado');
+        
+        // Determinar qual token usar baseado no ambiente
+        const token = config.focusnfe_ambiente === 1 
+            ? config.focusnfe_token  // Produção
+            : config.focusnfe_token_homologacao; // Homologação
+        
+        if (!token) {
+            const ambiente = config.focusnfe_ambiente === 1 ? 'produção' : 'homologação';
+            throw new Error(`Token Focus NFe para ${ambiente} não configurado`);
         }
+        
+        // Adicionar token selecionado ao objeto config
+        config._token_ativo = token;
+        
         return config;
     },
 
@@ -45,7 +56,7 @@ const FocusNFe = {
     async makeRequestRaw(endpoint, method = 'GET') {
         const config = await this.getConfig();
         const baseUrl = this.getBaseUrl(config.focusnfe_ambiente);
-        const token = config.focusnfe_token;
+        const token = config._token_ativo; // Token selecionado por getConfig()
 
         const options = {
             method,
@@ -84,7 +95,7 @@ const FocusNFe = {
                     endpoint,
                     method,
                     data: body,
-                    token: config.focusnfe_token,
+                    token: config._token_ativo, // Token selecionado por getConfig()
                     ambiente: config.focusnfe_ambiente
                 })
             });
@@ -126,7 +137,7 @@ const FocusNFe = {
             const baseUrl = this.getBaseUrl(config.focusnfe_ambiente);
             const response = await fetch(`${baseUrl}${endpoint}`, {
                 method,
-                headers: this.getHeaders(config.focusnfe_token),
+                headers: this.getHeaders(config._token_ativo), // Token selecionado por getConfig()
                 body: body ? JSON.stringify(body) : null
             });
 
@@ -777,7 +788,7 @@ const FocusNFe = {
             // Endpoint: GET /v2/nfe_terceiros/{chave}.xml
             const response = await fetch(`${baseUrl}/v2/nfe_terceiros/${chave}.xml`, {
                 method: 'GET',
-                headers: this.getHeaders(config.focusnfe_token)
+                headers: this.getHeaders(config._token_ativo) // Token selecionado por getConfig()
             });
 
             if (!response.ok) {

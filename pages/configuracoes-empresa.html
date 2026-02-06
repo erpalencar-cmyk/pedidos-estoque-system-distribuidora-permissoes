@@ -265,39 +265,115 @@
 
                 <!-- TAB: NF-e / NFC-e -->
                 <div id="tab-nfe" class="tab-content hidden">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">🧾 Integração Focus NFe</h3>
-                    <p class="text-sm text-gray-600 mb-4">Configurações para emissão de NFC-e e NF-e via Focus NFe</p>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">🧾 Emissão de Notas Fiscais</h3>
+                    <p class="text-sm text-gray-600 mb-4">Configurações para emissão de NFC-e e NF-e</p>
                     
+                    <!-- Seleção de Provedor -->
+                    <div class="mb-6 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 border-l-4 border-teal-500 rounded-lg">
+                        <h4 class="text-md font-semibold text-teal-900 mb-3">
+                            <i class="fas fa-server mr-2"></i>Provedor de API Fiscal
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Selecione o Provedor *</label>
+                                <select id="api_fiscal_provider" onchange="toggleProviderFields()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white">
+                                    <option value="focus_nfe">Focus NFe (~R$ 150/mês)</option>
+                                    <option value="nuvem_fiscal">Nuvem Fiscal (Gratuito até 1.000/mês)</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Escolha qual API deseja utilizar</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Ambiente *</label>
+                                <select id="focusnfe_ambiente" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <option value="2">2 - Homologação (Testes)</option>
+                                    <option value="1">1 - Produção</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos Focus NFe -->
+                    <div id="focus-nfe-fields" class="mb-6">
+                        <h4 class="text-md font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-plug mr-2"></i>Configurações Focus NFe
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                <div id="nfe-status" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-600">
+                                    <i class="fas fa-circle text-gray-400 mr-2"></i> Não configurado
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Token Produção *</label>
+                                <div class="flex gap-2">
+                                    <input type="password" id="focusnfe_token" placeholder="Token para ambiente de produção" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <button type="button" onclick="togglePasswordVisibility('focusnfe_token')" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                                        <i class="fas fa-eye" id="focusnfe_token-icon"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Token para emissão em produção</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Token Homologação *</label>
+                                <div class="flex gap-2">
+                                    <input type="password" id="focusnfe_token_homologacao" placeholder="Token para ambiente de homologação" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <button type="button" onclick="togglePasswordVisibility('focusnfe_token_homologacao')" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                                        <i class="fas fa-eye" id="focusnfe_token_homologacao-icon"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Token para emissão em homologação</p>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <button type="button" onclick="testarConexaoNFe()" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-plug mr-2"></i>Testar Conexão Focus NFe
+                                </button>
+                                <p class="text-xs text-gray-500 mt-1">Obtenha seus tokens em: <a href="https://focusnfe.com.br" target="_blank" class="text-teal-600 underline">focusnfe.com.br</a></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campos Nuvem Fiscal -->
+                    <div id="nuvem-fiscal-fields" class="mb-6 hidden">
+                        <h4 class="text-md font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-cloud mr-2"></i>Configurações Nuvem Fiscal (OAuth2)
+                        </h4>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Client ID *</label>
+                                <input type="text" id="nuvemfiscal_client_id" placeholder="Ex: OSYlsKpf3rKHMsqQKw8z" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Identificador público da sua aplicação</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Client Secret *</label>
+                                <div class="flex gap-2">
+                                    <input type="password" id="nuvemfiscal_client_secret" placeholder="Client Secret (mantenha em segredo)" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <button type="button" onclick="togglePasswordVisibility('nuvemfiscal_client_secret')" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                                        <i class="fas fa-eye" id="nuvemfiscal_client_secret-icon"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-red-500 mt-1">⚠️ Não compartilhe o Client Secret! Ele só é mostrado uma vez no console.</p>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <button type="button" onclick="testarConexaoNuvemFiscal()" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-plug mr-2"></i>Testar Conexão Nuvem Fiscal
+                                </button>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Obtenha suas credenciais em: <a href="https://console.nuvemfiscal.com.br" target="_blank" class="text-teal-600 underline">Console Nuvem Fiscal</a>
+                                    | <strong>Plano Gratuito:</strong> 1.000 NFC-e/mês + 100.000 CEP + 50.000 CNPJ
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configurações comuns (Séries e Números) -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Ambiente Focus NFe *</label>
-                            <select id="focusnfe_ambiente" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <option value="2">2 - Homologação (Testes)</option>
-                                <option value="1">1 - Produção</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <div id="nfe-status" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-600">
-                                <i class="fas fa-circle text-gray-400 mr-2"></i> Não configurado
-                            </div>
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Token de API Focus NFe *</label>
-                            <div class="flex gap-2">
-                                <input type="password" id="focusnfe_token" placeholder="Seu token da API Focus NFe" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <button type="button" onclick="togglePasswordVisibility('focusnfe_token')" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                                    <i class="fas fa-eye" id="focusnfe_token-icon"></i>
-                                </button>
-                                <button type="button" onclick="testarConexaoNFe()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                    <i class="fas fa-plug mr-2"></i>Testar
-                                </button>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">Obtenha em: <a href="https://focusnfe.com.br" target="_blank" class="text-teal-600 underline">focusnfe.com.br</a></p>
-                        </div>
-
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Série NFC-e</label>
                             <input type="number" id="nfce_serie" value="1" min="1" max="999" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
@@ -538,6 +614,9 @@
     <script src="../js/auth.js"></script>
     <script src="../js/rbac.js"></script>
     <script src="../js/services/empresa.js"></script>
+    <script src="../js/services/nuvem-fiscal.js"></script>
+    <script src="../js/services/cep-service.js"></script>
+    <script src="../js/services/cnpj-service.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
     
@@ -621,7 +700,13 @@
                 logradouro: document.getElementById('logradouro').value?.trim() || null,
                 // Focus NFe
                 focusnfe_token: document.getElementById('focusnfe_token').value?.trim() || null,
+                focusnfe_token_homologacao: document.getElementById('focusnfe_token_homologacao').value?.trim() || null,
                 focusnfe_ambiente: parseInt(document.getElementById('focusnfe_ambiente').value) || 2,
+                // Nuvem Fiscal (OAuth2)
+                api_fiscal_provider: document.getElementById('api_fiscal_provider').value || 'focus_nfe',
+                nuvemfiscal_client_id: document.getElementById('nuvemfiscal_client_id').value?.trim() || null,
+                nuvemfiscal_client_secret: document.getElementById('nuvemfiscal_client_secret').value?.trim() || null,
+                // Séries e números
                 nfce_serie: parseInt(document.getElementById('nfce_serie').value) || 1,
                 nfe_serie: parseInt(document.getElementById('nfe_serie').value) || 1,
                 nfce_numero: parseInt(document.getElementById('nfce_numero').value) || 1,
@@ -772,8 +857,16 @@
                     document.getElementById('bairro').value = config.bairro || '';
                     document.getElementById('logradouro').value = config.logradouro || '';
                     // Focus NFe
+                    document.getElementById('api_fiscal_provider').value = config.api_fiscal_provider || 'focus_nfe';
                     document.getElementById('focusnfe_token').value = config.focusnfe_token || '';
+                    document.getElementById('focusnfe_token_homologacao').value = config.focusnfe_token_homologacao || '';
                     document.getElementById('focusnfe_ambiente').value = config.focusnfe_ambiente || 2;
+                    // Nuvem Fiscal (OAuth2)
+                    document.getElementById('nuvemfiscal_client_id').value = config.nuvemfiscal_client_id || '';
+                    document.getElementById('nuvemfiscal_client_secret').value = config.nuvemfiscal_client_secret || '';
+                    // Alternar campos baseado no provedor
+                    toggleProviderFields();
+                    // Séries e números
                     document.getElementById('nfce_serie').value = config.nfce_serie || 1;
                     document.getElementById('nfe_serie').value = config.nfe_serie || 1;
                     document.getElementById('nfce_numero').value = config.nfce_numero || 1;
@@ -921,11 +1014,14 @@
         }
 
         async function testarConexaoNFe() {
-            const token = document.getElementById('focusnfe_token').value;
-            const ambiente = document.getElementById('focusnfe_ambiente').value;
+            const ambiente = parseInt(document.getElementById('focusnfe_ambiente').value);
+            const token = ambiente === 1 
+                ? document.getElementById('focusnfe_token').value 
+                : document.getElementById('focusnfe_token_homologacao').value;
             
             if (!token) {
-                showToast('Informe o token da API Focus NFe', 'error');
+                const ambienteNome = ambiente === 1 ? 'Produção' : 'Homologação';
+                showToast(`Informe o token da API Focus NFe para ${ambienteNome}`, 'error');
                 return;
             }
 
@@ -968,8 +1064,10 @@
         async function enviarCertificado() {
             const fileInput = document.getElementById('certificado_input');
             const senha = document.getElementById('certificado_senha').value;
-            const token = document.getElementById('focusnfe_token').value;
-            const ambiente = document.getElementById('focusnfe_ambiente').value;
+            const ambiente = parseInt(document.getElementById('focusnfe_ambiente').value);
+            const token = ambiente === 1 
+                ? document.getElementById('focusnfe_token').value 
+                : document.getElementById('focusnfe_token_homologacao').value;
 
             if (!fileInput.files || !fileInput.files[0]) {
                 showToast('Selecione o arquivo do certificado (.pfx)', 'error');
@@ -1127,6 +1225,117 @@
                 field.type = 'password';
                 icon.classList.remove('fa-eye-slash');
                 icon.classList.add('fa-eye');
+            }
+        }
+
+        // Função para alternar campos entre Focus NFe e Nuvem Fiscal
+        function toggleProviderFields() {
+            const provider = document.getElementById('api_fiscal_provider').value;
+            const focusFields = document.getElementById('focus-nfe-fields');
+            const nuvemFields = document.getElementById('nuvem-fiscal-fields');
+
+            if (provider === 'nuvem_fiscal') {
+                focusFields.classList.add('hidden');
+                nuvemFields.classList.remove('hidden');
+            } else {
+                focusFields.classList.remove('hidden');
+                nuvemFields.classList.add('hidden');
+            }
+        }
+
+        // Função para testar conexão com Nuvem Fiscal (OAuth2)
+        async function testarConexaoNuvemFiscal() {
+            const clientId = document.getElementById('nuvemfiscal_client_id').value?.trim();
+            const clientSecret = document.getElementById('nuvemfiscal_client_secret').value?.trim();
+            
+            if (!clientId || !clientSecret) {
+                showToast('⚠️ Informe o Client ID e Client Secret da Nuvem Fiscal', 'error');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                
+                // Passo 1: Obter Access Token OAuth2
+                showToast('🔐 Obtendo Access Token OAuth2...', 'info');
+                
+                const scopes = 'empresa cep cnpj nfe nfce nfse cte mdfe';
+                const params = new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    scope: scopes
+                });
+
+                const tokenResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                });
+
+                if (!tokenResponse.ok) {
+                    const errorText = await tokenResponse.text();
+                    throw new Error(`Erro ao obter token OAuth2: ${tokenResponse.status} - ${errorText}`);
+                }
+
+                const tokenData = await tokenResponse.json();
+                const accessToken = tokenData.access_token;
+                
+                // Passo 2: Testar API com o Access Token (consulta de CEP como teste)
+                showToast('✅ Token obtido! Testando API...', 'info');
+                
+                const apiResponse = await fetch('https://api.nuvemfiscal.com.br/cep/01310100', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (apiResponse.ok) {
+                    const data = await apiResponse.json();
+                    showToast('✅ Conexão com Nuvem Fiscal estabelecida com sucesso!', 'success');
+                    console.log('Teste de CEP bem-sucedido:', data);
+                    
+                    // Mostrar informação do teste de CEP
+                    if (data.logradouro) {
+                        showToast(`✅ API funcionando! Teste: ${data.logradouro}, ${data.municipio}/${data.uf}`, 'success');
+                    }
+                    
+                    // Mostrar informações sobre o token OAuth2
+                    const expiresInDays = Math.floor(tokenData.expires_in / 86400);
+                    console.log('Token OAuth2:', {
+                        scope: tokenData.scope,
+                        expires_in_seconds: tokenData.expires_in,
+                        expires_in_days: expiresInDays
+                    });
+                    showToast(`🔑 Token válido por ${expiresInDays} dias`, 'info');
+                } else {
+                    const errorText = await apiResponse.text();
+                    console.error('Erro API Response:', {
+                        status: apiResponse.status,
+                        statusText: apiResponse.statusText,
+                        body: errorText
+                    });
+                    
+                    let errorMessage = `Erro ${apiResponse.status}: ${apiResponse.statusText}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.mensagem || errorJson.message || errorMessage;
+                    } catch (e) {
+                        // Se não for JSON, usa o texto direto
+                        if (errorText) errorMessage += ` - ${errorText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+            } catch (error) {
+                console.error('Erro ao testar conexão:', error);
+                showToast('❌ Erro na conexão: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
             }
         }
 

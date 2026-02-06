@@ -29,6 +29,71 @@ class EstoqueService {
     };
 
     /**
+     * Normaliza unidade de medida para valores válidos do enum
+     * Converte unidades comuns do XML/NFe para o padrão do sistema
+     */
+    static normalizarUnidadeMedida(unidade) {
+        if (!unidade) return 'UN';
+        
+        const unidadeUpper = String(unidade).toUpperCase().trim();
+        
+        // Mapeamento de unidades comuns
+        const mapeamento = {
+            // Unidades básicas
+            'UN': 'UN',
+            'UNIDADE': 'UN',
+            'PC': 'UN',
+            'PÇ': 'UN',
+            'PEÇA': 'UN',
+            'PECAS': 'UN',
+            
+            // Pacote/Caixa
+            'PT': 'CX',  // Pacote vira Caixa
+            'PACOTE': 'CX',
+            'PCT': 'CX',
+            'CX': 'CX',
+            'CAIXA': 'CX',
+            'CAIXAS': 'CX',
+            
+            // Peso
+            'KG': 'KG',
+            'KILO': 'KG',
+            'QUILOGRAMA': 'KG',
+            'G': 'KG',
+            'GRAMA': 'KG',
+            'GRAMAS': 'KG',
+            
+            // Volume
+            'L': 'L',
+            'LITRO': 'L',
+            'LITROS': 'L',
+            'LT': 'L',
+            'ML': 'L',
+            'MILILITRO': 'L',
+            
+            // Comprimento
+            'M': 'M',
+            'METRO': 'M',
+            'METROS': 'M',
+            'MT': 'M',
+            
+            // Fardo
+            'FD': 'FD',
+            'FARDO': 'FD',
+            'FARDOS': 'FD'
+        };
+        
+        const unidadeNormalizada = mapeamento[unidadeUpper];
+        
+        if (!unidadeNormalizada) {
+            console.warn(`⚠️ Unidade "${unidade}" não reconhecida, usando UN como padrão`);
+            return 'UN';
+        }
+        
+        return unidadeNormalizada;
+    }
+
+    /**
      * =========================================
      * ENTRADA DE ESTOQUE - PEDIDO DE COMPRA
      * =========================================
@@ -177,13 +242,16 @@ class EstoqueService {
 
                 console.log(`  ✅ ${produto.nome}: ${estoqueAtual} + ${quantidadeEntrada} = ${novoEstoque}`);
 
+                // Normalizar unidade de medida
+                const unidadeNormalizada = this.normalizarUnidadeMedida(produto.unidade);
+
                 // Preparar movimentação
                 movimentacoes.push({
                     id: crypto.randomUUID(),
                     produto_id: produto.id,
                     tipo_movimento: this.TIPOS.ENTRADA_COMPRA,
                     quantidade: quantidadeEntrada,
-                    unidade_medida: produto.unidade || 'UN',
+                    unidade_medida: unidadeNormalizada,
                     preco_unitario: precoUnitario,
                     motivo: `Entrada por pedido de compra ${pedido.numero}`,
                     referencia_id: pedidoCompraId,
@@ -681,13 +749,16 @@ class EstoqueService {
 
                 console.log(`  ✅ ${produto.nome}: ${estoqueAtual} - ${quantidadeSaida} = ${novoEstoque}`);
 
+                // Normalizar unidade de medida
+                const unidadeNormalizada = this.normalizarUnidadeMedida(produto.unidade);
+
                 // Preparar movimentação
                 movimentacoes.push({
                     id: crypto.randomUUID(),
                     produto_id: produto.id,
                     tipo_movimento: this.TIPOS.SAIDA_VENDA,
                     quantidade: quantidadeSaida,
-                    unidade_medida: produto.unidade || 'UN',
+                    unidade_medida: unidadeNormalizada,
                     preco_unitario: parseFloat(item.preco_custo) || 0,
                     motivo: `Saída por venda ${venda.numero || vendaId}`,
                     referencia_id: vendaId,
@@ -781,6 +852,9 @@ class EstoqueService {
                 tipoMovimento = this.TIPOS.SAIDA_AJUSTE;
             }
 
+            // Normalizar unidade de medida
+            const unidadeNormalizada = this.normalizarUnidadeMedida(produto.unidade);
+
             // Registrar movimentação
             const { error: errMov } = await supabase
                 .from('estoque_movimentacoes')
@@ -789,7 +863,7 @@ class EstoqueService {
                     produto_id: produtoId,
                     tipo_movimento: tipoMovimento,
                     quantidade: qtd,
-                    unidade_medida: produto.unidade || 'UN',
+                    unidade_medida: unidadeNormalizada,
                     motivo: motivo || 'Ajuste manual',
                     referencia_tipo: 'AJUSTE_MANUAL',
                     usuario_id: usuarioId,

@@ -173,6 +173,8 @@
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/services/focus-nfe.js"></script>
+    <script src="../js/services/nuvem-fiscal.js"></script>
+    <script src="../js/services/fiscal.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
 
@@ -461,7 +463,7 @@
                 const ref = doc.chave_acesso;
                 const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
                 try {
-                    await FocusNFe.baixarXML(ref, tipo);
+                    await FiscalService.baixarXML(ref, tipo);
                     showToastSafe('XML baixado com sucesso!', 'success');
                 } catch (err) {
                     if (err && err.message && err.message.includes('não encontrada')) {
@@ -492,7 +494,7 @@
                 const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
                 try {
                     // Baixar PDF e abrir em nova aba
-                    const url = await FocusNFe.baixarDANFE(ref, tipo);
+                    const url = await FiscalService.baixarDANFE(ref, tipo);
                     window.open(url, '_blank');
                     showToastSafe('DANFE gerado!', 'success');
                 } catch (err) {

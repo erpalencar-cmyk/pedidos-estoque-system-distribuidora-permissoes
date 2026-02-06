@@ -340,8 +340,11 @@
             <form id="form-novo-pedido" class="px-6 py-4">
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Fornecedor</label>
-                        <select id="pedido-fornecedor" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fornecedor (opcional)</label>
+                        <select id="pedido-fornecedor" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Lançamento Manual (sem fornecedor)</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">💡 Deixe em branco para lançamento manual de entrada no estoque</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
@@ -380,6 +383,24 @@
         let currentUser = null;
         let dadosXMLImportado = null;
         let produtosCadastrados = [];
+
+        // Função para normalizar unidade de medida
+        function normalizarUnidadeMedida(unidade) {
+            if (!unidade) return 'UN';
+            
+            const unidadeUpper = String(unidade).toUpperCase().trim();
+            
+            const mapeamento = {
+                'UN': 'UN', 'UNIDADE': 'UN', 'PC': 'UN', 'PÇ': 'UN', 'PEÇA': 'UN',
+                'PT': 'CX', 'PACOTE': 'CX', 'PCT': 'CX', 'CX': 'CX', 'CAIXA': 'CX',
+                'KG': 'KG', 'KILO': 'KG', 'G': 'KG', 'GRAMA': 'KG',
+                'L': 'L', 'LITRO': 'L', 'LT': 'L', 'ML': 'L',
+                'M': 'M', 'METRO': 'M', 'MT': 'M',
+                'FD': 'FD', 'FARDO': 'FD'
+            };
+            
+            return mapeamento[unidadeUpper] || 'UN';
+        }
 
         (async () => {
             try {
@@ -427,7 +448,7 @@
                 const fornecedores = await listFornecedores({});
                 
                 const select = document.getElementById('pedido-fornecedor');
-                select.innerHTML = '<option value="">Selecione o fornecedor...</option>';
+                select.innerHTML = '<option value="">Lançamento Manual (sem fornecedor)</option>';
                 fornecedores.forEach(f => {
                     select.innerHTML += `<option value="${f.id}">${f.nome || f.razao_social}</option>`;
                 });
@@ -747,12 +768,13 @@
                     det.forEach(item => {
                         const prod = item.querySelector('prod');
                         if (prod) {
+                            const unidadeXML = prod?.querySelector('uCom')?.textContent || '';
                             dadosXMLImportado.itens.push({
                                 codigo: prod?.querySelector('cProd')?.textContent || '',
                                 codigo_barras: prod?.querySelector('cEAN')?.textContent || '',
                                 ncm: prod?.querySelector('NCM')?.textContent || '',
                                 nome: prod?.querySelector('xProd')?.textContent || '',
-                                unidade: prod?.querySelector('uCom')?.textContent || '',
+                                unidade: normalizarUnidadeMedida(unidadeXML),
                                 quantidade: parseFloat(prod?.querySelector('qCom')?.textContent || 0),
                                 valor_unitario: parseFloat(prod?.querySelector('vUnCom')?.textContent || 0),
                                 valor_total: parseFloat(prod?.querySelector('vProd')?.textContent || 0),
@@ -1001,7 +1023,7 @@
                                 codigo: item.codigo || `XML-${Date.now()}`,
                                 codigo_barras: item.codigo_barras || null,
                                 nome: item.nome || 'Produto Importado',
-                                unidade: item.unidade || 'UN',
+                                unidade: normalizarUnidadeMedida(item.unidade),
                                 ncm: item.ncm,
                                 preco_custo: item.valor_unitario,
                                 preco_venda: item.valor_unitario * 1.3, // Margem padrão 30%
@@ -1603,10 +1625,11 @@
                 const fornecedorId = document.getElementById('pedido-fornecedor').value;
                 const observacoes = document.getElementById('pedido-observacoes').value;
 
-                if (!fornecedorId) {
-                    showToast('Selecione um fornecedor', 'warning');
-                    return;
-                }
+                // Fornecedor agora é opcional para permitir lançamento manual
+                // if (!fornecedorId) {
+                //     showToast('Selecione um fornecedor', 'warning');
+                //     return;
+                // }
 
                 // Obter usuário atual
                 const user = await getCurrentUser();
@@ -1620,19 +1643,26 @@
                     });
                 const numero = `PC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
                 
-                console.log('📦 Criando pedido com ID:', { pedidoId, numero, fornecedorId });
+                console.log('📦 Criando pedido com ID:', { pedidoId, numero, fornecedorId: fornecedorId || 'LANÇAMENTO MANUAL' });
+                
+                // Preparar dados do pedido (fornecedor_id pode ser null)
+                const dadosPedido = {
+                    id: pedidoId,
+                    numero: numero,
+                    usuario_id: user.id,
+                    status: 'PENDENTE',
+                    observacoes: observacoes || ''
+                };
+                
+                // Adicionar fornecedor_id apenas se selecionado
+                if (fornecedorId) {
+                    dadosPedido.fornecedor_id = fornecedorId;
+                }
                 
                 // Tentar criar na tabela pedidos_compra
                 const { data: pedido, error } = await supabase
                     .from('pedidos_compra')
-                    .insert([{
-                        id: pedidoId,
-                        numero: numero,
-                        fornecedor_id: fornecedorId,
-                        usuario_id: user.id,
-                        status: 'PENDENTE',
-                        observacoes: observacoes || ''
-                    }])
+                    .insert([dadosPedido])
                     .select()
                     .single();
 
