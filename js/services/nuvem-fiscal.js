@@ -1078,18 +1078,22 @@ class NuvemFiscalService {
                         let impostoICMS = {};
                         const crt = parseInt(empresa.regime_tributario_codigo || empresa.crt || '1');
                         
+                        // ✅ Garantir que dadosFiscais existe
+                        const dadosFiscais = item.dadosFiscais || {};
+                        const icmsData = dadosFiscais.icms || {};
+                        
                         if (crt === 1 || crt === 2) {
                             // Simples Nacional - usar CSOSN
-                            const csosn = item.icms.situacao_tributaria;
-                            const origemNumero = parseInt(item.icms.origem || 0) || 0; // Garantir inteiro
+                            const csosn = icmsData.situacao_tributaria || '102'; // Fallback para 102
+                            const origemNumero = parseInt(icmsData.origem || 0) || 0; // Garantir inteiro
                             
                             // Mapeamento conforme CSOSN
                             if (csosn === '101') {
                                 impostoICMS.ICMSSN101 = {
                                     orig: origemNumero,
                                     CSOSN: csosn,
-                                    pCredSN: NuvemFiscalService.formatarNumero(item.icms.aliquota, 4),
-                                    vCredICMSSN: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    pCredSN: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0, 4),
+                                    vCredICMSSN: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             } else if (csosn === '102' || csosn === '103' || csosn === '300' || csosn === '400') {
                                 impostoICMS[`ICMSSN${csosn}`] = {
@@ -1106,8 +1110,8 @@ class NuvemFiscalService {
                                     vBCST: NuvemFiscalService.formatarNumero(0),
                                     pICMSST: NuvemFiscalService.formatarNumero(0),
                                     vICMSST: NuvemFiscalService.formatarNumero(0),
-                                    pCredSN: NuvemFiscalService.formatarNumero(item.icms.aliquota, 4),
-                                    vCredICMSSN: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    pCredSN: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0, 4),
+                                    vCredICMSSN: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             } else if (csosn === '500') {
                                 impostoICMS.ICMSSN500 = {
@@ -1121,42 +1125,42 @@ class NuvemFiscalService {
                                     orig: origemNumero,
                                     CSOSN: csosn,
                                     modBC: '3',
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
                                     pRedBC: NuvemFiscalService.formatarNumero(0),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0),
                                     modBCST: '4',
                                     pMVAST: NuvemFiscalService.formatarNumero(0),
                                     pRedBCST: NuvemFiscalService.formatarNumero(0),
                                     vBCST: NuvemFiscalService.formatarNumero(0),
                                     pICMSST: NuvemFiscalService.formatarNumero(0),
                                     vICMSST: NuvemFiscalService.formatarNumero(0),
-                                    pCredSN: NuvemFiscalService.formatarNumero(item.icms.aliquota, 4),
-                                    vCredICMSSN: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    pCredSN: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0, 4),
+                                    vCredICMSSN: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             }
                         } else {
                             // Regime Normal - usar CST
-                            const cst = item.icms.situacao_tributaria;
-                            const origemNumero = parseInt(item.icms.origem || 0) || 0; // Garantir inteiro
+                            const cst = icmsData.situacao_tributaria || '00';
+                            const origemNumero = parseInt(icmsData.origem || 0) || 0; // Garantir inteiro
                             
                             if (cst === '00') {
                                 impostoICMS.ICMS00 = {
                                     orig: origemNumero,
                                     CST: cst,
                                     modBC: '3',
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             } else if (cst === '10') {
                                 impostoICMS.ICMS10 = {
                                     orig: origemNumero,
                                     CST: cst,
                                     modBC: '3',
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor),
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0),
                                     modBCST: '4',
                                     pMVAST: NuvemFiscalService.formatarNumero(0),
                                     pRedBCST: NuvemFiscalService.formatarNumero(0),
@@ -1170,9 +1174,9 @@ class NuvemFiscalService {
                                     CST: cst,
                                     modBC: '3',
                                     pRedBC: NuvemFiscalService.formatarNumero(0),
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             } else if (cst === '30') {
                                 impostoICMS.ICMS30 = {
@@ -1198,9 +1202,9 @@ class NuvemFiscalService {
                                     CST: cst,
                                     modBC: '3',
                                     pRedBC: NuvemFiscalService.formatarNumero(0),
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor)
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0)
                                 };
                             } else if (cst === '60') {
                                 impostoICMS.ICMS60 = {
@@ -1215,9 +1219,9 @@ class NuvemFiscalService {
                                     CST: cst,
                                     modBC: '3',
                                     pRedBC: NuvemFiscalService.formatarNumero(0),
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor),
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0),
                                     modBCST: '4',
                                     pMVAST: NuvemFiscalService.formatarNumero(0),
                                     pRedBCST: NuvemFiscalService.formatarNumero(0),
@@ -1230,10 +1234,10 @@ class NuvemFiscalService {
                                     orig: origemNumero,
                                     CST: cst,
                                     modBC: '3',
-                                    vBC: NuvemFiscalService.formatarNumero(item.icms.base_calculo),
+                                    vBC: NuvemFiscalService.formatarNumero(icmsData.base_calculo || 0),
                                     pRedBC: NuvemFiscalService.formatarNumero(0),
-                                    pICMS: NuvemFiscalService.formatarNumero(item.icms.aliquota),
-                                    vICMS: NuvemFiscalService.formatarNumero(item.icms.valor),
+                                    pICMS: NuvemFiscalService.formatarNumero(icmsData.aliquota || 0),
+                                    vICMS: NuvemFiscalService.formatarNumero(icmsData.valor || 0),
                                     modBCST: '4',
                                     pMVAST: NuvemFiscalService.formatarNumero(0),
                                     pRedBCST: NuvemFiscalService.formatarNumero(0),

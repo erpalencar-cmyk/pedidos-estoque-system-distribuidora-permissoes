@@ -375,7 +375,30 @@
         // MODAL CAIXA
         // =====================================================
         
-        function abrirModalCaixa(caixa = null) {
+        async function abrirModalCaixa(caixaIdOuObjeto = null) {
+            let caixa = null;
+            
+            // Se recebeu um ID (string), carregar os dados do banco
+            if (typeof caixaIdOuObjeto === 'string') {
+                try {
+                    const { data, error } = await window.supabase
+                        .from('caixas')
+                        .select('*')
+                        .eq('id', caixaIdOuObjeto)
+                        .single();
+                    
+                    if (error) throw error;
+                    caixa = data;
+                } catch (error) {
+                    console.error('Erro ao carregar dados do caixa:', error);
+                    showToast('Erro ao carregar dados do caixa', 'error');
+                    return;
+                }
+            } else if (caixaIdOuObjeto && typeof caixaIdOuObjeto === 'object') {
+                // Se recebeu um objeto, usar diretamente
+                caixa = caixaIdOuObjeto;
+            }
+            
             editingCaixaId = caixa?.id || null;
             document.getElementById('modal-titulo').textContent = caixa ? 'Editar Caixa' : 'Novo Caixa';
             
@@ -515,7 +538,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm space-x-2">
-                            <button onclick="abrirModalCaixa(${JSON.stringify(c)})" class="text-blue-600 hover:text-blue-800">Editar</button>
+                            <button onclick="abrirModalCaixa('${c.id}')" class="text-blue-600 hover:text-blue-800">Editar</button>
                             <button onclick="toggleCaixa('${c.id}', ${!c.ativo})" class="text-${c.ativo ? 'red' : 'green'}-600 hover:text-${c.ativo ? 'red' : 'green'}-800">
                                 ${c.ativo ? 'Desativar' : 'Ativar'}
                             </button>

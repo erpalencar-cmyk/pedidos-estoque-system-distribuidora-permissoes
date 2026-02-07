@@ -8,31 +8,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
-<body class="bg-gray-100">
-    <div class="flex h-screen">
-        <div id="sidebar"></div>
-        
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <div id="navbar"></div>
-            
-            <main class="flex-1 overflow-y-auto p-6">
-                <!-- Cabeçalho -->
-                <div class="flex justify-between items-center mb-6">
+<body class="bg-gray-50">
+    <div id="navbar"></div>
+    <div id="sidebar-container"></div>
+
+    <main class="lg:ml-64 pt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Cabeçalho -->
+            <div class="mb-8">
+                <div class="flex justify-between items-center">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-800">
-                            <i class="fas fa-file-invoice-dollar text-red-500 mr-2"></i>
-                            Contas a Pagar
+                        <h1 class="text-4xl font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-file-invoice-dollar mr-4 text-red-600"></i>Contas a Pagar
                         </h1>
-                        <p class="text-gray-600">Gerencie suas contas e pagamentos</p>
+                        <p class="text-gray-600 mt-2">Gerencie suas contas e pagamentos</p>
                     </div>
-                    <button onclick="abrirModalNovaConta()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                        <i class="fas fa-plus"></i>
-                        Nova Conta
+                    <button onclick="abrirModalNovaConta()" class="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg hover:shadow-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Nova Conta
                     </button>
                 </div>
+            </div>
 
                 <!-- Cards de Resumo -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white rounded-lg shadow p-4">
                         <div class="flex items-center justify-between">
                             <div>
@@ -83,7 +81,7 @@
                 </div>
 
                 <!-- Filtros -->
-                <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
@@ -338,38 +336,45 @@
         </div>
     </div>
 
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
-    <script src="../js/auth.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
-    <script src="../components/sidebar.js"></script>
+    <script src="../js/auth.js"></script>
     <script src="../components/navbar.js"></script>
+    <script src="../components/sidebar.js"></script>
     <script>
         let contas = [];
         let fornecedores = [];
         let contasSelecionadas = new Set();
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Verificar autenticação
+        // Inicialização
+        (async () => {
             try {
-                const { data: { user }, error } = await supabase.auth.getUser();
-                if (error || !user) {
-                    window.location.href = '/index.html';
-                    return;
-                }
-            } catch (erro) {
-                console.error('Erro ao verificar autenticação:', erro);
+                console.log('=== INICIANDO CONTAS A PAGAR ===');
+                
+                await checkAuth();
+                
+                document.getElementById('navbar').innerHTML = createNavbar();
+                document.getElementById('sidebar-container').innerHTML = createSidebar();
+                
+                await initNavbar();
+                await initSidebar();
+                
+                console.log('✅ Componentes inicializados');
+
+                await carregarFornecedores();
+                await carregarContas();
+                atualizarResumo();
+            } catch (error) {
+                console.error('❌ Erro na inicialização:', error);
+                showToast('Erro ao carregar página', 'error');
             }
-
-            // 🚀 Inicializar navbar e sidebar
-            document.getElementById('navbar').innerHTML = createNavbar();
-            document.getElementById('sidebar').innerHTML = createSidebar();
-            await initNavbar();
-            await initSidebar();
-
-            await carregarFornecedores();
-            await carregarContas();
-            atualizarResumo();
-        });
+        })();
 
         async function carregarFornecedores() {
             try {
@@ -615,13 +620,16 @@
             event.preventDefault();
             
             const id = document.getElementById('contaId').value;
+            const valorOriginal = parseMoeda(document.getElementById('valorOriginal').value);
+            const valorDesconto = parseMoeda(document.getElementById('valorDesconto').value);
+            
             const dados = {
                 numero_documento: document.getElementById('numeroDocumento').value || null,
                 categoria: document.getElementById('categoria').value,
                 descricao: document.getElementById('descricao').value,
                 fornecedor_id: document.getElementById('fornecedorId').value || null,
-                valor_original: parseMoeda(document.getElementById('valorOriginal').value),
-                valor_desconto: parseMoeda(document.getElementById('valorDesconto').value),
+                valor_original: valorOriginal,
+                valor_desconto: valorDesconto,
                 data_emissao: document.getElementById('dataEmissao').value || null,
                 data_vencimento: document.getElementById('dataVencimento').value,
                 parcela_atual: parseInt(document.getElementById('parcelaAtual').value) || 1,
@@ -630,10 +638,13 @@
                 observacoes: document.getElementById('observacoes').value || null
             };
             
-            // Adicionar status e valor_pago apenas para novas contas
+            // Adicionar valores padrão para novas contas
             if (!id) {
+                dados.id = crypto.randomUUID(); // ✅ Gerar UUID manualmente
                 dados.status = 'PENDENTE';
                 dados.valor_pago = 0;
+                dados.valor_juros = 0;
+                dados.valor_multa = 0;
             }
 
             try {

@@ -8,31 +8,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
-<body class="bg-gray-100">
-    <div class="flex h-screen">
-        <div id="sidebar"></div>
-        
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <div id="navbar"></div>
-            
-            <main class="flex-1 overflow-y-auto p-6">
-                <!-- Cabeçalho -->
-                <div class="flex justify-between items-center mb-6">
+<body class="bg-gray-50">
+    <div id="navbar"></div>
+    <div id="sidebar-container"></div>
+
+    <main class="lg:ml-64 pt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Cabeçalho -->
+            <div class="mb-8">
+                <div class="flex justify-between items-center">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-800">
-                            <i class="fas fa-hand-holding-usd text-green-500 mr-2"></i>
-                            Contas a Receber
+                        <h1 class="text-4xl font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-hand-holding-usd mr-4 text-green-600"></i>Contas a Receber
                         </h1>
-                        <p class="text-gray-600">Gerencie seus recebimentos</p>
+                        <p class="text-gray-600 mt-2">Gerencie seus recebimentos</p>
                     </div>
-                    <button onclick="abrirModalNovaConta()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                        <i class="fas fa-plus"></i>
-                        Nova Conta
+                    <button onclick="abrirModalNovaConta()" class="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:shadow-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Nova Conta
                     </button>
                 </div>
+            </div>
 
                 <!-- Cards de Resumo -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white rounded-lg shadow p-4">
                         <div class="flex items-center justify-between">
                             <div>
@@ -83,7 +81,7 @@
                 </div>
 
                 <!-- Filtros -->
-                <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
@@ -335,46 +333,50 @@
                 </form>
             </div>
         </div>
-    </div>
+    </main>
 
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
-    <script src="../js/auth.js"></script>
+    <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
-    <script src="../components/sidebar.js"></script>
+    <script src="../js/auth.js"></script>
     <script src="../components/navbar.js"></script>
+    <script src="../components/sidebar.js"></script>
     <script>
         let contas = [];
         let clientes = [];
         let contasSelecionadas = new Set();
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Verificar autenticação
+        // Inicialização
+        (async () => {
             try {
-                const { data: { user }, error } = await supabase.auth.getUser();
-                if (error || !user) {
-                    window.location.href = '/index.html';
-                    return;
-                }
-            } catch (erro) {
-                console.error('Erro ao verificar autenticação:', erro);
+                console.log('=== INICIANDO CONTAS A RECEBER ===');
+                
+                await checkAuth();
+                
+                document.getElementById('navbar').innerHTML = createNavbar();
+                document.getElementById('sidebar-container').innerHTML = createSidebar();
+                
+                await initNavbar();
+                await initSidebar();
+                
+                console.log('✅ Componentes inicializados');
+
+                await carregarClientes();
+                await carregarContas();
+                atualizarResumo();
+            } catch (error) {
+                console.error('❌ Erro na inicialização:', error);
+                showToast('Erro ao carregar página', 'error');
             }
-
-            // 🚀 Inicializar navbar e sidebar
-            document.getElementById('navbar').innerHTML = createNavbar();
-            document.getElementById('sidebar').innerHTML = createSidebar();
-            await initNavbar();
-            await initSidebar();
-
-            await carregarClientes();
-            await carregarContas();
-            atualizarResumo();
-        });
+        })();
 
         async function carregarClientes() {
             try {
                 const { data, error } = await supabase
                     .from('clientes')
-                    .select('id, nome, razao_social')
+                    .select('id, nome')
                     .eq('ativo', true)
                     .order('nome');
 
@@ -386,9 +388,8 @@
                 const filtroCliente = document.getElementById('filtroCliente');
                 
                 clientes.forEach(c => {
-                    const nome = c.razao_social || c.nome;
-                    selectCliente.innerHTML += `<option value="${c.id}">${nome}</option>`;
-                    filtroCliente.innerHTML += `<option value="${c.id}">${nome}</option>`;
+                    selectCliente.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+                    filtroCliente.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
                 });
             } catch (error) {
                 console.error('Erro ao carregar clientes:', error);
@@ -401,7 +402,7 @@
                     .from('contas_receber')
                     .select(`
                         *,
-                        cliente:clientes(id, nome, razao_social, cpf_cnpj)
+                        cliente:clientes(id, nome, cpf_cnpj)
                     `)
                     .order('data_vencimento', { ascending: true });
 
@@ -464,7 +465,7 @@
 
             tbody.innerHTML = contas.map(conta => {
                 const clienteNome = conta.cliente ? 
-                    (conta.cliente.razao_social || conta.cliente.nome || 'Não informado') : 'Não informado';
+                    (conta.cliente.nome || 'Não informado') : 'Não informado';
                 
                 const vencimento = new Date(conta.data_vencimento + 'T00:00:00');
                 const hoje = new Date();
@@ -629,13 +630,16 @@
             event.preventDefault();
             
             const id = document.getElementById('contaId').value;
+            const valorOriginal = parseMoeda(document.getElementById('valorOriginal').value);
+            const valorDesconto = parseMoeda(document.getElementById('valorDesconto').value);
+            
             const dados = {
                 numero_documento: document.getElementById('numeroDocumento').value || null,
                 categoria: document.getElementById('categoria').value,
                 descricao: document.getElementById('descricao').value,
                 cliente_id: document.getElementById('clienteId').value || null,
-                valor_original: parseMoeda(document.getElementById('valorOriginal').value),
-                valor_desconto: parseMoeda(document.getElementById('valorDesconto').value),
+                valor_original: valorOriginal,
+                valor_desconto: valorDesconto,
                 data_emissao: document.getElementById('dataEmissao').value || null,
                 data_vencimento: document.getElementById('dataVencimento').value,
                 parcela_atual: parseInt(document.getElementById('parcelaAtual').value) || 1,
@@ -644,11 +648,16 @@
                 observacoes: document.getElementById('observacoes').value || null
             };
             
-            // Adicionar status e valor_recebido apenas para novas contas
+            // Adicionar status, valor_recebido e valor_pendente para novas contas
             if (!id) {
+                dados.id = crypto.randomUUID(); // ✅ Gerar UUID manualmente
                 dados.status = 'PENDENTE';
                 dados.valor_recebido = 0;
+                dados.valor_pago = 0;
+                dados.valor_pendente = valorOriginal; // ✅ OBRIGATÓRIO - valor pendente é o valor original quando criar
             }
+
+            console.log('💾 Salvando conta a receber:', dados);
 
             try {
                 let result;
@@ -674,7 +683,7 @@
             if (!conta) return;
 
             const saldo = conta.valor_original - (conta.valor_recebido || 0) + (conta.valor_juros || 0) - (conta.valor_desconto || 0);
-            const clienteNome = conta.cliente ? (conta.cliente.razao_social || conta.cliente.nome || 'Não informado') : 'Não informado';
+            const clienteNome = conta.cliente ? (conta.cliente.nome || 'Não informado') : 'Não informado';
 
             document.getElementById('recebimentoContaId').value = conta.id;
             document.getElementById('recebimentoDocumento').textContent = conta.numero_documento || conta.descricao;
