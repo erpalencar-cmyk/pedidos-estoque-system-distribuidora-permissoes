@@ -23,6 +23,8 @@ class NuvemFiscalService {
 
     /**
      * Carregar configuração da empresa do banco de dados
+     * ⚠️ IMPORTANTE: Se o token foi gerado ANTES de adicionar 'distribuicao-nfe' ao escopo,
+     *               ele precisa ser regenerado para ter as novas permissões!
      */
     async carregarConfig() {
         try {
@@ -71,7 +73,8 @@ class NuvemFiscalService {
 
             // Requisitar novo token OAuth2
             // Documentação: https://dev.nuvemfiscal.com.br/docs/autenticacao/
-            const scopes = 'empresa cep cnpj nfe nfce nfse cte mdfe';
+            // Escopos necessários para funcionalidades completas
+            const scopes = 'empresa cep cnpj nfe nfce nfse cte mdfe distribuicao-nfe';
             const params = new URLSearchParams({
                 grant_type: 'client_credentials',
                 client_id: this.clientId,
@@ -108,6 +111,44 @@ class NuvemFiscalService {
 
         } catch (erro) {
             console.error('Erro ao obter access token OAuth2:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Forçar geração de novo token OAuth2 (útil quando escopos mudam)
+     * Limpa o token em cache e solicita um novo
+     */
+    async forceNewToken() {
+        try {
+            console.log('🔄 [NuvemFiscal] Limpando token em cache e gerando novo...');
+            
+            // Limpar token em cache
+            this.accessToken = null;
+            this.tokenExpiry = null;
+            
+            // Limpar do banco de dados
+            const { data: config } = await supabase
+                .from('empresa_config')
+                .select('id')
+                .single();
+
+            if (config) {
+                await supabase
+                    .from('empresa_config')
+                    .update({
+                        nuvemfiscal_access_token: null,
+                        nuvemfiscal_token_expiry: null
+                    })
+                    .eq('id', config.id);
+            }
+
+            // Solicitar novo token
+            const novoToken = await this.getAccessToken();
+            console.log('✅ [NuvemFiscal] Novo token gerado com sucesso');
+            return novoToken;
+        } catch (erro) {
+            console.error('Erro ao regenerar token:', erro);
             throw erro;
         }
     }
