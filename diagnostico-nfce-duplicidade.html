@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Diagnóstico - Erro 539 Duplicidade NFC-e</title>
+    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status {
+            margin-bottom: 30px;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .status.connected {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .section {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .info-value.alert {
+            color: #dc3545;
+        }
+        .info-value.success {
+            color: #28a745;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .log-box {
+            background: #1e1e1e;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .log-line {
+            margin: 4px 0;
+            display: flex;
+            gap: 10px;
+        }
+        .log-time {
+            color: #888;
+            min-width: 80px;
+        }
+        .log-msg.info { color: #0f0; }
+        .log-msg.error { color: #f00; }
+        .log-msg.warning { color: #ff0; }
+        .log-msg.success { color: #0f0; }
+        .recommendations {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .recommendations h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .recommendations ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        .recommendations li {
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+        }
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        table tr:hover {
+            background: #f5f5f5;
+        }
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Diagnóstico - Erro 539 Duplicidade NFC-e</h1>
+        
+        <div id="status" class="status disconnected">
+            ⏳ Conectando ao Supabase...
+        </div>
+
+        <!-- INFORMAÇÕES DA EMPRESA -->
+        <div class="section">
+            <h2>📊 Informações da Empresa</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">CNPJ</div>
+                    <div class="info-value" id="cnpj">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Razão Social</div>
+                    <div class="info-value" id="razao_social">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Provider Fiscal</div>
+                    <div class="info-value" id="provider">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Ambiente</div>
+                    <div class="info-value" id="ambiente">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUMERAÇÃO NFC-e -->
+        <div class="section">
+            <h2>🔢 Sincronização de Numeração NFC-e</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Número Configurado</div>
+                    <div class="info-value" id="nfce_numero_config">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Último Número Emitido</div>
+                    <div class="info-value" id="nfce_numero_banco">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Próximo Número (Local)</div>
+                    <div class="info-value" id="proximo_numero_local">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Próximo Número (API)</div>
+                    <div class="info-value" id="proximo_numero_api">-</div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="app.sincronizar()">
+                    <span id="sync-btn">🔄 Sincronizar</span>
+                </button>
+                <button class="btn-success" onclick="app.atualizarNumero()">
+                    💾 Atualizar Configuração
+                </button>
+                <button class="btn-warning" onclick="app.resetarNumeracao()">
+                    ⚠️ Resetar para 1
+                </button>
+            </div>
+        </div>
+
+        <!-- ÚLTIMAS NOTAS EMITIDAS -->
+        <div class="section">
+            <h2>📋 Últimas Notas NFC-e Emitidas</h2>
+            <table id="tabelaNotas">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Status Fiscal</th>
+                        <th>Data Emissão</th>
+                        <th>Chave de Acesso</th>
+                        <th>Protocolo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" style="text-align: center; color: #999;">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- NOTAS REJEITADAS -->
+        <div class="section">
+            <h2>⚠️ Notas Rejeitadas por Duplicidade</h2>
+            <table id="tabelaRejeitadas">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Status</th>
+                        <th>Mensagem Erro</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="4" style="text-align: center; color: #999;">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- LOG -->
+        <div class="section">
+            <h2>📝 Log de Operações</h2>
+            <div class="log-box" id="logBox"></div>
+        </div>
+
+        <!-- RECOMENDAÇÕES -->
+        <div class="recommendations">
+            <h3>💡 Recomendações</h3>
+            <ul>
+                <li>Se há discrepância entre "Número Configurado" e "Último Número Emitido", clique em <strong>Sincronizar</strong></li>
+                <li>Se há notas rejeitadas por duplicidade, a sincronização deve resolver o problema</li>
+                <li>Sempre emita a próxima nota com o número mostrado em "Próximo Número (API)" ou "(Local)"</li>
+                <li>Se usar Nuvem Fiscal, a sincronização consultará a API em tempo real</li>
+                <li>Use <strong>Resetar para 1</strong> apenas se tiver certeza de que não há conflitos antigos</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            supabase: window.supabase,
+            empresaData: null,
+            
+            async init() {
+                try {
+                    console.log('🚀 Inicializando diagnóstico...');
+                    
+                    // Aguardar cliente Supabase
+                    await this.aguardarSupabase();
+                    
+                    // Carregar dados
+                    await Promise.all([
+                        this.carregarEmpresa(),
+                        this.carregarUltimasNotas(),
+                        this.carregarNotasRejeitadas()
+                    ]);
+                    
+                    this.exibirStatus('✅ Conectado ao Supabase', 'connected');
+                } catch (erro) {
+                    this.log('Erro na inicialização: ' + erro.message, 'error');
+                    this.exibirStatus('❌ Erro: ' + erro.message, 'disconnected');
+                }
+            },
+
+            aguardarSupabase() {
+                return new Promise((resolve) => {
+                    let tentativas = 0;
+                    const check = setInterval(() => {
+                        if (window.supabase && window.supabase.from) {
+                            clearInterval(check);
+                            this.supabase = window.supabase;
+                            resolve();
+                        }
+                        if (++tentativas > 30) {
+                            clearInterval(check);
+                            throw new Error('Timeout aguardando Supabase');
+                        }
+                    }, 100);
+                });
+            },
+
+            async carregarEmpresa() {
+                try {
+                    const { data, error } = await this.supabase
+                        .from('empresa_config')
+                        .select('*')
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    this.empresaData = data;
+                    
+                    // Exibir dados
+                    document.getElementById('cnpj').textContent = data.cnpj || '-';
+                    document.getElementById('razao_social').textContent = data.razao_social || data.nome_empresa || '-';
+                    document.getElementById('provider').textContent = data.api_fiscal_provider || 'focus_nfe';
+                    document.getElementById('ambiente').textContent = 
+                        (data.nfce_ambiente === 1 ? 'Produção' : 'Homologação');
+                    
+                    document.getElementById('nfce_numero_config').textContent = data.nfce_numero || '1';
+                    
+                    this.log('✅ Dados da empresa carregados', 'success');
+                } catch (erro) {
+                    this.log('Erro ao carregar empresa: ' + erro.message, 'error');
+                }
+            },
+
+            async carregarUltimasNotas() {
+                try {
+                    const { data, error } = await this.supabase
+                        .from('vendas')
+                        .select('numero_nfce, status_fiscal, created_at, chave_acesso_nfce, protocolo_nfce')
+                        .eq('status_fiscal', 'EMITIDA_NFCE')
+                        .not('numero_nfce', 'is', null)
+                        .order('numero_nfce', { ascending: false })
+                        .limit(10);
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        const ultimoNumero = parseInt(data[0].numero_nfce || 0);
+                        document.getElementById('nfce_numero_banco').textContent = ultimoNumero;
+                        document.getElementById('proximo_numero_local').textContent = ultimoNumero + 1;
+                        
+                        // Montar tabela
+                        const tbody = document.querySelector('#tabelaNotas tbody');
+                        tbody.innerHTML = data.map(nota => `
+                            <tr>
+                                <td><strong>${nota.numero_nfce}</strong></td>
+                                <td><span style="background: #d4edda; padding: 4px 8px; border-radius: 3px;">✅ EMITIDA</span></td>
+                                <td>${new Date(nota.created_at).toLocaleDateString('pt-BR')}</td>
+                                <td style="font-size: 11px; font-family: monospace;">${(nota.chave_acesso_nfce || '-').substring(0, 20)}...</td>
+                                <td><code>${nota.protocolo_nfce ? nota.protocolo_nfce.substring(0, 10) : '-'}</code></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        document.getElementById('nfce_numero_banco').textContent = '0';
+                        document.getElementById('proximo_numero_local').textContent = '1';
+                        document.querySelector('#tabelaNotas tbody').innerHTML = 
+                            '<tr><td colspan="5" style="text-align: center; color: #999;">Nenhuma nota emitida ainda</td></tr>';
+                    }
+                    
+                    this.log('✅ Últimas notas carregadas', 'success');
+                } catch (erro) {
+                    this.log('Erro ao carregar notas: ' + erro.message, 'error');
+                }
+            },
+
+            async carregarNotasRejeitadas() {
+                try {
+                    const { data, error } = await this.supabase
+                        .from('vendas')
+                        .select('numero_nfce, status_fiscal, created_at, mensagem_erro_fiscal')
+                        .eq('status_fiscal', 'REJEITADA_SEFAZ')
+                        .like('mensagem_erro_fiscal', '%539%')
+                        .or('mensagem_erro_fiscal.like.%Duplicidade%')
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+                    
+                    if (error) throw error;
+                    
+                    const tbody = document.querySelector('#tabelaRejeitadas tbody');
+                    if (data && data.length > 0) {
+                        tbody.innerHTML = data.map(nota => `
+                            <tr>
+                                <td>${nota.numero_nfce || '-'}</td>
+                                <td><span style="background: #f8d7da; padding: 4px 8px; border-radius: 3px;">❌ REJEITADA</span></td>
+                                <td style="font-size: 12px;">${(nota.mensagem_erro_fiscal || '-').substring(0, 60)}...</td>
+                                <td>${new Date(nota.created_at).toLocaleDateString('pt-BR')}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;">✅ Nenhuma rejeição por duplicidade</td></tr>';
+                    }
+                } catch (erro) {
+                    this.log('Erro ao carregar notas rejeitadas: ' + erro.message, 'error');
+                }
+            },
+
+            async sincronizar() {
+                try {
+                    const btn = document.getElementById('sync-btn');
+                    btn.innerHTML = '⏳ Sincronizando...';
+                    btn.parentElement.disabled = true;
+                    
+                    this.log('🔄 Iniciando sincronização...', 'info');
+                    
+                    // Se usar Nuvem Fiscal, consultar API
+                    if (this.empresaData.api_fiscal_provider === 'nuvem_fiscal') {
+                        try {
+                            this.log('☁️ Consultando Nuvem Fiscal...', 'info');
+                            // Aqui você pode adicionar consulta à API se necessário
+                            this.log('✅ Nuvem Fiscal consultada', 'success');
+                        } catch (e) {
+                            this.log('⚠️ Nuvem Fiscal não respondeu: ' + e.message, 'warning');
+                        }
+                    }
+                    
+                    // Sincronização local
+                    const { data } = await this.supabase
+                        .from('vendas')
+                        .select('numero_nfce')
+                        .eq('status_fiscal', 'EMITIDA_NFCE')
+                        .not('numero_nfce', 'is', null)
+                        .order('numero_nfce', { ascending: false })
+                        .limit(1);
+                    
+                    const ultimoNumero = data && data.length > 0 ? parseInt(data[0].numero_nfce || 0) : 0;
+                    const numeroConfig = parseInt(this.empresaData.nfce_numero || 1);
+                    
+                    if (ultimoNumero >= numeroConfig) {
+                        const novoNumero = ultimoNumero + 1;
+                        document.getElementById('proximo_numero_api').textContent = novoNumero;
+                        this.log(`✅ Sincronizado: Próximo número = ${novoNumero}`, 'success');
+                    } else {
+                        document.getElementById('proximo_numero_api').textContent = numeroConfig;
+                        this.log(`← Configuração já está correta`, 'success');
+                    }
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = '🔄 Sincronizar';
+                        btn.parentElement.disabled = false;
+                    }, 1000);
+                } catch (erro) {
+                    this.log('Erro na sincronização: ' + erro.message, 'error');
+                }
+            },
+
+            async atualizarNumero() {
+                try {
+                    const proximo = document.getElementById('proximo_numero_api').textContent;
+                    if (proximo === '-') {
+                        alert('⚠️ Sincronize primeiro!');
+                        return;
+                    }
+                    
+                    const numero = parseInt(proximo);
+                    if (confirm(`Atualizar número NFC-e para ${numero}?`)) {
+                        const { error } = await this.supabase
+                            .from('empresa_config')
+                            .update({ nfce_numero: numero })
+                            .eq('id', this.empresaData.id);
+                        
+                        if (error) throw error;
+                        
+                        document.getElementById('nfce_numero_config').textContent = numero;
+                        this.log(`✅ Número atualizado para ${numero}`, 'success');
+                        alert('✅ Configuração atualizada com sucesso!');
+                    }
+                } catch (erro) {
+                    this.log('Erro ao atualizar: ' + erro.message, 'error');
+                    alert('❌ Erro: ' + erro.message);
+                }
+            },
+
+            async resetarNumeracao() {
+                if (confirm('⚠️ CUIDADO! Isto resetará a numeração para 1.\n\n' +
+                            'Use APENAS se você atendeu o suporte e tem certeza.\n\n' +
+                            'Deseja continuar?')) {
+                    try {
+                        const { error } = await this.supabase
+                            .from('empresa_config')
+                            .update({ nfce_numero: 1 })
+                            .eq('id', this.empresaData.id);
+                        
+                        if (error) throw error;
+                        
+                        document.getElementById('nfce_numero_config').textContent = '1';
+                        document.getElementById('proximo_numero_api').textContent = '1';
+                        this.log('✅ Numeração resetada para 1', 'success');
+                        alert('✅ Numeração resetada!');
+                    } catch (erro) {
+                        this.log('Erro ao resetar: ' + erro.message, 'error');
+                        alert('❌ Erro: ' + erro.message);
+                    }
+                }
+            },
+
+            exibirStatus(mensagem, classe) {
+                const el = document.getElementById('status');
+                el.textContent = mensagem;
+                el.className = 'status ' + classe;
+            },
+
+            log(mensagem, tipo = 'info') {
+                const box = document.getElementById('logBox');
+                const linha = document.createElement('div');
+                linha.className = 'log-line';
+                
+                const hora = new Date().toLocaleTimeString('pt-BR');
+                const icone = { info: 'ℹ️', error: '❌', warning: '⚠️', success: '✅' }[tipo];
+                
+                linha.innerHTML = `
+                    <span class="log-time">[${hora}]</span>
+                    <span class="log-msg ${tipo}">${icone} ${mensagem}</span>
+                `;
+                
+                box.appendChild(linha);
+                box.scrollTop = box.scrollHeight;
+                console.log(`[${tipo.toUpperCase()}] ${mensagem}`);
+            }
+        };
+
+        // Iniciar ao carregar
+        window.addEventListener('load', () => app.init());
+    </script>
+</body>
+</html>

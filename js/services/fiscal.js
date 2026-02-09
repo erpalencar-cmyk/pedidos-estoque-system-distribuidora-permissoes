@@ -83,7 +83,8 @@ class FiscalSystem {
                         xml_retorno: JSON.stringify(resultado),
                         tentativas_emissao: 1,
                         ultima_tentativa: new Date().toISOString(),
-                        api_provider: 'nuvem_fiscal'
+                        api_provider: 'nuvem_fiscal',
+                        nfce_id: resultado.id // ✅ ID Nuvem Fiscal para download do XML
                     };
 
                     return {
@@ -101,6 +102,9 @@ class FiscalSystem {
                         mensagem: 'NFC-e autorizada pela SEFAZ via Nuvem Fiscal',
                         documentoFiscalData // ✅ Dados para salvar na tabela documentos_fiscais
                     };
+                    
+                    // 💾 ATUALIZAR NÚMERO NFC-e NA CONFIGURAÇÃO
+                    await this.atualizarNumerNFCeConfig(parseInt(resultado.numero));
                 } else {
                     const mensagens = resultado.mensagens?.map(m => m.mensagem).join('; ') || 'Erro desconhecido';
                     throw new Error('NFC-e rejeitada SEFAZ: ' + mensagens);
@@ -118,6 +122,11 @@ class FiscalSystem {
                 resultado = await FocusNFe.emitirNFCe(venda, itensData, pagamentosData, clienteData);
 
                 console.log('✅ [FiscalSystem] Resposta Focus NFe:', resultado);
+
+                // 💾 ATUALIZAR NÚMERO NFC-e NA CONFIGURAÇÃO (Se autorizado)
+                if (resultado.success || resultado.status === 'autorizado') {
+                    await this.atualizarNumerNFCeConfig(parseInt(resultado.numero));
+                }
 
                 return resultado;
             }
@@ -219,11 +228,13 @@ class FiscalSystem {
 
                 // Mapear resposta da Nuvem Fiscal para formato padrão
                 if (resultado.status === 'autorizado') {
+                    const numeroEmitido = parseInt(resultado.numero);
+                    
                     await supabase
                         .from('vendas')
                         .update({
                             status_fiscal: 'EMITIDA_NFCE',
-                            numero_nfce: resultado.numero,
+                            numero_nfce: numeroEmitido,
                             chave_acesso_nfce: resultado.chave_acesso || resultado.chave,
                             protocolo_nfce: resultado.autorizacao?.numero_protocolo || resultado.protocolo,
                             xml_nfce: resultado.xml || null
@@ -231,6 +242,9 @@ class FiscalSystem {
                         .eq('id', vendaId);
 
                     await this.registrarDocumentoFiscal(vendaId, 'NFCE', resultado);
+
+                    // 💾 ATUALIZAR NÚMERO NFC-e NA CONFIGURAÇÃO
+                    await this.atualizarNumerNFCeConfig(numeroEmitido);
 
                     return {
                         sucesso: true,
@@ -279,11 +293,13 @@ class FiscalSystem {
 
                 // Atualizar venda com dados da NFC-e
                 if (resultado.status === 'autorizada') {
+                    const numeroEmitido = parseInt(resultado.numero);
+                    
                     await supabase
                         .from('vendas')
                         .update({
                             status_fiscal: 'EMITIDA_NFCE',
-                            numero_nfce: resultado.numero,
+                            numero_nfce: numeroEmitido,
                             chave_acesso_nfce: resultado.chave,
                             protocolo_nfce: resultado.protocolo,
                             xml_nfce: xml
@@ -292,6 +308,9 @@ class FiscalSystem {
 
                     // Registrar documento fiscal
                     await this.registrarDocumentoFiscal(vendaId, 'NFCE', resultado);
+
+                    // 💾 ATUALIZAR NÚMERO NFC-e NA CONFIGURAÇÃO
+                    await this.atualizarNumerNFCeConfig(numeroEmitido);
 
                     return {
                         sucesso: true,
@@ -516,6 +535,17 @@ class FiscalSystem {
         const empresa = await this.obterEmpresa();
         const cliente = venda.clientes || {};
 
+        // 🔢 OBTER PRÓXIMO NÚMERO SINCRONIZADO
+        const provider = empresa.api_fiscal_provider || 'focus_nfe';
+        const numeroNFCe = await this.obterProximoNumerNFCe(empresa, provider);
+        
+        // 🌍 DETERMINAR AMBIENTE COM PRIORIDADE CORRETA
+        const ambienteParaXml = provider === 'nuvem_fiscal' 
+            ? (empresa.nuvemfiscal_ambiente || empresa.focusnfe_ambiente || 2)
+            : (empresa.focusnfe_ambiente || 2);
+        
+        console.log(`📋 [FiscalSystem] Usando número NFC-e: ${numeroNFCe} (Provider: ${provider}, Ambiente: ${ambienteParaXml})`);
+
         let itensXml = '';
         venda.venda_itens.forEach((item, idx) => {
             itensXml += `
@@ -541,7 +571,7 @@ class FiscalSystem {
             <natOp>VENDA</natOp>
             <mod>65</mod>
             <serie>${empresa.nfce_serie}</serie>
-            <nNF>${empresa.nfce_numero}</nNF>
+            <nNF>${numeroNFCe}</nNF>
             <dEmi>${new Date().toISOString().split('T')[0].replace(/-/g, '')}</dEmi>
             <hEmi>${new Date().toISOString().split('T')[1].substring(0, 8).replace(/:/g, '')}</hEmi>
             <indFinal>1</indFinal>
@@ -550,7 +580,7 @@ class FiscalSystem {
             <cMunFG>${empresa.codigo_municipio}</cMunFG>
             <tpEmis>1</tpEmis>
             <cDV>0</cDV>
-            <tpAmb>${empresa.nfe_ambiente}</tpAmb>
+            <tpAmb>${ambienteParaXml}</tpAmb>
             <finNFe>1</finNFe>
             <indIntermed>0</indIntermed>
             <procEmi>0</procEmi>
@@ -936,23 +966,44 @@ class FiscalSystem {
 
             if (provider === 'nuvem_fiscal') {
                 // Nuvem Fiscal usa ID da nota, não chave de acesso
-                // Buscar ID da nota no banco pela chave de acesso
-                const { data: venda } = await supabase
-                    .from('vendas')
-                    .select('nfce_id')
-                    .eq('chave_acesso_nfce', referencia)
+                // Tentar múltiplas formas de encontrar o ID:
+                // 1. Buscar por chave_acesso em documentos_fiscais (campo chave_acesso)
+                const { data: docFiscal } = await supabase
+                    .from('documentos_fiscais')
+                    .select('id, chave_acesso')
+                    .eq('chave_acesso', referencia)
+                    .eq('tipo_documento', 'NFCE')
                     .maybeSingle();
-
-                if (!venda?.nfce_id) {
-                    throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal.');
+                
+                if (docFiscal) {
+                    console.log('✅ Documento fiscal encontrado em documentos_fiscais, usando ID Nuvem Fiscal...');
                 }
 
-                return await NuvemFiscal.baixarXML(venda.nfce_id);
+                // 2. Se não encontrou em documentos_fiscais, tentar em vendas
+                if (!docFiscal) {
+                    const { data: venda } = await supabase
+                        .from('vendas')
+                        .select('nfce_id')
+                        .eq('chave_acesso_nfce', referencia)
+                        .maybeSingle();
+
+                    if (venda?.nfce_id) {
+                        console.log('✅ Nota encontrada em vendas, ID Nuvem Fiscal:', venda.nfce_id);
+                        return await NuvemFiscal.baixarXML(venda.nfce_id);
+                    }
+                }
+                
+                if (docFiscal?.id) {
+                    console.log('✅ Documento encontrado, ID:', docFiscal.id);
+                    return await NuvemFiscal.baixarXML(docFiscal.id);
+                }
+
+                throw new Error('ID da nota não encontrado no banco de dados. Verifique se a nota foi emitida pela Nuvem Fiscal e salva corretamente.');
             } else {
                 return await FocusNFe.baixarXML(referencia, tipo);
             }
         } catch (erro) {
-            console.error('Erro ao baixar XML:', erro);
+            console.error('❌ Erro ao baixar XML:', erro);
             throw erro;
         }
     }
@@ -1008,6 +1059,102 @@ class FiscalSystem {
      */
     static obterCodigoMunicipio(cidade, estado) {
         return '3550308'; // São Paulo padrão
+    }
+
+    /**
+     * 🔢 SINCRONIZAR E OBTER PRÓXIMO NÚMERO DE NFC-e
+     * Verifica o último número emitido (sucesso) e retorna o próximo
+     * Sincroniza entre banco local, configuração da empresa e API da SEFAZ
+     * 
+     * @param {Object} empresa - Dados da empresa configurada
+     * @param {String} provider - 'focus_nfe' ou 'nuvem_fiscal'
+     * @returns {Promise<Number>} Próximo número valid para emitir
+     */
+    static async obterProximoNumerNFCe(empresa, provider = 'focus_nfe') {
+        try {
+            console.log('🔢 [FiscalSystem] Sincronizando numeração NFC-e...');
+            
+            // 🔧 VALOR CONFIGURADO PELO USUÁRIO (sempre usar como mínimo)
+            const numeroConfigurado = parseInt(empresa.nfce_numero || 1);
+            console.log('📋 Número configurado pelo usuário:', numeroConfigurado);
+            
+            // ===== 1. BUSCAR ÚLTIMAS NOTAS AUTORIZADAS NO BANCO LOCAL =====
+            const { data: ultimaNota } = await supabase
+                .from('vendas')
+                .select('numero_nfce')
+                .eq('status_fiscal', 'EMITIDA_NFCE') // Apenas notas autorizadas
+                .not('numero_nfce', 'is', null)
+                .order('numero_nfce', { ascending: false })
+                .limit(1);
+
+            let proximoNumero = numeroConfigurado;  // COMEÇAR COM VALOR CONFIGURADO
+            
+            if (ultimaNota && ultimaNota.length > 0) {
+                const ultimoLocal = parseInt(ultimaNota[0].numero_nfce || 0);
+                console.log('✅ Última nota AUTORIZADA local:', ultimoLocal);
+                // Usar o maior entre configurado e último local
+                proximoNumero = Math.max(numeroConfigurado, ultimoLocal + 1);
+                console.log('📊 Comparação: configurado(' + numeroConfigurado + ') vs local(' + (ultimoLocal + 1) + ') → usando:', proximoNumero);
+            } else {
+                console.log('⚠️ Nenhuma nota autorizada encontrada no banco local - usando configuração');
+            }
+
+            // ===== 2. SINCRONIZAR COM API (Se Nuvem Fiscal) =====
+            if (provider === 'nuvem_fiscal' && typeof NuvemFiscalService !== 'undefined') {
+                try {
+                    const cnpj = empresa.cnpj?.replace(/\D/g, '');
+                    const ambiente = (empresa.nuvemfiscal_ambiente || empresa.focusnfe_ambiente) === 1 ? 'producao' : 'homologacao';
+                    
+                    console.log('☁️ Consultando últimas notas na Nuvem Fiscal (CNPJ:', cnpj, ', Ambiente:', ambiente + ')');
+                    
+                    // Buscar últimas 20 notas autorizadas
+                    const resposta = await NuvemFiscalService.listarNFCe(cnpj, ambiente, 20, 'autorizado');
+                    
+                    if (resposta?.data && resposta.data.length > 0) {
+                        const ultimoNumeroAPI = parseInt(resposta.data[0].numero || 0);
+                        console.log('☁️ Último número AUTORIZADO na API:', ultimoNumeroAPI);
+                        
+                        if (ultimoNumeroAPI >= proximoNumero) {
+                            proximoNumero = ultimoNumeroAPI + 1;
+                            console.log('🔄 Ajustado para próximo número da API:', proximoNumero);
+                        }
+                    }
+                } catch (erroAPI) {
+                    console.warn('⚠️ Não foi possível sincronizar com Nuvem Fiscal:', erroAPI.message);
+                    // Continuar com número local em caso de falha
+                }
+            }
+
+            console.log('📊 Próximo número NFC-e a ser usado:', proximoNumero);
+            return proximoNumero;
+
+        } catch (erro) {
+            console.error('❌ Erro ao sincronizar numeração NFC-e:', erro);
+            // Fallback para número configurado
+            return parseInt(empresa.nfce_numero || 1);
+        }
+    }
+
+    /**
+     * 💾 ATUALIZAR NÚMERO NFC-e NA CONFIGURAÇÃO
+     * Incrementa e salva o número da próxima NFC-e após emissão bem-sucedida
+     * 
+     * @param {String} numeroEmitido - Número que foi emitido
+     */
+    static async atualizarNumerNFCeConfig(numeroEmitido) {
+        try {
+            console.log('💾 Atualizando número NFC-e configurado para:', numeroEmitido + 1);
+            
+            await supabase
+                .from('empresa_config')
+                .update({ nfce_numero: numeroEmitido + 1 })
+                .eq('id', (await supabase.from('empresa_config').select('id').single()).data.id);
+                
+            console.log('✅ Número NFC-e atualizado com sucesso');
+        } catch (erro) {
+            console.warn('⚠️ Não foi possível atualizar número NFC-e configurado:', erro.message);
+            // Continuar de qualquer forma, pois o número foi emitido
+        }
     }
 }
 

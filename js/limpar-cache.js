@@ -17,13 +17,29 @@
   try {
     // ==========  PASSO 1: Limpar LocalStorage ==========
     console.log('1️⃣ Limpando LocalStorage...');
-    localStorage.clear();
-    console.log('✅ LocalStorage limpo\n');
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage) {
+            localStorage.clear();
+            console.log('✅ LocalStorage limpo\n');
+        } else {
+            console.warn('⚠️ localStorage não disponível, pulando...\n');
+        }
+    } catch (e) {
+        console.warn('⚠️ Erro ao limpar localStorage:', e.message, '- continuando...\n');
+    }
 
     // ========== PASSO 2: Limpar SessionStorage ==========
     console.log('2️⃣ Limpando SessionStorage...');
-    sessionStorage.clear();
-    console.log('✅ SessionStorage limpo\n');
+    try {
+        if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+            sessionStorage.clear();
+            console.log('✅ SessionStorage limpo\n');
+        } else {
+            console.warn('⚠️ sessionStorage não disponível, pulando...\n');
+        }
+    } catch (e) {
+        console.warn('⚠️ Erro ao limpar sessionStorage:', e.message, '- continuando...\n');
+    }
 
     // ========== PASSO 3: Limpar Google Analytics (se houver) ==========
     console.log('3️⃣ Limpando dados de análise...');

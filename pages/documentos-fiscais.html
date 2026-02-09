@@ -463,10 +463,19 @@
                     return;
                 }
                 showToastSafe('Baixando XML...', 'info');
-                const ref = doc.chave_acesso;
+                
                 const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
+                
                 try {
-                    await FiscalService.baixarXML(ref, tipo);
+                    // Usar o nfce_id se disponível (Nuvem Fiscal)
+                    if (doc.nfce_id && doc.api_provider === 'nuvem_fiscal') {
+                        console.log('✅ Usando nfce_id para download:', doc.nfce_id);
+                        await FiscalService.baixarXML(doc.nfce_id, tipo);
+                    } else {
+                        // Fallback para chave de acesso (Focus NFe ou legado)
+                        console.log('📋 Usando chave_acesso para download:', doc.chave_acesso);
+                        await FiscalService.baixarXML(doc.chave_acesso, tipo);
+                    }
                     showToastSafe('XML baixado com sucesso!', 'success');
                 } catch (err) {
                     if (err && err.message && err.message.includes('não encontrada')) {
@@ -563,15 +572,22 @@
                 try {
                     const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
                     resultado = await FiscalService.cancelarDocumento(doc.chave_acesso, justificativa, tipo);
-                } catch (storageError) {
-                    // Se erro for de storage, continuar mesmo assim
-                    if (storageError.message.includes('storage')) {
-                        console.warn('⚠️ Aviso de storage (ignorado):', storageError.message);
-                        showToastSafe('⚠️ Aviso: Falha ao acessar armazenamento local, mas continuando...', 'warning');
-                        // Tentar novamente sem cache
-                        resultado = await FiscalService.cancelarDocumento(doc.chave_acesso, justificativa, tipo);
+                } catch (erroCompleto) {
+                    // Se erro for relacionado a storage, não deixar que bloqueie o cancelamento
+                    if (erroCompleto.message?.includes('storage') || erroCompleto.code === 'SecurityError' || erroCompleto.name === 'SecurityError') {
+                        console.warn('⚠️ Erro de contexto/storage (ignorado, tentando novamente):', erroCompleto.message);
+                        showToastSafe('⚠️ Aviso: Problema de armazenamento local, mas continuando cancelamento...', 'warning');
+                        // Tentar segunda vez
+                        try {
+                            const tipo = doc.tipo_documento === 'NFCE' ? 'nfce' : 'nfe';
+                            resultado = await FiscalService.cancelarDocumento(doc.chave_acesso, justificativa, tipo);
+                        } catch (erroSegundaTentativa) {
+                            // Se ainda falhar, registrar mas deixar tentar atualizar o banco mesmo assim
+                            console.error('❌ Erro mesmo após segunda tentativa:', erroSegundaTentativa);
+                            resultado = { erro: erroSegundaTentativa, tentouCancelar: true };
+                        }
                     } else {
-                        throw storageError;
+                        throw erroCompleto;
                     }
                 }
 

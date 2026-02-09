@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Diagnóstico - Conflito de Ambiente Nuvem Fiscal</title>
+    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1, h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        h1 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        .card.alert {
+            border-left-color: #dc3545;
+            background: #fff8f8;
+        }
+        .card.success {
+            border-left-color: #28a745;
+            background: #f8fff8;
+        }
+        .card.warning {
+            border-left-color: #ffc107;
+            background: #fffaf0;
+        }
+        .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .value {
+            font-size: 18px;
+            font-weight: bold;
+            font-family: monospace;
+            color: #333;
+            word-break: break-all;
+        }
+        .value.producao {
+            color: #dc3545;
+            background: #ffe6e6;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .value.homologacao {
+            color: #ffc107;
+            background: #fffaf0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .log-line {
+            margin: 4px 0;
+            display: flex;
+            gap: 10px;
+        }
+        .log-time {
+            color: #888;
+            min-width: 80px;
+        }
+        .log-msg.info { color: #0f0; }
+        .log-msg.error { color: #f00; }
+        .log-msg.warning { color: #ff0; }
+        .log-msg.success { color: #0f0; }
+        .alert-box {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .alert-box.info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+        .alert-box.warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        .alert-box.danger {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .alert-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+        }
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        table tr:hover {
+            background: #f5f5f5;
+        }
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .recommended {
+            background: #d4edda;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .recommended h3 {
+            color: #155724;
+            margin-top: 0;
+        }
+        .recommended ul {
+            margin: 10px 0 0 20px;
+            color: #155724;
+        }
+        .recommended li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Diagnóstico - Conflito de Ambiente Nuvem Fiscal</h1>
+        
+        <!-- STATUS CONEXÃO -->
+        <div class="alert-box info" id="statusBox">
+            ⏳ Conectando ao Supabase...
+        </div>
+
+        <!-- CONFIGURAÇÕES -->
+        <div class="section">
+            <h2>📋 Configurações de Ambiente</h2>
+            <div class="grid">
+                <div class="card">
+                    <div class="label">CNPJ</div>
+                    <div class="value" id="cnpj">-</div>
+                </div>
+                <div class="card">
+                    <div class="label">Empresa</div>
+                    <div class="value" id="empresa">-</div>
+                </div>
+                <div class="card" id="nuvem-card">
+                    <div class="label">🌐 Nuvem Fiscal (NOVO)</div>
+                    <div class="value" id="nuvemfiscal_ambiente">-</div>
+                </div>
+                <div class="card">
+                    <div class="label">📋 NFC-e (Genérico)</div>
+                    <div class="value" id="nfce_ambiente">-</div>
+                </div>
+                <div class="card">
+                    <div class="label">Focus NFe</div>
+                    <div class="value" id="focusnfe_ambiente">-</div>
+                </div>
+                <div class="card card.success">
+                    <div class="label">✅ Ambiente Resolv.</div>
+                    <div class="value" id="ambiente_resolvido">-</div>
+                </div>
+            </div>
+            <div class="buttons">
+                <button class="btn-primary" onclick="app.carregar()">
+                    🔄 Recarregar Dados
+                </button>
+                <button class="btn-info" onclick="app.diagnosticar()">
+                    🔍 Diagnosticar
+                </button>
+            </div>
+        </div>
+
+        <!-- ANÁLISE DE CONFLITO -->
+        <div class="section">
+            <h2>⚠️ Análise de Conflito</h2>
+            <table id="tablaConflito">
+                <thead>
+                    <tr>
+                        <th>Campo</th>
+                        <th>Valor</th>
+                        <th>Prioridade</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4" style="text-align:center; color: #999;">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- RECOMENDAÇÕES -->
+        <div class="section">
+            <h2>💡 Recomendações</h2>
+            <div id="recomendacoes">
+                <p style="color: #999;">Aguarde diagnóstico...</p>
+            </div>
+        </div>
+
+        <!-- AÇÕES DE CORREÇÃO -->
+        <div class="section">
+            <h2>🛠️ Corrigir Ambiente</h2>
+            <p style="margin-bottom: 15px; color: #666;">
+                Selecione o ambiente correto e clique para atualizar:
+            </p>
+            <div class="grid">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                        Nova configuração para Nuvem Fiscal:
+                    </label>
+                    <select id="novoAmbiente" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="">-- Selecione --</option>
+                        <option value="1">🔴 PRODUÇÃO (1)</option>
+                        <option value="2">🟡 HOMOLOGAÇÃO (2)</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button class="btn-success" onclick="app.atualizarAmbiente()" style="width: 100%;">
+                        💾 Atualizar Configuração
+                    </button>
+                </div>
+            </div>
+            <div class="alert-box warning" style="margin-top: 15px;">
+                <strong>⚠️ Atenção:</strong> Antes de atualizar:
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>Verifique qual ambiente sua empresa está cadastrada na Nuvem Fiscal API</li>
+                    <li>Se está emitindo notas REAIS: use PRODUÇÃO (1)</li>
+                    <li>Se está TESTANDO: use HOMOLOGAÇÃO (2)</li>
+                    <li>Após atualizar, limpe cache do navegador (Ctrl+Shift+Delete)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- LOG -->
+        <div class="section">
+            <h2>📝 Log de Operações</h2>
+            <div class="log" id="logBox"></div>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            supabase: window.supabase,
+            empresa: null,
+
+            async init() {
+                try {
+                    await this.aguardarSupabase();
+                    await this.carregar();
+                    this.atualizarStatus('✅ Conectado ao Supabase', 'info');
+                } catch (erro) {
+                    this.log('Erro na inicialização: ' + erro.message, 'error');
+                    this.atualizarStatus('❌ Erro: ' + erro.message, 'danger');
+                }
+            },
+
+            aguardarSupabase() {
+                return new Promise((resolve) => {
+                    let tentativas = 0;
+                    const check = setInterval(() => {
+                        if (window.supabase?.from) {
+                            clearInterval(check);
+                            this.supabase = window.supabase;
+                            resolve();
+                        }
+                        if (++tentativas > 30) {
+                            clearInterval(check);
+                            throw new Error('Timeout conectando Supabase');
+                        }
+                    }, 100);
+                });
+            },
+
+            async carregar() {
+                try {
+                    this.log('📥 Carregando dados da empresa...', 'info');
+                    
+                    const { data, error } = await this.supabase
+                        .from('empresa_config')
+                        .select('*')
+                        .single();
+
+                    if (error) throw error;
+
+                    this.empresa = data;
+
+                    // Exibir dados
+                    document.getElementById('cnpj').textContent = data.cnpj || '-';
+                    document.getElementById('empresa').textContent = data.razao_social || data.nome_empresa || '-';
+                    document.getElementById('nuvemfiscal_ambiente').textContent = 
+                        (data.nuvemfiscal_ambiente ? (data.nuvemfiscal_ambiente === 1 ? '🔴 PRODUÇÃO' : '🟡 HOMOLOGAÇÃO') : '(não configurado)');
+                    document.getElementById('nfce_ambiente').textContent = 
+                        (data.nfce_ambiente ? (data.nfce_ambiente === 1 ? '🔴 PRODUÇÃO' : '🟡 HOMOLOGAÇÃO') : '(não configurado)');
+                    document.getElementById('focusnfe_ambiente').textContent = 
+                        (data.focusnfe_ambiente ? (data.focusnfe_ambiente === 1 ? '🔴 PRODUÇÃO' : '🟡 HOMOLOGAÇÃO') : '(padrão: homologação)');
+                    
+                    // Calcular ambiente resolvido (prioridade do código)
+                    const ambR = data.nuvemfiscal_ambiente || data.nfce_ambiente || data.focusnfe_ambiente || 2;
+                    const ambResolvido = ambR === 1 ? '🔴 PRODUÇÃO' : '🟡 HOMOLOGAÇÃO';
+                    document.getElementById('ambiente_resolvido').textContent = ambResolvido;
+                    
+                    this.diagnosticar();
+                    this.log('✅ Dados carregados', 'success');
+                } catch (erro) {
+                    this.log('Erro ao carregar: ' + erro.message, 'error');
+                }
+            },
+
+            diagnosticar() {
+                const d = this.empresa;
+                const priorityOrder = [
+                    { campo: 'nuvemfiscal_ambiente', valor: d.nuvemfiscal_ambiente, prioridade: '1º (PRINCIPAL)' },
+                    { campo: 'nfce_ambiente', valor: d.nfce_ambiente, prioridade: '2º' },
+                    { campo: 'focusnfe_ambiente', valor: d.focusnfe_ambiente || 2, prioridade: '3º (Fallback)' }
+                ];
+
+                const tbody = document.querySelector('#tablaConflito tbody');
+                tbody.innerHTML = priorityOrder.map((item, idx) => {
+                    const valor = item.valor ? (item.valor === 1 ? '🔴 PRODUÇÃO' : '🟡 HOMOLOGAÇÃO') : '(vazio)';
+                    const status = item.valor ? '✅' : '⚠️';
+                    return `
+                        <tr>
+                            <td><strong>${item.campo}</strong></td>
+                            <td>${valor}</td>
+                            <td>${item.prioridade}</td>
+                            <td>${status}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Gerar recomendações
+                this.gerarRecomendacoes();
+            },
+
+            gerarRecomendacoes() {
+                const d = this.empresa;
+                const recomDiv = document.getElementById('recomendacoes');
+                let html = '';
+
+                // Verificar se há conflito
+                const hasNuvemFiscal = d.nuvemfiscal_ambiente ? true : false;
+                const temMaisDeUm = [d.nuvemfiscal_ambiente, d.nfce_ambiente, d.focusnfe_ambiente].filter(Boolean).length >= 2;
+
+                if (!hasNuvemFiscal) {
+                    html += `
+                        <div class="alert-box warning">
+                            <h3>⚠️ Campo nuvemfiscal_ambiente não configurado</h3>
+                            <p>Este é um campo NOVO que deve ser preenchido para evitar conflitos.</p>
+                            <p><strong>O que fazer:</strong></p>
+                            <ul style="margin-left: 20px;">
+                                <li>Identifique em qual ambiente sua empresa está cadastrada na Nuvem Fiscal API</li>
+                                <li>Clique em "Corrigir Ambiente" abaixo e selecione o valor correto</li>
+                                <li>Salve e recarregue o navegador</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                if (temMaisDeUm) {
+                    html += `
+                        <div class="alert-box info">
+                            <h3>ℹ️ Múltiplos ambientes configurados</h3>
+                            <p>Você tem mais de um ambiente configurado. O código usará esta ordem:</p>
+                            <ol style="margin-left: 20px;">
+                                <li><strong>nuvemfiscal_ambiente</strong> ${d.nuvemfiscal_ambiente ? '✅' : '(vazio)'}</li>
+                                <li><strong>nfce_ambiente</strong> ${d.nfce_ambiente ? '✅' : '(vazio)'}</li>
+                                <li><strong>focusnfe_ambiente</strong> ${d.focusnfe_ambiente ? '✅ (fallback)' : '(padrão: 2)'}</li>
+                            </ol>
+                        </div>
+                    `;
+                }
+
+                if (!html) {
+                    html = `<div class="alert-box success"><strong>✅ Configuração aparenta estar correta!</strong></div>`;
+                }
+
+                recomDiv.innerHTML = html;
+            },
+
+            async atualizarAmbiente() {
+                const novo = document.getElementById('novoAmbiente').value;
+                
+                if (!novo) {
+                    alert('⚠️ Selecione um ambiente primeiro!');
+                    return;
+                }
+
+                if (confirm(`Atualizar nuvemfiscal_ambiente para ${novo === '1' ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO'}?`)) {
+                    try {
+                        const { error } = await this.supabase
+                            .from('empresa_config')
+                            .update({ nuvemfiscal_ambiente: parseInt(novo) })
+                            .eq('id', this.empresa.id);
+
+                        if (error) throw error;
+
+                        this.log('✅ Ambiente atualizado!', 'success');
+                        alert('✅ Configuração salva! Recarregue a página (Ctrl+Shift+R)');
+                        
+                        setTimeout(() => this.carregar(), 500);
+                    } catch (erro) {
+                        this.log('Erro: ' + erro.message, 'error');
+                        alert('❌ Erro: ' + erro.message);
+                    }
+                }
+            },
+
+            atualizarStatus(msg, tipo) {
+                const box = document.getElementById('statusBox');
+                let classe = 'info';
+                if (tipo === 'danger') classe = 'danger';
+                if (tipo === 'success') classe = 'success';
+                box.className = 'alert-box ' + classe;
+                box.textContent = msg;
+            },
+
+            log(msg, tipo = 'info') {
+                const box = document.getElementById('logBox');
+                const linha = document.createElement('div');
+                linha.className = 'log-line';
+                
+                const hora = new Date().toLocaleTimeString('pt-BR');
+                const icone = { info: 'ℹ️', error: '❌', warning: '⚠️', success: '✅' }[tipo];
+                
+                linha.innerHTML = `
+                    <span class="log-time">[${hora}]</span>
+                    <span class="log-msg ${tipo}">${icone} ${msg}</span>
+                `;
+                
+                box.appendChild(linha);
+                box.scrollTop = box.scrollHeight;
+                console.log(`[${tipo.toUpperCase()}] ${msg}`);
+            }
+        };
+
+        window.addEventListener('load', () => app.init());
+    </script>
+</body>
+</html>

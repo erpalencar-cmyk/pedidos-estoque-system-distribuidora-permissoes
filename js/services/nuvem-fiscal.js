@@ -30,7 +30,7 @@ class NuvemFiscalService {
         try {
             const { data: config, error } = await supabase
                 .from('empresa_config')
-                .select('nuvemfiscal_client_id, nuvemfiscal_client_secret, nuvemfiscal_access_token, nuvemfiscal_token_expiry, focusnfe_ambiente, cnpj')
+                .select('nuvemfiscal_client_id, nuvemfiscal_client_secret, nuvemfiscal_access_token, nuvemfiscal_token_expiry, nuvemfiscal_ambiente, focusnfe_ambiente, cnpj')
                 .single();
 
             if (error) throw error;
@@ -40,9 +40,20 @@ class NuvemFiscalService {
             this.accessToken = config.nuvemfiscal_access_token;
             this.tokenExpiry = config.nuvemfiscal_token_expiry ? new Date(config.nuvemfiscal_token_expiry) : null;
             
-            // Converter tpAmb (1=produção, 2=homologação) para string ambiente
-            const tpAmb = config.focusnfe_ambiente || 2;
-            this.ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+            // 🔧 Determinar ambiente - PRIORIDADE:
+            // 1. nuvemfiscal_ambiente (específico Nuvem Fiscal)
+            // 2. focusnfe_ambiente (fallback)
+            let ambienteConfig = config.nuvemfiscal_ambiente || config.focusnfe_ambiente || 2;
+            
+            // Normalizar: 1=produção, 2=homologação
+            ambienteConfig = parseInt(ambienteConfig) || 2;
+            this.ambiente = ambienteConfig === 1 ? 'producao' : 'homologacao';
+            
+            console.log('⚙️ [NuvemFiscal] Ambiente carregado:', {
+                nuvemfiscal_ambiente: config.nuvemfiscal_ambiente,
+                focusnfe_ambiente: config.focusnfe_ambiente,
+                ambienteResolvido: this.ambiente
+            });
 
             if (!this.clientId || !this.clientSecret) {
                 throw new Error('Credenciais da Nuvem Fiscal não configuradas. Acesse Configurações da Empresa.');
@@ -340,22 +351,40 @@ class NuvemFiscalService {
 
             console.log('✅ [NuvemFiscal] Documento validado, prosseguindo com emissão...');
             
-            console.log('🚀 [NuvemFiscal] Estado ambiente antes:', { 
-                ambiente: this.ambiente, 
-                tipo: typeof this.ambiente 
+            // 🔍 Extrair ambiente do payload (já foi definido corretamente em montarPayloadNFCe)
+            const tpAmbDoPayload = dadosNFCe?.infNFe?.ide?.tpAmb || 2;
+            const ambienteDoPayload = tpAmbDoPayload === 1 ? 'producao' : 'homologacao';
+            
+            // Atualizar this.ambiente com o valor correto do payload
+            this.ambiente = ambienteDoPayload;
+            
+            console.log('🚀 [NuvemFiscal] Estado ambiente:', { 
+                ambienteDoPayload,
+                tpAmbDoPayload,
+                ambiente_this: this.ambiente 
             });
             
             // Adicionar ambiente aos dados (string: 'homologacao' ou 'producao')
             const payload = {
                 ...dadosNFCe,
-                ambiente: this.ambiente
+                ambiente: this.ambiente  // Use o ambiente extraído do payload
             };
             
+            // 🔍 Validação dupla para detectar se ainda há conflito
+            const tpAmbPayload = payload.infNFe?.ide?.tpAmb || 2;
+            const tpAmbEsperado = this.ambiente === 'producao' ? 1 : 2;
+            
+            if (tpAmbPayload !== tpAmbEsperado) {
+                console.warn('⚠️ [NuvemFiscal] CONFLITO DE AMBIENTE DETECTADO!');
+                console.warn('   Payload tpAmb:', tpAmbPayload === 1 ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO');
+                console.warn('   Ambiente esperado:', this.ambiente.toUpperCase());
+                console.warn('   AJUSTANDO PAYLOAD PARA CORRESPONDER...');
+                payload.infNFe.ide.tpAmb = tpAmbEsperado;
+            }
+            
             console.log('🚀 [NuvemFiscal] Enviando NFC-e:', {
-                ambiente: this.ambiente,
-                tipo_ambiente: typeof this.ambiente,
-                ambiente_payload: payload.ambiente,
-                tpAmb: payload.infNFe?.ide?.tpAmb,
+                ambiente_empresa: this.ambiente,
+                tpAmb_payload: payload.infNFe?.ide?.tpAmb,
                 cMunFG: payload.infNFe?.ide?.cMunFG,
                 cMun: payload.infNFe?.emit?.enderEmit?.cMun
             });
@@ -363,6 +392,9 @@ class NuvemFiscalService {
             try {
                 const resultado = await this.request('/nfce', 'POST', payload);
 
+                // ✅ Emissão bem-sucedida
+                console.log('✅ [NuvemFiscal] NFC-e emitida com sucesso!');
+                
                 // Se retornar status "pendente", aguardar processamento
                 if (resultado.status === 'pendente') {
                     return await this.aguardarProcessamento(resultado.id);
@@ -372,7 +404,15 @@ class NuvemFiscalService {
             } catch (erroEmissao) {
                 // Tratamento específico para ValidationFailed
                 if (erroEmissao.code === 'ValidationFailed') {
-                    console.error('🛑 [NuvemFiscal] Erro de validação SEFAZ:', erroEmissao.message);
+                    console.error('🛑 [NuvemFiscal] ERRO ValidationFailed:', erroEmissao.message);
+                    
+                    // Diagnosticar conflito de ambiente
+                    if (erroEmissao.message?.includes('ambiente')) {
+                        console.error('   ❌ Provável CONFLITO DE AMBIENTE!');
+                        console.error('   Empresa configurada para:', this.ambiente.toUpperCase());
+                        console.error('   Payload enviou:', payload.infNFe?.ide?.tpAmb === 1 ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO');
+                        console.error('   SOLUÇÃO: Verifique "nuvemfiscal_ambiente" em Configurações da Empresa');
+                    }
                     
                     // Tentar obter status atual do documento para diagnóstico
                     try {
@@ -561,11 +601,46 @@ class NuvemFiscalService {
      */
     async baixarXML(id) {
         try {
-            return await this.request(`/nfce/${id}/xml`, 'GET', null, {
-                'Accept': 'application/xml'
+            console.log('📥 [NuvemFiscal] Baixando XML da NFC-e:', id);
+            
+            // Fazer requisição e receber como blob
+            const response = await fetch(`${this.apiUrl}/nfce/${id}/xml`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Accept': 'application/xml'
+                }
             });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Erro ao baixar XML:', response.status, errorText);
+                throw new Error(`Erro ao baixar XML: ${response.status} - ${errorText}`);
+            }
+
+            // Receber como blob (arquivo)
+            const blob = await response.blob();
+            
+            if (blob.size === 0) {
+                throw new Error('XML recebido vazio da Nuvem Fiscal');
+            }
+
+            console.log('✅ [NuvemFiscal] XML baixado com sucesso, tamanho:', blob.size);
+            
+            // Criar link de download automático
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `NFCE-${id}.xml`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('✅ [NuvemFiscal] Download do XML iniciado');
+            return blob;
         } catch (erro) {
-            console.error('Erro ao baixar XML:', erro);
+            console.error('❌ Erro ao baixar XML:', erro);
             throw erro;
         }
     }
@@ -758,6 +833,68 @@ class NuvemFiscalService {
     }
 
     /**
+     * 🔢 SINCRONIZAR NÚMERO DE NFC-e LOCALMENTE (FALLBACK)
+     * Usado quando FiscalSystem não está disponível
+     * Consulta banco local + API da Nuvem Fiscal
+     */
+    async sincronizarNumeroLocal(empresa) {
+        try {
+            console.log('🔄 [NuvemFiscal] Sincronizando número localmente...');
+            
+            // 🔧 VALOR CONFIGURADO PELO USUÁRIO (sempre usar como mínimo)
+            const numeroConfigurado = parseInt(empresa.nfce_numero || 1);
+            console.log('📋 Número configurado pelo usuário:', numeroConfigurado);
+            
+            // Buscar última nota no banco local
+            const { data: ultimaNota } = await supabase
+                .from('vendas')
+                .select('numero_nfce')
+                .eq('status_fiscal', 'EMITIDA_NFCE')
+                .not('numero_nfce', 'is', null)
+                .order('numero_nfce', { ascending: false })
+                .limit(1);
+
+            let proximoNumero = numeroConfigurado;  // COMEÇAR COM VALOR CONFIGURADO
+            if (ultimaNota && ultimaNota.length > 0) {
+                const ultimoLocal = parseInt(ultimaNota[0].numero_nfce);
+                console.log('✅ Última nota local:', ultimoLocal);
+                // Usar o maior entre configurado e último local
+                proximoNumero = Math.max(numeroConfigurado, ultimoLocal + 1);
+                console.log('📊 Comparação: configurado(' + numeroConfigurado + ') vs local(' + (ultimoLocal + 1) + ') → usando:', proximoNumero);
+            } else {
+                console.log('⚠️ Nenhuma nota local - usando número configurado:', numeroConfigurado);
+            }
+            
+            // Consultar API da Nuvem Fiscal
+            try {
+                const cnpj = empresa.cnpj?.replace(/\D/g, '');
+                const ambiente = (empresa.nuvemfiscal_ambiente || empresa.focusnfe_ambiente) === 1 ? 'producao' : 'homologacao';
+                
+                console.log('☁️ Consultando API Nuvem Fiscal para sincronização...');
+                const ultimasNotas = await this.listarNFCe(cnpj, ambiente, 20, 'autorizado');
+                
+                if (ultimasNotas?.data && ultimasNotas.data.length > 0) {
+                    const ultimoNumeroAPI = parseInt(ultimasNotas.data[0].numero);
+                    console.log('☁️ Último número na API:', ultimoNumeroAPI);
+                    
+                    if (ultimoNumeroAPI >= proximoNumero) {
+                        proximoNumero = ultimoNumeroAPI + 1;
+                        console.log('🔄 Ajustado pela API para:', proximoNumero);
+                    }
+                }
+            } catch (erroAPI) {
+                console.warn('⚠️ Não foi consultar API, continuando com número local');
+            }
+            
+            console.log('✅ Número sincronizado localmente:', proximoNumero);
+            return proximoNumero;
+        } catch (erro) {
+            console.error('❌ Erro na sincronização local:', erro);
+            return parseInt(empresa.nfce_numero || 1);
+        }
+    }
+
+    /**
      * Montar payload de NFC-e a partir dos dados da venda
      * @param {Object} venda - Dados da venda com itens e cliente
      * @param {Object} empresa - Dados da empresa emitente
@@ -774,44 +911,25 @@ class NuvemFiscalService {
         try {
             console.log('📋 [NuvemFiscal] Dados recebidos:', { venda, empresa });
             
-            // Buscar número da próxima nota
-            // Primeiro tenta da tabela vendas
-            const { data: ultimaNota } = await supabase
-                .from('vendas')
-                .select('numero_nfce')
-                .not('numero_nfce', 'is', null)
-                .order('numero_nfce', { ascending: false })
-                .limit(1)
-                .single();
-
-            let proximoNumero = ultimaNota?.numero_nfce ? parseInt(ultimaNota.numero_nfce) + 1 : 1;
-            
-            // Verificar o último número AUTORIZADO na API da Nuvem Fiscal
-            // Importante: ignorar notas rejeitadas/canceladas
-            try {
-                const cnpj = empresa.cnpj?.replace(/\D/g, '');
-                console.log('🔍 [NuvemFiscal] Buscando últimas notas AUTORIZADAS - CNPJ:', cnpj, 'Ambiente:', this.ambiente);
-                
-                // Buscar apenas notas autorizadas (top=50 para ter margem)
-                const ultimasNotas = await this.listarNFCe(cnpj, this.ambiente, 50, 'autorizado');
-                console.log('🔍 [NuvemFiscal] Resposta listarNFCe:', ultimasNotas);
-                
-                if (ultimasNotas?.data && ultimasNotas.data.length > 0) {
-                    const ultimoNumeroAPI = parseInt(ultimasNotas.data[0].numero);
-                    console.log('🔍 [NuvemFiscal] Último número AUTORIZADO na API:', ultimoNumeroAPI, 'Próximo calculado local:', proximoNumero);
-                    
-                    if (ultimoNumeroAPI >= proximoNumero) {
-                        proximoNumero = ultimoNumeroAPI + 1;
-                        console.log('✅ [NuvemFiscal] Ajustado para próximo número:', proximoNumero);
-                    }
-                } else {
-                    console.log('⚠️ [NuvemFiscal] Nenhuma nota AUTORIZADA encontrada na API');
+            // 🔢 USAR SINCRONIZAÇÃO CENTRALIZADA DO FISCAL SYSTEM
+            let proximoNumero;
+            if (typeof FiscalSystem !== 'undefined' && FiscalSystem) {
+                try {
+                    console.log('🔄 [NuvemFiscal] Usando sincronização centralizada (FiscalSystem)...');
+                    proximoNumero = await FiscalSystem.obterProximoNumerNFCe(empresa, 'nuvem_fiscal');
+                    console.log('✅ [NuvemFiscal] Número sincronizado via FiscalSystem:', proximoNumero);
+                } catch (erroSync) {
+                    console.warn('⚠️ [NuvemFiscal] Erro na sincronização centralizada, usando fallback:', erroSync.message);
+                    // FALLBACK: Sincronização local (compatibilidade com versões antigas)
+                    proximoNumero = await this.sincronizarNumeroLocal(empresa);
                 }
-            } catch (erro) {
-                console.warn('❌ [NuvemFiscal] Erro ao buscar último número da API:', erro);
+            } else {
+                console.warn('⚠️ [NuvemFiscal] FiscalSystem não disponível, usando sincronização local');
+                // FALLBACK: Sincronização local
+                proximoNumero = await this.sincronizarNumeroLocal(empresa);
             }
             
-            console.log('📄 [NuvemFiscal] Próximo número NFC-e:', proximoNumero);
+            console.log('📄 [NuvemFiscal] Próximo número NFC-e será:', proximoNumero);
             
             // Garantir valores numéricos válidos
             const subtotal = parseFloat(venda.subtotal || venda.valor_produtos || 0);
@@ -1036,6 +1154,20 @@ class NuvemFiscalService {
 
             // A Nuvem Fiscal usa a estrutura XML da SEFAZ (infNFe, ide, emit, det, etc)
             // Diferente do FocusNFe que aceita formato simplificado
+            
+            // 🌍 DETERMINAR AMBIENTE CORRETO
+            const ambienteResolvido = empresa.nuvemfiscal_ambiente || empresa.focusnfe_ambiente || 2;
+            const tpAmbParaPayload = ambienteResolvido === 1 ? 1 : 2;
+            const ambienteString = tpAmbParaPayload === 1 ? 'producao' : 'homologacao';
+            
+            console.log('🌍 [NuvemFiscal] Ambiente do payload:', {
+                nuvemfiscal_ambiente: empresa.nuvemfiscal_ambiente,
+                focusnfe_ambiente: empresa.focusnfe_ambiente,
+                ambienteResolvido,
+                tpAmb: tpAmbParaPayload,
+                ambienteString
+            });
+            
             const payload = {
                 referencia: `VENDA-${venda.id || Date.now()}`,
                 // ambiente será adicionado pelo método emitirNFCe
@@ -1054,7 +1186,7 @@ class NuvemFiscalService {
                         cMunFG: codigoMunicipio,
                         tpImp: 4, // 4=DANFE NFC-e
                         tpEmis: 1, // 1=Emissão normal
-                        tpAmb: this.ambiente === 'producao' ? 1 : 2, // 1=Produção, 2=Homologação
+                        tpAmb: tpAmbParaPayload, // 1=Produção, 2=Homologação - BASEADO EM EMPRESA
                         finNFe: 1, // 1=Normal
                         indFinal: 1, // 1=Consumidor final
                         indPres: venda.tipo_venda === 'online' ? 4 : 1, // 1=Presencial, 4=Internet

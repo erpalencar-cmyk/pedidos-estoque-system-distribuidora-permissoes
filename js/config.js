@@ -23,10 +23,13 @@ const memoryStorage = {
 // Verificar se localStorage está disponível
 function isStorageAvailable() {
     try {
+        // Primeira verificação: typeof e null check
         if (typeof localStorage === 'undefined' || localStorage === null) {
             console.warn('⚠️ localStorage é undefined');
             return false;
         }
+        
+        // Segunda verificação: tentar acessar com proteção dupla
         const test = '__storage_test__';
         try {
             localStorage.setItem(test, test);
@@ -34,11 +37,13 @@ function isStorageAvailable() {
             console.log('✅ localStorage disponível');
             return true;
         } catch (storageError) {
-            console.warn('⚠️ localStorage não disponível (QuotaExceededError ou similar):', storageError.message);
+            // Pode ser QuotaExceededError, NotAllowedError, SecurityError, etc
+            console.warn('⚠️ localStorage não disponível:', storageError.name, '-', storageError.message);
             return false;
         }
     } catch (e) {
-        console.warn('⚠️ Erro ao verificar localStorage (Access denied ou similar):', e.message);
+        // Captura TODOS os erros, incluindo "Access to storage is not allowed from this context"
+        console.warn('⚠️ Erro ao verificar localStorage (contexto não permitido ou similar):', e.name, '-', e.message);
         return false;
     }
 }
