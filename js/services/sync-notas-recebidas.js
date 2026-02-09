@@ -76,13 +76,14 @@ class SincronizacaoNotasRecebidas {
             const tiposArray = Array.isArray(tiposNota) ? tiposNota : [tiposNota];
             let notasParaImportar = [];
 
-            // 1. Listar NF-e recebidas
+            // 1. Listar NF-e recebidas (usando API de Distribuição do SEFAZ)
             if (tiposArray.includes('nfe')) {
-                console.log('📋 [SincronizacaoNotasRecebidas] Buscando NF-e recebidas...');
-                this._reportarProgresso(callback, 'Buscando NF-e recebidas...', 0);
+                console.log('📋 [SincronizacaoNotasRecebidas] Buscando NF-e distribuídas (API de Distribuição)...');
+                this._reportarProgresso(callback, 'Buscando NF-e distribuídas...', 0);
 
                 try {
-                    const nfes = await NuvemFiscal.listarNFeRecebidas(
+                    // Usar novo método que chama a API de Distribuição NF-e
+                    const nfes = await NuvemFiscal.buscarDistribuicaoNFe(
                         this.cnpj,
                         this.ambiente,
                         top,
@@ -95,43 +96,39 @@ class SincronizacaoNotasRecebidas {
                             ...n,
                             tipo: 'nfe'
                         })));
-                        console.log(`✅ [SincronizacaoNotasRecebidas] ${nfes.data.length} NF-e encontradas`);
+                        console.log(`✅ [SincronizacaoNotasRecebidas] ${nfes.data.length} NF-e encontradas via distribuição`);
                     } else {
-                        console.log('ℹ️ [SincronizacaoNotasRecebidas] Nenhuma NF-e encontrada');
+                        console.log('ℹ️ [SincronizacaoNotasRecebidas] Nenhuma NF-e encontrada no período especificado');
                     }
                 } catch (erro) {
-                    console.warn('⚠️ [SincronizacaoNotasRecebidas] Erro ao listar NF-e:', erro);
-                    this._reportarProgresso(callback, `Aviso: ${erro.message}`, 0);
+                    console.error('❌ [SincronizacaoNotasRecebidas] Erro ao listar NF-e via distribuição:', erro);
+                    this._reportarProgresso(callback, `Erro ao buscar NF-e: ${erro.message}`, 0);
+                    
+                    this.notasErro.push({
+                        chaveAcesso: 'N/A',
+                        tipo: 'nfe',
+                        emitente: 'Busca geral',
+                        erro: `Erro ao conectar com API de distribuição: ${erro.message}`
+                    });
                 }
             }
-
-            // 2. Listar NFC-e recebidas
+            // 2. Listar NFC-e recebidas (⚠️ TEMPORARIAMENTE DESABILITADO - endpoint não disponível)
+            // Se precisar sincronizar NFC-e, entre em contato com suporte Nuvem Fiscal
             if (tiposArray.includes('nfce')) {
-                console.log('📋 [SincronizacaoNotasRecebidas] Buscando NFC-e recebidas...');
-                this._reportarProgresso(callback, 'Buscando NFC-e recebidas...', 10);
+                console.log('📋 [SincronizacaoNotasRecebidas] NFC-e temporariamente desabilitado...');
+                this._reportarProgresso(callback, 'NFC-e ainda não suportado nesta API', 10);
 
-                try {
-                    const nfces = await NuvemFiscal.listarNFCeRecebidas(
-                        this.cnpj,
-                        this.ambiente,
-                        top,
-                        dataInicio,
-                        dataFim
-                    );
+                // NFC-e será suportado em breve
+                const mensagem = 'Sincronização de NFC-e foi temporariamente desabilitada. Use apenas NF-e ou aguarde atualização.';
+                console.warn('⚠️ [SincronizacaoNotasRecebidas] ' + mensagem);
+                this._reportarProgresso(callback, mensagem, 10);
 
-                    if (nfces?.data && nfces.data.length > 0) {
-                        notasParaImportar.push(...nfces.data.map(n => ({
-                            ...n,
-                            tipo: 'nfce'
-                        })));
-                        console.log(`✅ [SincronizacaoNotasRecebidas] ${nfces.data.length} NFC-e encontradas`);
-                    } else {
-                        console.log('ℹ️ [SincronizacaoNotasRecebidas] Nenhuma NFC-e encontrada');
-                    }
-                } catch (erro) {
-                    console.warn('⚠️ [SincronizacaoNotasRecebidas] Erro ao listar NFC-e:', erro);
-                    this._reportarProgresso(callback, `Aviso: ${erro.message}`, 10);
-                }
+                this.notasErro.push({
+                    chaveAcesso: 'N/A',
+                    tipo: 'nfce',
+                    emitente: 'Busca geral',
+                    erro: mensagem
+                });
             }
 
             if (notasParaImportar.length === 0) {
@@ -140,8 +137,11 @@ class SincronizacaoNotasRecebidas {
                     sucesso: true,
                     totalEncontradas: 0,
                     totalImportadas: 0,
-                    totalErros: 0,
-                    detalhes: []
+                    totalErros: this.notasErro.length,
+                    detalhes: {
+                        sincronizadas: [],
+                        erros: this.notasErro
+                    }
                 };
             }
 
@@ -156,14 +156,22 @@ class SincronizacaoNotasRecebidas {
                 try {
                     console.log(`\n📥 [SincronizacaoNotasRecebidas] Processando nota ${i + 1}/${notasParaImportar.length}`);
                     console.log(`   Tipo: ${nota.tipo.toUpperCase()}`);
+                    console.log(`   ID: ${nota.id || '-'}`);
                     console.log(`   Chave: ${nota.chave_acesso || nota.chaveAcesso || '-'}`);
                     console.log(`   Emitente: ${nota.emitente?.CNPJ || nota.numero || '-'}`);
 
                     this._reportarProgresso(callback, `Processando ${nota.tipo.toUpperCase()} ${i + 1}/${notasParaImportar.length}...`, percentual);
 
                     // 4. Baixar XML
-                    console.log('   📥 Baixando XML...');
-                    const xmlBlob = await NuvemFiscal.baixarXMLNotaRecebida(nota.id, nota.tipo);
+                    console.log('   📥 Baixando XML via API de Distribuição...');
+                    
+                    if (!nota.id) {
+                        throw new Error('ID da nota não disponível para download');
+                    }
+                    
+                    // Usar apenas o método de distribuição (único que funciona)
+                    // O ID vem da resposta da API de distribuição
+                    const xmlBlob = await NuvemFiscal.baixarXMLDistribuicao(nota.id);
 
                     // 5. Converter Blob para texto
                     const xmlText = await xmlBlob.text();

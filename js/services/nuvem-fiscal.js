@@ -1459,84 +1459,12 @@ class NuvemFiscalService {
     // ===================================
     // MÉTODOS PARA NOTAS RECEBIDAS
     // ===================================
-
-    /**
-     * Listar NF-e recebidas (como destinatário)
-     * GET /nf-e?cpf_cnpj={cpf_cnpj}&ambiente={ambiente}
-     * @param {string} cpfCnpj - CPF ou CNPJ da empresa (como destinatário)
-     * @param {string} ambiente - 'homologacao' ou 'producao'
-     * @param {number} top - Número máximo de registros (padrão: 50)
-     * @param {string} dataInicio - Filtrar por data início (YYYY-MM-DD)
-     * @param {string} dataFim - Filtrar por data fim (YYYY-MM-DD)
-     * @returns {Object} Lista de NF-e recebidas
-     */
-    async listarNFeRecebidas(cpfCnpj, ambiente = 'homologacao', top = 50, dataInicio = null, dataFim = null) {
-        try {
-            const cnpjLimpo = cpfCnpj.replace(/\D/g, '');
-            let url = `/nf-e?cpf_cnpj=${cnpjLimpo}&ambiente=${ambiente}&$top=${top}&$orderby=data_emissao desc`;
-            
-            // Filtrar por data se especificado
-            if (dataInicio || dataFim) {
-                let filtro = '$filter=';
-                if (dataInicio) {
-                    filtro += `data_emissao ge datetime'${dataInicio}T00:00:00'`;
-                }
-                if (dataFim) {
-                    if (dataInicio) filtro += ' and ';
-                    filtro += `data_emissao le datetime'${dataFim}T23:59:59'`;
-                }
-                url += '&' + filtro;
-            }
-            
-            console.log('📋 [NuvemFiscal] Listando NF-e recebidas:', url);
-            const resultado = await this.request(url, 'GET');
-            console.log('📋 [NuvemFiscal] NF-e recebidas encontradas:', resultado?.data?.length || 0);
-            return resultado;
-        } catch (erro) {
-            console.error('Erro ao listar NF-e recebidas:', erro);
-            throw erro;
-        }
-    }
-
-    /**
-     * Listar NFC-e recebidas (como destinatário)
-     * @param {string} cpfCnpj - CPF ou CNPJ da empresa (como destinatário)
-     * @param {string} ambiente - 'homologacao' ou 'producao'
-     * @param {number} top - Número máximo de registros (padrão: 50)
-     * @param {string} dataInicio - Filtrar por data início (YYYY-MM-DD)
-     * @param {string} dataFim - Filtrar por data fim (YYYY-MM-DD)
-     * @returns {Object} Lista de NFC-e recebidas
-     */
-    async listarNFCeRecebidas(cpfCnpj, ambiente = 'homologacao', top = 50, dataInicio = null, dataFim = null) {
-        try {
-            const cnpjLimpo = cpfCnpj.replace(/\D/g, '');
-            let url = `/nfce?cpf_cnpj=${cnpjLimpo}&ambiente=${ambiente}&tipo=recebida&$top=${top}&$orderby=data_emissao desc`;
-            
-            // Filtrar por data se especificado
-            if (dataInicio || dataFim) {
-                let filtro = '$filter=';
-                if (dataInicio) {
-                    filtro += `data_emissao ge datetime'${dataInicio}T00:00:00'`;
-                }
-                if (dataFim) {
-                    if (dataInicio) filtro += ' and ';
-                    filtro += `data_emissao le datetime'${dataFim}T23:59:59'`;
-                }
-                url += '&' + filtro;
-            }
-            
-            console.log('📋 [NuvemFiscal] Listando NFC-e recebidas:', url);
-            const resultado = await this.request(url, 'GET');
-            console.log('📋 [NuvemFiscal] NFC-e recebidas encontradas:', resultado?.data?.length || 0);
-            return resultado;
-        } catch (erro) {
-            console.error('Erro ao listar NFC-e recebidas:', erro);
-            throw erro;
-        }
-    }
+    // ⚠️ DEPRECATED: Os endpoints /nf-e e /nfce não funcionam mais
+    // Use buscarDistribuicaoNFe() para NF-e distribuídas pelo SEFAZ
 
     /**
      * Consultar uma nota recebida (NF-e ou NFC-e) pela chave de acesso
+     * ⚠️ Use buscarDistribuicaoNFe() para buscar notas distribuídas
      * @param {string} chaveAcesso - Chave de acesso da nota (44 dígitos)
      * @param {string} tipo - 'nfe' ou 'nfce'
      * @returns {Object} Dados da nota com ID para download
@@ -1549,17 +1477,9 @@ class NuvemFiscalService {
                 throw new Error('Chave de acesso inválida. Deve ter 44 dígitos.');
             }
             
-            const endpoint = tipo.toLowerCase() === 'nfce' ? '/nfce' : '/nf-e';
-            const url = `${endpoint}?$filter=chave_acesso eq '${chave}'`;
-            
-            console.log('🔍 [NuvemFiscal] Consultando nota recebida:', url);
-            const resultado = await this.request(url, 'GET');
-            
-            if (!resultado?.data || resultado.data.length === 0) {
-                throw new Error('Nota não encontrada na Nuvem Fiscal');
-            }
-            
-            return resultado.data[0];
+            // Usar buscarDistribuicaoNFe para buscas reais
+            console.warn('⚠️ consultarNotaRecebida() está deprecated. Use buscarDistribuicaoNFe() em vez disso.');
+            throw new Error('Método deprecado. Use buscarDistribuicaoNFe()');
         } catch (erro) {
             console.error('Erro ao consultar nota recebida:', erro);
             throw erro;
@@ -1574,6 +1494,8 @@ class NuvemFiscalService {
      */
     async baixarXMLNotaRecebida(notaId, tipo = 'nfe') {
         try {
+            console.warn('⚠️ baixarXMLNotaRecebida() pode não funcionar. Use baixarXMLDistribuicao() para NF-e.');
+            
             const endpoint = tipo.toLowerCase() === 'nfce' ? `/nfce/${notaId}/xml` : `/nf-e/${notaId}/xml`;
             
             console.log('📥 [NuvemFiscal] Baixando XML:', endpoint);
@@ -1582,6 +1504,112 @@ class NuvemFiscalService {
             });
         } catch (erro) {
             console.error('Erro ao baixar XML da nota recebida:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * NOVOS MÉTODOS: Usar API de Distribuição NF-e do SEFAZ
+     * Endpoints: GET /distribuicao-nf-e e POST /distribuicao-nf-e/download
+     * Referência: https://dev.nuvemfiscal.com.br/docs/api/#tag/Distribuicao-NF-e
+     */
+
+    /**
+     * Buscar documentos distribuídos via API de Distribuição NF-e do SEFAZ
+     * Este endpoint retorna NF-e que foram oficialmente distribuídas pelo SEFAZ
+     * @param {string} cpfCnpj - CPF/CNPJ da empresa (como destinatária)
+     * @param {string} ambiente - 'homologacao' ou 'producao'
+     * @param {number} top - Número máximo de registros a retornar
+     * @param {string} dataInicio - Filtro de data de início (YYYY-MM-DD)
+     * @param {string} dataFim - Filtro de data de fim (YYYY-MM-DD)
+     * @returns {Object} Lista de documentos distribuídos
+     */
+    async buscarDistribuicaoNFe(cpfCnpj, ambiente = 'homologacao', top = 100, dataInicio = null, dataFim = null) {
+        try {
+            const cnpjLimpo = cpfCnpj.replace(/\D/g, '');
+            
+            // Construir URL base para distribuição (endpoint correto: /distribuicao/nfe/documentos)
+            let url = `/distribuicao/nfe/documentos?`;
+            const params = [];
+            
+            params.push(`cpf_cnpj=${cnpjLimpo}`);
+            params.push(`ambiente=${ambiente}`);
+            params.push(`$top=${top}`);
+            params.push(`$orderby=data_emissao desc`);
+            
+            // Adicionar filtros de data se fornecidos
+            if (dataInicio || dataFim) {
+                let filtros = [];
+                if (dataInicio) {
+                    filtros.push(`data_emissao ge datetime'${dataInicio}T00:00:00'`);
+                }
+                if (dataFim) {
+                    filtros.push(`data_emissao le datetime'${dataFim}T23:59:59'`);
+                }
+                if (filtros.length > 0) {
+                    params.push(`$filter=${filtros.join(' and ')}`);
+                }
+            }
+            
+            url += params.join('&');
+            
+            console.log('📋 [NuvemFiscal] Buscando documentos (Distribuição NF-e):', url);
+            const resultado = await this.request(url, 'GET');
+            console.log('📋 [NuvemFiscal] Documentos distribuídos encontrados:', resultado?.data?.length || 0);
+            
+            return resultado;
+        } catch (erro) {
+            console.error('Erro ao buscar documentos distribuídos:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Baixar XML usando a API de Distribuição NF-e
+     * @param {string} documentoId - ID do documento retornado na listagem
+     * @returns {Blob} Arquivo XML
+     */
+    async baixarXMLDistribuicao(documentoId) {
+        try {
+            if (!documentoId) {
+                throw new Error('ID do documento é obrigatório.');
+            }
+            
+            console.log('📥 [NuvemFiscal] Baixando XML via Distribuição:', documentoId);
+            
+            return await this.request(
+                `/distribuicao/nfe/documentos/${documentoId}/xml`,
+                'GET',
+                null,
+                { 'Accept': 'application/xml' }
+            );
+        } catch (erro) {
+            console.error('Erro ao baixar XML da distribuição:', erro);
+            throw erro;
+        }
+    }
+
+    /**
+     * Download com PDF (alternativa)
+     * @param {string} documentoId - ID do documento
+     * @returns {Blob} Arquivo PDF
+     */
+    async baixarPDFDistribuicao(documentoId) {
+        try {
+            if (!documentoId) {
+                throw new Error('ID do documento é obrigatório.');
+            }
+            
+            console.log('📥 [NuvemFiscal] Baixando PDF via Distribuição:', documentoId);
+            
+            return await this.request(
+                `/distribuicao/nfe/documentos/${documentoId}/pdf`,
+                'GET',
+                null,
+                { 'Accept': 'application/xml' }
+            );
+        } catch (erro) {
+            console.error('Erro ao baixar XML da distribuição (POST):', erro);
             throw erro;
         }
     }
