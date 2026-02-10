@@ -673,21 +673,26 @@
                     throw new Error('Item não encontrado');
                 }
 
-                // Validar estoque antes de aumentar quantidade
+                // Validar estoque antes de aumentar quantidade (respeitando exige_estoque)
                 const { data: produto } = await supabase
                     .from('produtos')
-                    .select('estoque_atual')
+                    .select('estoque_atual, exige_estoque')
                     .eq('id', item.produto_id)
                     .single();
 
-                const estoqueDisponivel = produto?.estoque_atual || 0;
-                if (novaQuantidade > estoqueDisponivel) {
-                    mostrarMensagem(
-                        'Estoque Insuficiente',
-                        `Disponível: ${estoqueDisponivel.toFixed(2)}\nSolicitado: ${novaQuantidade.toFixed(2)}`,
-                        'aviso'
-                    );
-                    return;
+                // 🔓 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+                if (produto?.exige_estoque !== false) {
+                    const estoqueDisponivel = produto?.estoque_atual || 0;
+                    if (novaQuantidade > estoqueDisponivel) {
+                        mostrarMensagem(
+                            'Estoque Insuficiente',
+                            `Disponível: ${estoqueDisponivel.toFixed(2)}\nSolicitado: ${novaQuantidade.toFixed(2)}`,
+                            'aviso'
+                        );
+                        return;
+                    }
+                } else {
+                    console.log(`ℹ️ Produto não exige validação de estoque`);
                 }
 
                 alterarQuantidadeItemLocal(item.produto_id, novaQuantidade);

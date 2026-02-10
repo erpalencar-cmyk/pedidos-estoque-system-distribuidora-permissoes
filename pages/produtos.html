@@ -152,7 +152,7 @@
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
                                 <i class="fas fa-barcode mr-2 text-blue-600"></i>Nome do Produto*
                             </label>
-                            <input type="text" id="produto-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="text" id="produto-nome" name="nome" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
@@ -263,6 +263,14 @@
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Exige Controle de Estoque?</label>
+                            <select id="produto-exige-estoque" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="true">Sim (Padrão)</option>
+                                <option value="false">Não (Serviço/Voucher)</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Se "Não", o produto não exigirá validação de estoque no PDV e pedidos de venda</p>
+                        </div>
+                        <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Dias de Alerta (Validade)</label>
                             <input type="number" id="produto-dias-alerta" min="1" value="30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
@@ -278,7 +286,7 @@
                         </div>
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Preço de Venda*</label>
-                            <input type="number" id="produto-preco-venda" step="0.01" min="0" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <input type="number" id="produto-preco-venda" name="preco_venda" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div class="bg-green-50 p-4 rounded-lg">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Margem (%)</label>
@@ -611,6 +619,36 @@
             const form = document.getElementById('form-produto');
             form?.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                
+                // Campos obrigatórios
+                const camposObrigatorios = [
+                    { id: 'produto-nome', label: 'Nome do Produto*' },
+                    { id: 'produto-preco-venda', label: 'Preço de Venda*' }
+                ];
+                
+                let primeiroVazio = null;
+                
+                for (let campo of camposObrigatorios) {
+                    const input = document.getElementById(campo.id);
+                    if (!input?.value || !input.value.trim()) {
+                        primeiroVazio = { input, label: campo.label };
+                        break;
+                    }
+                }
+                
+                // Se houver campo vazio
+                if (primeiroVazio) {
+                    showToast(`⚠️ Preencha: ${primeiroVazio.label}`, 'error');
+                    
+                    // Mudar para a aba
+                    const aba = primeiroVazio.input.closest('.tab-content');
+                    if (aba?.id) {
+                        const btn = document.querySelector(`[data-tab="${aba.id}"]`);
+                        if (btn) btn.click();
+                    }
+                    return;
+                }
+                
                 await saveProduto();
             });
         }
@@ -1067,6 +1105,7 @@
             document.getElementById('produto-estoque-maximo').value = produto.estoque_maximo || '';
             document.getElementById('produto-localizacao').value = produto.localizacao || '';
             document.getElementById('produto-controla-validade').value = produto.controla_validade ? 'true' : 'false';
+            document.getElementById('produto-exige-estoque').value = produto.exige_estoque !== false ? 'true' : 'false'; // Default true
             document.getElementById('produto-dias-alerta').value = produto.dias_alerta_validade || 30;
 
             // Preços
@@ -1088,110 +1127,12 @@
         }
 
         async function saveProduto() {
-            const id = document.getElementById('produto-id').value || null; // Garante null se vazio
-            
-            // ============ VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ============
-            const erros = [];
+            const id = document.getElementById('produto-id').value || null;
             
             const nome = document.getElementById('produto-nome')?.value?.trim();
-            if (!nome) erros.push({ campo: 'Nome do produto', aba: 'Dados Básicos' });
-            
             const codigo = document.getElementById('produto-codigo')?.value?.trim();
-            if (!codigo) erros.push({ campo: 'Código do produto', aba: 'Dados Básicos' });
-            
             const precoVendaInput = document.getElementById('produto-preco-venda')?.value?.trim();
             const precoVenda = parseFloat(precoVendaInput) || 0;
-            if (!precoVendaInput || precoVenda <= 0) erros.push({ campo: 'Preço de venda maior que zero', aba: 'Preços' });
-            
-            // Validar campos de categorização
-            const categoriaId = document.getElementById('produto-categoria')?.value;
-            if (!categoriaId) erros.push({ campo: 'Categoria', aba: 'Dados Básicos' });
-            
-            const unidade = document.getElementById('produto-unidade')?.value?.trim();
-            if (!unidade) erros.push({ campo: 'Unidade de medida', aba: 'Dados Básicos' });
-            
-            // Se há erros, mostra modal com destaque das abas
-            if (erros.length > 0) {
-                const abasComErro = [...new Set(erros.map(e => e.aba))];
-                
-                const modal = document.createElement('div');
-                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-                modal.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full">
-                        <div class="bg-red-600 text-white p-4 rounded-t-lg">
-                            <h3 class="text-xl font-bold flex items-center gap-2">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                Campos Obrigatórios Não Preenchidos
-                            </h3>
-                        </div>
-                        <div class="p-6">
-                            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                                <p class="text-sm text-yellow-800">
-                                    <i class="fas fa-info-circle mr-2"></i>
-                                    <strong>Atenção:</strong> Alguns campos obrigatórios estão em abas diferentes. Verifique todas as abas destacadas abaixo.
-                                </p>
-                            </div>
-                            
-                            <p class="text-gray-700 font-semibold mb-3">Você precisa preencher:</p>
-                            
-                            ${abasComErro.map(aba => `
-                                <div class="mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-red-500">
-                                    <div class="font-bold text-red-700 mb-2 flex items-center gap-2">
-                                        <i class="fas fa-folder-open"></i>
-                                        Aba: ${aba}
-                                    </div>
-                                    <ul class="space-y-1 ml-6">
-                                        ${erros.filter(e => e.aba === aba).map((err, i) => `
-                                            <li class="text-sm text-gray-700 flex items-start gap-2">
-                                                <i class="fas fa-chevron-right text-red-500 mt-1"></i>
-                                                <span>${err.campo}</span>
-                                            </li>
-                                        `).join('')}
-                                    </ul>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end">
-                            <button 
-                                onclick="this.closest('.fixed').remove()"
-                                class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
-                            >
-                                <i class="fas fa-check mr-2"></i>Entendi, vou corrigir
-                            </button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-                
-                // Destacar abas com erro
-                document.querySelectorAll('[data-tab]').forEach(btn => {
-                    const tabName = btn.getAttribute('data-tab');
-                    const abaConfig = {
-                        'tab-basico': 'Dados Básicos',
-                        'tab-precos': 'Preços',
-                        'tab-estoque': 'Estoque',
-                        'tab-fiscal': 'Dados Fiscais'
-                    };
-                    
-                    if (abasComErro.includes(abaConfig[tabName])) {
-                        btn.classList.add('bg-red-100', 'text-red-700', 'font-bold');
-                        btn.style.animation = 'pulse 2s infinite';
-                    }
-                });
-                
-                // Ir para primeira aba com erro
-                const primeiraAbaErro = erros[0].aba;
-                const mapAba = {
-                    'Dados Básicos': 'tab-basico',
-                    'Preços': 'tab-precos',
-                    'Estoque': 'tab-estoque',
-                    'Dados Fiscais': 'tab-fiscal'
-                };
-                const btnAba = document.querySelector(`[data-tab="${mapAba[primeiraAbaErro]}"]`);
-                if (btnAba) btnAba.click();
-                
-                return;
-            }
             
             // ============ MONTAR DADOS ============
             const data = {
@@ -1204,6 +1145,7 @@
                 estoque_minimo: parseFloat(document.getElementById('produto-estoque-minimo')?.value) || 0,
                 estoque_maximo: parseFloat(document.getElementById('produto-estoque-maximo')?.value) || 0,
                 controla_validade: document.getElementById('produto-controla-validade')?.value === 'true',
+                exige_estoque: document.getElementById('produto-exige-estoque')?.value !== 'false', // true por padrão
                 dias_alerta_validade: parseInt(document.getElementById('produto-dias-alerta')?.value) || 30,
                 preco_custo: parseFloat(document.getElementById('produto-preco-compra')?.value) || 0,
                 preco_venda: precoVenda

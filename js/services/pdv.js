@@ -973,13 +973,19 @@ class PDVSystem {
             for (const item of this.itensCarrinho) {
                 const { data: produto } = await supabase
                     .from('produtos')
-                    .select('nome, estoque_atual')
+                    .select('nome, estoque_atual, exige_estoque')
                     .eq('id', item.produto_id)
                     .single();
                 
                 if (!produto) {
                     this.exibirErro(`Produto não encontrado: ${item.nome}`);
                     return false;
+                }
+                
+                // 🔽 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+                if (produto.exige_estoque === false) {
+                    console.log(`ℹ️ [PDV] Produto ${produto.nome} não exige validação de estoque`);
+                    continue;
                 }
                 
                 const estoqueDisponivel = produto.estoque_atual || 0;
@@ -992,7 +998,7 @@ class PDVSystem {
                     return false;
                 }
             }
-            console.log('✅ [PDV] Estoque validado - todos os itens disponíveis');
+            console.log('✅ [PDV] Estoque validado - todos os itens com exige_estoque=true estão disponíveis');
 
             const usuario = await getCurrentUser();
             const numeroVenda = this.gerarNumeroVenda();
@@ -1814,12 +1820,18 @@ class PDVSystem {
             for (const item of this.itensCarrinho) {
                 const { data: produto } = await supabase
                     .from('produtos')
-                    .select('nome, estoque_atual')
+                    .select('nome, estoque_atual, exige_estoque')
                     .eq('id', item.produto_id)
                     .single();
                 
                 if (!produto) {
                     throw new Error(`Produto não encontrado: ${item.nome}`);
+                }
+                
+                // 🔽 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+                if (produto.exige_estoque === false) {
+                    console.log(`ℹ️ [PDV] Produto ${produto.nome} não exige validação de estoque`);
+                    continue;
                 }
                 
                 const estoqueDisponivel = produto.estoque_atual || 0;

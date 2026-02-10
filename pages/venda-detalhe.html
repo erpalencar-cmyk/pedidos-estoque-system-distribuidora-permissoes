@@ -625,6 +625,7 @@
                     option.value = p.id;
                     option.textContent = `${p.nome}`;
                     option.dataset.preco = p.preco_venda || p.preco || 0;
+                    option.dataset.exigeEstoque = p.exige_estoque !== false ? 'true' : 'false'; // Default true
                     selectProduto.appendChild(option);
                 });
                 
@@ -657,7 +658,8 @@
                 produtoAtual = {
                     id: produtoId,
                     nome: option.textContent,
-                    preco: parseFloat(option.dataset.preco || 0)
+                    preco: parseFloat(option.dataset.preco || 0),
+                    exige_estoque: option.dataset.exigeEstoque !== 'false' // Default true
                 };
                 
                 const sabores = await getSaboresProduto(produtoId);
@@ -756,6 +758,12 @@
         function validarEstoqueVenda(input) {
             const quantidade = parseFloat(input.value) || 0;
             const estoqueDisponivel = parseFloat(input.dataset.estoque || 0);
+            
+            // 🔓 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+            if (produtoAtual && produtoAtual.exige_estoque === false) {
+                console.log(`ℹ️ Produto ${produtoAtual.nome} não exige validação de estoque`);
+                return; // Não validar
+            }
             
             if (quantidade > estoqueDisponivel) {
                 input.value = estoqueDisponivel;
@@ -1337,6 +1345,10 @@
             const inputQuantidade = document.getElementById('editar-item-quantidade');
             inputQuantidade.value = quantidadeAtual;
             
+            // 🔓 Guardar se produto exige estoque (para usar na validação)
+            const produtoExigeEstoque = item.produto?.exige_estoque !== false; // Default true
+            inputQuantidade.dataset.exigeEstoque = produtoExigeEstoque;
+            
             // Buscar estoque atual do sabor
             if (item.sabor_id) {
                 try {
@@ -1363,9 +1375,14 @@
                         inputQuantidade.dataset.quantidadeOriginal = quantidadeAtual;
                         inputQuantidade.dataset.saborId = item.sabor_id;
                         
-                        // Mostrar informação de estoque disponível
-                        document.getElementById('editar-estoque-info').classList.remove('hidden');
-                        document.getElementById('editar-estoque-disponivel').textContent = `${estoqueDisponivel} UN`;
+                        // Mostrar informação de estoque disponível (somente se exige_estoque = true)
+                        if (produtoExigeEstoque) {
+                            document.getElementById('editar-estoque-info').classList.remove('hidden');
+                            document.getElementById('editar-estoque-disponivel').textContent = `${estoqueDisponivel} UN`;
+                        } else {
+                            // Ocultar if produto não exige estoque
+                            document.getElementById('editar-estoque-info').classList.add('hidden');
+                        }
                     }
                 } catch (error) {
                     console.error('Erro ao buscar estoque:', error);
@@ -1427,11 +1444,16 @@
                 return;
             }
 
-            // Validar estoque novamente antes de salvar
-            const estoqueMax = parseFloat(inputQuantidade.dataset.estoqueMax);
-            if (estoqueMax && quantidade > estoqueMax) {
-                showToast(`Estoque insuficiente! Máximo disponível: ${estoqueMax} UN`, 'error');
-                return;
+            // 🔓 Validar estoque apenas se exige_estoque = true
+            const exigeEstoque = inputQuantidade.dataset.exigeEstoque !== 'false';
+            if (exigeEstoque) {
+                const estoqueMax = parseFloat(inputQuantidade.dataset.estoqueMax);
+                if (estoqueMax && quantidade > estoqueMax) {
+                    showToast(`Estoque insuficiente! Máximo disponível: ${estoqueMax} UN`, 'error');
+                    return;
+                }
+            } else {
+                console.log('ℹ️ Produto não exige validação de estoque, skipping check');
             }
 
             try {

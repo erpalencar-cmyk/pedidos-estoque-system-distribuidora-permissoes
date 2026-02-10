@@ -344,20 +344,25 @@ class ServicoComandas {
 
             if (erroItem) throw erroItem;
 
-            // ✅ VALIDAR ESTOQUE antes de alterar
+            // ✅ VALIDAR ESTOQUE antes de alterar (respeitando exige_estoque)
             const { data: produto } = await supabase
                 .from('produtos')
-                .select('nome, estoque_atual')
+                .select('nome, estoque_atual, exige_estoque')
                 .eq('id', item.produto_id)
                 .single();
 
-            const estoqueDisponivel = produto?.estoque_atual || 0;
-            if (novaQuantidade > estoqueDisponivel) {
-                throw new Error(
-                    `Estoque insuficiente para ${produto.nome}\n` +
-                    `Disponível: ${estoqueDisponivel.toFixed(2)}\n` +
-                    `Solicitado: ${novaQuantidade.toFixed(2)}`
-                );
+            // 🔓 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+            if (produto?.exige_estoque !== false) {
+                const estoqueDisponivel = produto?.estoque_atual || 0;
+                if (novaQuantidade > estoqueDisponivel) {
+                    throw new Error(
+                        `Estoque insuficiente para ${produto.nome}\n` +
+                        `Disponível: ${estoqueDisponivel.toFixed(2)}\n` +
+                        `Solicitado: ${novaQuantidade.toFixed(2)}`
+                    );
+                }
+            } else {
+                console.log(`ℹ️ Produto ${produto?.nome} não exige validação de estoque`);
             }
 
             const novoSubtotal = item.preco_unitario * novaQuantidade;
@@ -521,12 +526,18 @@ class ServicoComandas {
 
                 const { data: produto } = await supabase
                     .from('produtos')
-                    .select('nome, estoque_atual')
+                    .select('nome, estoque_atual, exige_estoque')
                     .eq('id', item.produto_id)
                     .single();
                 
                 if (!produto) {
                     throw new Error(`Produto não encontrado: ${item.nome_produto}`);
+                }
+                
+                // 🔓 Pular validação se exige_estoque = false (serviços, vouchers, etc)
+                if (produto.exige_estoque === false) {
+                    console.log(`ℹ️ [COMANDA] Produto ${produto.nome} não exige validação de estoque`);
+                    continue;
                 }
                 
                 const estoqueDisponivel = produto.estoque_atual || 0;
@@ -538,7 +549,7 @@ class ServicoComandas {
                     );
                 }
             }
-            console.log('✅ [COMANDA] Estoque validado - todos os itens disponíveis');
+            console.log('✅ [COMANDA] Estoque validado - todos os itens com exige_estoque=true estão disponíveis');
 
             // Criar venda
             const valorTotal = comanda.valor_total;
