@@ -942,16 +942,18 @@
                 const { data: item, error } = await supabase
                     .from('pedido_compra_itens')
                     .select('produto_id')
-                    .eq('id', itemId)
-                    .single();
+                    .eq('id', itemId);
                 
                 if (error) throw error;
+                if (!item || item.length === 0) {
+                    throw new Error('Item não encontrado');
+                }
                 
                 // Buscar nome do produto
                 const { data: produto, error: errProduto } = await supabase
                     .from('produtos')
                     .select('nome')
-                    .eq('id', item.produto_id)
+                    .eq('id', item[0].produto_id)
                     .single();
                 
                 if (errProduto) throw errProduto;
@@ -972,7 +974,7 @@
                 openModal('modal-editar-item');
             } catch (error) {
                 console.error('Erro ao buscar dados do item:', error);
-                showToast('Erro ao carregar dados do item', 'error');
+                showToast('Erro ao carregar dados do item: ' + error.message, 'error');
             }
         }
 
@@ -1073,8 +1075,7 @@
                 const { error } = await supabase
                     .from('pedidos_compra')
                     .update({ 
-                        status: 'APROVADO',
-                        data_recebimento: new Date().toISOString()
+                        status: 'APROVADO'
                     })
                     .eq('id', pedidoId);
 
@@ -1178,13 +1179,24 @@
         }
 
         async function receberPedido() {
-            if (!confirm('Marcar pedido como RECEBIDO?\n\n⚠️ O estoque JÁ FOI atualizado na aprovação.\n\nEste botão apenas confirma o recebimento físico das mercadorias.')) return;
+            if (!confirm('Marcar pedido como RECEBIDO?\n\n✅ O estoque será atualizado nesta operação.\n\nEste botão confirma o recebimento físico e alimenta o estoque.')) return;
 
             try {
                 showLoading(true);
-                console.log('📦 Marcando pedido como recebido:', pedidoId);
+                console.log('📦 Processando entrada de estoque e marcando como recebido:', pedidoId);
 
-                // 1. Buscar itens para atualizar quantidade_recebida
+                // 1️⃣ PROCESSAR ENTRADA DE ESTOQUE (EstoqueService)
+                console.log('📦 [RECEBIMENTO] Chamando EstoqueService.entradaPorCompra...');
+                const resultadoEstoque = await EstoqueService.entradaPorCompra(pedidoId);
+                
+                if (!resultadoEstoque.sucesso && !resultadoEstoque.ja_processado) {
+                    throw new Error(resultadoEstoque.mensagem || 'Erro ao processar entrada de estoque');
+                }
+
+                console.log('✅ [RECEBIMENTO] Estoque processado:', resultadoEstoque);
+                showToast(`📦 Estoque atualizado: ${resultadoEstoque.itens_processados || 0} itens`, 'success');
+
+                // 2️⃣ Buscar itens para atualizar quantidade_recebida
                 const { data: itens, error: errItens } = await supabase
                     .from('pedido_compra_itens')
                     .select('id, quantidade')
@@ -1195,7 +1207,7 @@
                     throw errItens;
                 }
 
-                // 2. Atualizar quantidade_recebida de cada item (marca como fisicamente recebido)
+                // 3️⃣ Atualizar quantidade_recebida de cada item (marca como fisicamente recebido)
                 if (itens && itens.length > 0) {
                     for (const item of itens) {
                         await supabase
@@ -1205,7 +1217,7 @@
                     }
                 }
 
-                // 3. Atualizar status do pedido para RECEBIDO
+                // 4️⃣ Atualizar status do pedido para RECEBIDO
                 const { error: errStatus } = await supabase
                     .from('pedidos_compra')
                     .update({ 
@@ -1219,8 +1231,8 @@
                     throw errStatus;
                 }
 
-                console.log('✅ Pedido marcado como recebido!');
-                showToast('✅ Pedido marcado como recebido com sucesso!', 'success');
+                console.log('✅ Pedido marcado como recebido com estoque alimentado!');
+                showToast('✅ Recebimento confirmado e estoque atualizado com sucesso!', 'success');
                 await loadPedido();
 
             } catch (error) {

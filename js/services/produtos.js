@@ -11,9 +11,14 @@ async function listProdutos(filters = {}) {
                 *,
                 categoria:categorias(id, nome),
                 marca_rel:marcas(id, nome)
-            `)
-            .eq('ativo', true)
-            .order('nome');
+            `);
+
+        // 🔧 Permitir mostrar inativos se solicitado
+        if (filters.incluirInativos !== true) {
+            query = query.eq('ativo', true);
+        }
+
+        query = query.order('nome');
 
         if (filters.categoria) {
             query = query.eq('categoria_id', filters.categoria);

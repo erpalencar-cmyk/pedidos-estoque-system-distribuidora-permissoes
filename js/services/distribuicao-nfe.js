@@ -62,7 +62,7 @@ class DistribuicaoNFCeService {
                             nota_saida_emitida,
                             nota_saida_numero,
                             preco_venda_nfe,
-                            produtos:produto_id (
+                            produto:produtos (
                                 id,
                                 nome,
                                 codigo_barras,
@@ -142,7 +142,7 @@ class DistribuicaoNFCeService {
                         .from('pedido_compra_itens')
                         .select(`
                             *,
-                            produtos:produto_id (
+                            produto:produtos (
                                 id,
                                 nome,
                                 codigo_barras,
@@ -158,12 +158,12 @@ class DistribuicaoNFCeService {
                                 cst_cofins,
                                 unidade_medida_padrao
                             ),
-                            pedidos_compra:pedido_id (
+                            pedido_compra:pedidos_compra (
                                 nf_chave,
                                 nf_numero,
                                 nf_serie,
                                 fornecedor_id,
-                                fornecedores:fornecedor_id (
+                                fornecedor:fornecedores (
                                     nome,
                                     cnpj
                                 )
@@ -178,7 +178,7 @@ class DistribuicaoNFCeService {
 
                     return {
                         ...pedidoItem,
-                        preco_venda: item.preco_venda || pedidoItem.preco_venda_nfe || pedidoItem.produtos.preco_venda,
+                        preco_venda: item.preco_venda || pedidoItem.preco_venda_nfe || pedidoItem.produto.preco_venda,
                         quantidade_emissao: item.quantidade
                     };
                 })
@@ -221,31 +221,31 @@ class DistribuicaoNFCeService {
                 troco: 0,
                 cliente_id: clientePessoa?.id || null,
                 forma_pagamento: 'DINHEIRO',
-                observacoes: `DISTRIBUIÇÃO DE NFC-e - ${descricaoNota}\nChaves de origem: ${[...new Set(itensComDados.map(i => i.pedidos_compra?.nf_chave))].join(', ')}\n${observacoes || ''}`
+                observacoes: `DISTRIBUIÇÃO DE NFC-e - ${descricaoNota}\nChaves de origem: ${[...new Set(itensComDados.map(i => i.pedido_compra?.nf_chave))].join(', ')}\n${observacoes || ''}`
             };
 
             // 4️⃣ Montar itens da venda
             const itensVenda = itensComDados.map((item, idx) => ({
                 numero_item: idx + 1,
-                codigo: item.produtos.codigo_barras || String(item.produto_id),
-                nome_produto: item.produtos.nome,
-                descricao: item.produtos.descricao_nfe || item.produtos.nome,
+                codigo: item.produto.codigo_barras || String(item.produto_id),
+                nome_produto: item.produto.nome,
+                descricao: item.produto.descricao_nfe || item.produto.nome,
                 quantidade: item.quantidade_emissao,
                 valor_unitario: item.preco_venda,
                 valor_total: item.preco_venda * item.quantidade_emissao,
-                ncm: item.produtos.ncm || '22021000',
-                cfop: item.produtos.cfop_venda || '5102',
-                origem: item.produtos.origem_produto || 0,
-                cst_icms: item.produtos.cst_icms || '102',
-                cst_pis: item.produtos.cst_pis || '99',
-                cst_cofins: item.produtos.cst_cofins || '99',
-                unidade_medida: item.produtos.unidade_medida_padrao || 'UN',
-                icms_aliquota: item.produtos.aliquota_icms || 0,
-                icms_valor: (item.preco_venda * item.quantidade_emissao) * (item.produtos.aliquota_icms || 0) / 100,
-                pis_aliquota: item.produtos.aliquota_pis || 0,
-                pis_valor: (item.preco_venda * item.quantidade_emissao) * (item.produtos.aliquota_pis || 0) / 100,
-                cofins_aliquota: item.produtos.aliquota_cofins || 0,
-                cofins_valor: (item.preco_venda * item.quantidade_emissao) * (item.produtos.aliquota_cofins || 0) / 100,
+                ncm: item.produto.ncm || '22021000',
+                cfop: item.produto.cfop_venda || '5102',
+                origem: item.produto.origem_produto || 0,
+                cst_icms: item.produto.cst_icms || '102',
+                cst_pis: item.produto.cst_pis || '99',
+                cst_cofins: item.produto.cst_cofins || '99',
+                unidade_medida: item.produto.unidade_medida_padrao || 'UN',
+                icms_aliquota: item.produto.aliquota_icms || 0,
+                icms_valor: (item.preco_venda * item.quantidade_emissao) * (item.produto.aliquota_icms || 0) / 100,
+                pis_aliquota: item.produto.aliquota_pis || 0,
+                pis_valor: (item.preco_venda * item.quantidade_emissao) * (item.produto.aliquota_pis || 0) / 100,
+                cofins_aliquota: item.produto.aliquota_cofins || 0,
+                cofins_valor: (item.preco_venda * item.quantidade_emissao) * (item.produto.aliquota_cofins || 0) / 100,
                 // Referência ao item original para marcar como emitido
                 pedido_item_id: item.id
             }));

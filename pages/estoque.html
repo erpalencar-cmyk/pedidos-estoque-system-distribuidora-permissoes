@@ -105,6 +105,12 @@
                             <option value="OK">OK</option>
                         </select>
                     </div>
+                    <div class="flex items-center h-full">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="filter-inativos" class="w-4 h-4" onchange="aplicarFiltros()">
+                            <span class="text-sm text-gray-700">Mostrar inativos</span>
+                        </label>
+                    </div>
                     <div class="flex items-end gap-2">
                         <button onclick="limparFiltros()" class="flex-1 px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
                             <i class="fas fa-redo mr-2"></i>Limpar
@@ -303,6 +309,8 @@
             document.getElementById('filter-marca').value = '';
             document.getElementById('filter-categoria').value = '';
             document.getElementById('filter-situacao').value = '';
+            document.getElementById('filter-inativos').checked = false;
+            localStorage.removeItem('filtro-inativos');
             
             filtroAtual = { marca: '', categoria: '', situacao: '' };
             aplicarFiltros();
@@ -313,8 +321,16 @@
             filtroAtual.categoria = document.getElementById('filter-categoria').value;
             filtroAtual.situacao = document.getElementById('filter-situacao').value;
             
-            renderizarTabAtiva();
-            calcularTotaisEstoque();
+            // Se mudou o checkbox de inativos, recarregar dados
+            const incluirInativos = document.getElementById('filter-inativos')?.checked || false;
+            const estava = localStorage.getItem('filtro-inativos') === 'true';
+            if (incluirInativos !== estava) {
+                localStorage.setItem('filtro-inativos', incluirInativos);
+                carregarDados();
+            } else {
+                renderizarTabAtiva();
+                calcularTotaisEstoque();
+            }
         }
 
         function calcularTotaisEstoque() {
@@ -348,7 +364,9 @@
         async function carregarDados() {
             showLoading(true);
             try {
-                todosProdutos = await listProdutos();
+                // Carregar com opção de incluir inativos se checkbox estiver marcado
+                const incluirInativos = document.getElementById('filter-inativos')?.checked || false;
+                todosProdutos = await listProdutos({ incluirInativos });
                 
                 const { data: lotes, error: erroLotes } = await supabase
                     .from('produto_lotes')

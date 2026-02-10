@@ -104,10 +104,9 @@ class EstoqueService {
             console.log('📦 [ESTOQUE] Iniciando entrada por compra:', pedidoCompraId);
             console.log('📦 [ESTOQUE] Tipo do ID:', typeof pedidoCompraId);
 
-            // ⚠️ PROTEÇÃO CONTRA DUPLICAÇÃO INTELIGENTE:
-            // Verificar se existe entrada E se foi revertida posteriormente
+            // ⚠️ PROTEÇÃO CONTRA DUPLICAÇÃO - PRIMEIRA CAMADA
+            // Verificar se existe entrada NÃO REVERTIDA para este pedido
             
-            // 1. Buscar última entrada
             const { data: ultimaEntrada, error: errCheck } = await supabase
                 .from('estoque_movimentacoes')
                 .select('id, created_at')
@@ -117,25 +116,39 @@ class EstoqueService {
                 .order('created_at', { ascending: false })
                 .limit(1);
 
-            console.log('🔍 [ESTOQUE] Verificação de duplicação:', { ultimaEntrada, errCheck });
+            console.log('🔍 [ESTOQUE] Verificação de entrada anterior:', { 
+                encontrada: ultimaEntrada && ultimaEntrada.length > 0,
+                quantidade: ultimaEntrada?.length || 0,
+                erro: errCheck?.message 
+            });
 
-            // 2. Buscar última reversão
-            const { data: ultimaReversao } = await supabase
-                .from('estoque_movimentacoes')
-                .select('id, created_at')
-                .eq('referencia_id', pedidoCompraId)
-                .eq('referencia_tipo', 'PEDIDO_COMPRA_REVERSAO')
-                .eq('tipo_movimento', this.TIPOS.SAIDA_AJUSTE)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            // Se existe entrada e NÃO existe reversão posterior, já foi processada
+            // Se existe entrada e NÃO foi revertida, já foi processada
             if (ultimaEntrada && ultimaEntrada.length > 0) {
+                // Verificar se há reversão posterior
+                const { data: ultimaReversao } = await supabase
+                    .from('estoque_movimentacoes')
+                    .select('id, created_at')
+                    .eq('referencia_id', pedidoCompraId)
+                    .eq('referencia_tipo', 'PEDIDO_COMPRA_REVERSAO')
+                    .eq('tipo_movimento', this.TIPOS.SAIDA_AJUSTE)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
                 const dataEntrada = new Date(ultimaEntrada[0].created_at);
-                
-                if (!ultimaReversao || ultimaReversao.length === 0) {
-                    // Há entrada mas não há reversão - já processada
-                    console.warn('⚠️ [ESTOQUE] Este pedido já teve entrada de estoque processada');
+                const dataReversao = ultimaReversao && ultimaReversao.length > 0 
+                    ? new Date(ultimaReversao[0].created_at) 
+                    : null;
+
+                console.log('🔍 [ESTOQUE] Comparação de datas:', { 
+                    entrada: dataEntrada.toISOString(),
+                    reversao: dataReversao?.toISOString() || 'nenhuma'
+                });
+
+                // Se não há reversão OU reversão é anterior à entrada, já foi processado
+                if (!dataReversao || dataEntrada > dataReversao) {
+                    console.warn('⚠️ [ESTOQUE] Este pedido JÁ teve entrada de estoque processada');
+                    console.warn('   → Entrada registrada em:', dataEntrada.toISOString());
+                    console.warn('   → Reversão: ' + (dataReversao ? dataReversao.toISOString() : 'nenhuma'));
                     return { 
                         sucesso: true, 
                         itens_processados: 0,
@@ -144,24 +157,11 @@ class EstoqueService {
                     };
                 }
                 
-                const dataReversao = new Date(ultimaReversao[0].created_at);
-                
-                if (dataEntrada > dataReversao) {
-                    // A entrada é mais recente que a reversão - já foi reprocessada
-                    console.warn('⚠️ [ESTOQUE] Este pedido já foi reprocessado após reversão');
-                    return { 
-                        sucesso: true, 
-                        itens_processados: 0,
-                        mensagem: 'Entrada já processada após reversão. Nenhuma ação necessária.',
-                        ja_processado: true
-                    };
-                }
-                
                 // Reversão é mais recente - pode processar nova entrada
                 console.log('✅ [ESTOQUE] Pedido foi reaberto, processando nova entrada de estoque');
             }
 
-            // 1. Buscar pedido com itens e produtos
+            // Buscar pedido
             const { data: pedido, error: errPedido } = await supabase
                 .from('pedidos_compra')
                 .select('id, numero, status, usuario_id')
@@ -293,22 +293,47 @@ class EstoqueService {
             }
 
             // Atualizar produtos (um por vez para garantir consistência)
+            console.log('💾 [ESTOQUE] Atualizando estoque de', atualizacoesProdutos.length, 'produtos...');
+            
+            let produtosAtualizados = 0;
+            const errosAtualizacao = [];
+
             for (const update of atualizacoesProdutos) {
-                const { error: errUpd } = await supabase
+                console.log(`  🔄 Atualizando produto ${update.id}: estoque_atual = ${update.estoque_atual}, preco_custo = ${update.preco_custo}`);
+                
+                const { data: result, error: errUpd } = await supabase
                     .from('produtos')
                     .update({
                         estoque_atual: update.estoque_atual,
                         preco_custo: update.preco_custo
                     })
-                    .eq('id', update.id);
+                    .eq('id', update.id)
+                    .select('id, estoque_atual, preco_custo');
 
                 if (errUpd) {
                     console.error(`❌ [ESTOQUE] Erro ao atualizar produto ${update.id}:`, errUpd);
-                    throw new Error(`Erro ao atualizar estoque: ${errUpd.message}`);
+                    errosAtualizacao.push({
+                        produto_id: update.id,
+                        erro: errUpd.message
+                    });
+                } else if (result && result.length > 0) {
+                    console.log(`  ✅ Produto atualizado:`, result[0]);
+                    produtosAtualizados++;
+                } else {
+                    console.warn(`  ⚠️ Produto não retornou dados após atualização:`, update.id);
+                    errosAtualizacao.push({
+                        produto_id: update.id,
+                        erro: 'Nenhum dado retornado da atualização'
+                    });
                 }
             }
 
-            console.log('✅ [ESTOQUE] Entrada de compra registrada com sucesso!');
+            if (errosAtualizacao.length > 0) {
+                console.error('❌ [ESTOQUE] Erros na atualização de produtos:', errosAtualizacao);
+                throw new Error(`Erro ao atualizar ${errosAtualizacao.length} produtos: ${errosAtualizacao.map(e => `${e.produto_id} (${e.erro})`).join(', ')}`);
+            }
+
+            console.log(`✅ [ESTOQUE] ${produtosAtualizados}/${atualizacoesProdutos.length} produtos atualizados com sucesso!`);
 
             return {
                 sucesso: true,
