@@ -5,7 +5,12 @@
 // Listar usuários
 async function listUsuarios(filters = {}) {
     try {
-        let query = supabase
+        if (!window.supabase) {
+            console.error('Supabase não inicializado');
+            return [];
+        }
+
+        let query = window.supabase
             .from('users')
             .select('*')
             .order('full_name');
@@ -24,10 +29,14 @@ async function listUsuarios(filters = {}) {
 
         const { data, error } = await query;
 
-        if (error) throw error;
+        if (error) {
+            console.error('Erro ao listar usuários:', error);
+            throw error;
+        }
         return data;
         
     } catch (error) {
+        console.error('Erro na função listUsuarios:', error);
         handleError(error, 'Erro ao listar usuários');
         return [];
     }
@@ -36,7 +45,7 @@ async function listUsuarios(filters = {}) {
 // Buscar usuário por ID
 async function getUsuario(id) {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('users')
             .select('*')
             .eq('id', id)
@@ -57,7 +66,7 @@ async function createUsuarioComSenha(email, password, usuarioData) {
         showLoading(true);
 
         // 1. Criar no Auth do Supabase
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await window.supabase.auth.signUp({
             email,
             password
         });
@@ -65,7 +74,7 @@ async function createUsuarioComSenha(email, password, usuarioData) {
         if (authError) throw authError;
 
         // 2. Inserir na tabela users
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('users')
             .insert([{
                 id: authData.user.id,
@@ -93,7 +102,7 @@ async function createUsuario(usuario) {
     try {
         showLoading(true);
 
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('users')
             .insert([usuario])
             .select()
@@ -117,7 +126,7 @@ async function updateUsuario(id, usuario) {
     try {
         showLoading(true);
 
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('users')
             .update(usuario)
             .eq('id', id)
@@ -146,7 +155,7 @@ async function deactivateUsuario(id) {
 
         showLoading(true);
 
-        const { error } = await supabase
+        const { error } = await window.supabase
             .from('users')
             .update({ ativo: false })
             .eq('id', id);
@@ -169,7 +178,7 @@ async function activateUsuario(id) {
     try {
         showLoading(true);
 
-        const { error } = await supabase
+        const { error } = await window.supabase
             .from('users')
             .update({ ativo: true })
             .eq('id', id);
@@ -190,7 +199,7 @@ async function activateUsuario(id) {
 // Listar aprovadores
 async function getAprovadores() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('users')
             .select('*')
             .eq('role', 'APROVADOR')

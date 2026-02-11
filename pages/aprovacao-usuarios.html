@@ -164,11 +164,14 @@
         let nomeUsuarioSelecionado = null;
 
         (async () => {
-            await checkAuth();
+            await aguardarClientePronto();
+
             
             // Verificar se é ADMIN
             const user = await getCurrentUser();
-            if (user.role !== 'ADMIN') {
+            const isAdmin = user && (user.role === 'ADMIN' || user.role === 'Administrador' || user.role === 'administrador' || user.role === 'ADMINISTRADOR');
+            
+            if (!isAdmin) {
                 showToast('Acesso negado. Apenas administradores podem acessar esta página.', 'error');
                 setTimeout(() => window.location.href = '/pages/dashboard.html', 2000);
                 return;
@@ -201,8 +204,10 @@
         async function loadUsuarios() {
             const usuarios = await listUsuarios();
             
-            const pendentes = usuarios.filter(u => !u.ativo);
-            const aprovados = usuarios.filter(u => u.ativo);
+            // Usuários pendentes: email confirmado mas não aprovados
+            const pendentes = usuarios.filter(u => u.email_confirmado && !u.approved);
+            // Usuários aprovados: aprovados e ativos
+            const aprovados = usuarios.filter(u => u.approved && u.ativo);
 
             // Atualizar estatísticas
             document.getElementById('stat-pendentes').textContent = pendentes.length;
@@ -297,7 +302,12 @@
             try {
                 const { error } = await window.supabase
                     .from('users')
-                    .update({ ativo: true })
+                    .update({ 
+                        ativo: true, 
+                        approved: true,
+                        approved_by: window.session.user.id,
+                        approved_at: new Date().toISOString()
+                    })
                     .eq('id', usuarioSelecionado);
 
                 if (error) throw error;
@@ -379,7 +389,10 @@
             try {
                 const { error } = await window.supabase
                     .from('users')
-                    .update({ ativo: false })
+                    .update({ 
+                        ativo: false,
+                        approved: false 
+                    })
                     .eq('id', id);
 
                 if (error) throw error;

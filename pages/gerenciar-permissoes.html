@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Permissões de Usuários</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-gray-50">
+    <div id="navbar"></div>
+    <div id="sidebar-container"></div>
+
+    <main class="lg:ml-64 pt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-900">
+                    <i class="fas fa-user-lock mr-4 text-blue-600"></i>Gerenciar Permissões de Usuários
+                </h1>
+                <p class="text-gray-600 mt-2">Configure quais módulos cada usuário da sua empresa pode acessar</p>
+            </div>
+
+            <!-- Lista de Usuários -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="border-b border-gray-200 px-6 py-4">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-users mr-2 text-blue-600"></i>Usuários da Empresa
+                    </h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Usuário</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Role</th>
+                                <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuarios-list" class="divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                                    <div class="spinner mx-auto mb-2"></div>
+                                    Carregando usuários...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal de Permissões do Usuário -->
+            <div id="modal-permissoes" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg max-w-3xl w-full max-h-96 overflow-y-auto border border-gray-200">
+                    <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+                        <div class="flex justify-between items-center">
+                            <h2 id="modal-titulo" class="text-xl font-semibold text-gray-900"></h2>
+                            <button onclick="fecharModal()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-semibold text-gray-700">Módulo</th>
+                                        <th class="px-4 py-2 text-center font-semibold text-gray-700">Acessar</th>
+                                        <th class="px-4 py-2 text-center font-semibold text-gray-700">Criar</th>
+                                        <th class="px-4 py-2 text-center font-semibold text-gray-700">Editar</th>
+                                        <th class="px-4 py-2 text-center font-semibold text-gray-700">Deletar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modulos-list" class="divide-y divide-gray-200">
+                                    <!-- Preenchido dinâmicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex justify-end gap-2 mt-6 sticky bottom-0 bg-white border-t border-gray-200 pt-4">
+                            <button onclick="fecharModal()" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
+                                Cancelar
+                            </button>
+                            <button onclick="salvarPermissoes()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <i class="fas fa-save mr-2"></i>Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-700">Processando...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/permissoes.js"></script>
+    <script src="../components/navbar.js"></script>
+    <script src="../components/sidebar.js"></script>
+
+    <script>
+        let usuariosData = [];
+        let modulosData = [];
+        let usuarioSelecionado = null;
+        let permissoesSelecionadas = {};
+
+        // Inicialização
+        (async () => {
+            try {
+                await aguardarClientePronto();
+
+                const user = await getCurrentUser();
+                console.log('Usuário atual:', user);
+                
+                // Verificar múltiplas variações de admin
+                const isAdmin = user && (user.role === 'ADMIN' || user.role === 'Administrador' || user.role === 'administrador' || user.role === 'ADMINISTRADOR');
+                
+                if (!isAdmin) {
+                    console.warn('Usuário sem permissão ADMIN. Role:', user?.role);
+                    showToast('Acesso negado. Apenas administradores podem gerenciar permissões.', 'error');
+                    setTimeout(() => window.location.href = '/pages/dashboard.html', 2000);
+                    return;
+                }
+
+                document.getElementById('navbar').innerHTML = createNavbar();
+                document.getElementById('sidebar-container').innerHTML = createSidebar();
+                await initNavbar();
+                await initSidebar();
+
+                await carregarDados();
+                renderizarUsuarios();
+            } catch (error) {
+                console.error('Erro ao inicializar:', error);
+                showToast('Erro ao carregar página de permissões: ' + error.message, 'error');
+                setTimeout(() => window.location.href = '/pages/dashboard.html', 2000);
+            }
+        })();
+
+        async function carregarDados() {
+            try {
+                showLoading(true);
+
+                // Carregar usuários com melhor tratamento de erro
+                let usuarios = [];
+                try {
+                    const { data, error } = await window.supabase
+                        .from('users')
+                        .select('id, email, full_name, role')
+                        .order('email');
+
+                    if (error) {
+                        console.error('Erro na query de usuários:', error);
+                        // Tentar com seleção mais simples
+                        const { data: data2, error: error2 } = await window.supabase
+                            .from('users')
+                            .select('*')
+                            .order('email');
+                        
+                        if (error2) {
+                            console.error('Erro na query simplificada:', error2);
+                            throw error;
+                        }
+                        usuarios = data2 || [];
+                    } else {
+                        usuarios = data || [];
+                    }
+                } catch (err) {
+                    console.error('Erro ao carregar usuários:', err);
+                    showToast('Erro ao carregar usuários: ' + err.message, 'error');
+                    usuarios = [];
+                }
+
+                usuariosData = usuarios;
+                console.log('Usuários carregados:', usuariosData.length);
+
+                // Carregar módulos
+                let modulos = [];
+                try {
+                    const { data, error } = await window.supabase
+                        .from('modulos')
+                        .select('*')
+                        .eq('ativo', true)
+                        .order('ordem');
+
+                    if (error) {
+                        console.error('Erro ao carregar módulos:', error);
+                        throw error;
+                    }
+                    modulos = data || [];
+                } catch (err) {
+                    console.error('Erro na função carregarDados (módulos):', err);
+                    showToast('Erro ao carregar módulos: ' + err.message, 'error');
+                    modulos = [];
+                }
+
+                modulosData = modulos;
+                console.log('Módulos carregados:', modulosData.length);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderizarUsuarios() {
+            const listDiv = document.getElementById('usuarios-list');
+
+            if (usuariosData.length === 0) {
+                listDiv.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                            Nenhum usuário cadastrado
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            listDiv.innerHTML = usuariosData.map(usuario => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium text-gray-900">${usuario.full_name || usuario.name || 'Sem nome'}</td>
+                    <td class="px-6 py-4 text-gray-600">${usuario.email}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            ${usuario.role || 'VENDEDOR'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="abrirModalPermissoes('${usuario.id}', '${usuario.email}')" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm">
+                            <i class="fas fa-edit mr-1"></i>Editar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function abrirModalPermissoes(usuarioId, userEmail) {
+            usuarioSelecionado = usuarioId;
+            permissoesSelecionadas = {};
+
+            document.getElementById('modal-titulo').textContent = `Permissões de ${userEmail}`;
+
+            let permissoes = [];
+            try {
+                const { data, error } = await window.supabase
+                    .from('usuarios_modulos')
+                    .select('*')
+                    .eq('usuario_id', usuarioId);
+
+                if (error) {
+                    console.error('Erro ao carregar permissões:', error);
+                } else {
+                    permissoes = data || [];
+                }
+            } catch (err) {
+                console.error('Erro na função abrirModalPermissoes:', err);
+                showToast('Erro ao carregar permissões do usuário: ' + err.message, 'error');
+            }
+
+            const permissoesMap = {};
+            (permissoes || []).forEach(p => {
+                permissoesMap[p.modulo_id] = p;
+            });
+
+            const listaDiv = document.getElementById('modulos-list');
+            listaDiv.innerHTML = modulosData.map(modulo => {
+                const perm = permissoesMap[modulo.id] || {
+                    pode_acessar: false,
+                    pode_criar: false,
+                    pode_editar: false,
+                    pode_deletar: false
+                };
+
+                return `
+                    <tr>
+                        <td class="px-4 py-3 font-medium text-gray-900">
+                            <i class="${modulo.icone || 'fas fa-circle'} mr-2 text-blue-600"></i>
+                            ${modulo.nome}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" ${perm.pode_acessar ? 'checked' : ''} 
+                                onchange="atualizarPermissao('${modulo.id}', 'pode_acessar', this.checked)"
+                                class="w-5 h-5 text-blue-600 rounded cursor-pointer">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" ${perm.pode_criar ? 'checked' : ''} 
+                                onchange="atualizarPermissao('${modulo.id}', 'pode_criar', this.checked)"
+                                class="w-5 h-5 text-green-600 rounded cursor-pointer">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" ${perm.pode_editar ? 'checked' : ''} 
+                                onchange="atualizarPermissao('${modulo.id}', 'pode_editar', this.checked)"
+                                class="w-5 h-5 text-yellow-600 rounded cursor-pointer">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" ${perm.pode_deletar ? 'checked' : ''} 
+                                onchange="atualizarPermissao('${modulo.id}', 'pode_deletar', this.checked)"
+                                class="w-5 h-5 text-red-600 rounded cursor-pointer">
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('modal-permissoes').classList.remove('hidden');
+        }
+
+        function atualizarPermissao(moduloId, acao, valor) {
+            if (!permissoesSelecionadas[moduloId]) {
+                permissoesSelecionadas[moduloId] = {
+                    modulo_id: moduloId,
+                    pode_acessar: false,
+                    pode_criar: false,
+                    pode_editar: false,
+                    pode_deletar: false
+                };
+            }
+            permissoesSelecionadas[moduloId][acao] = valor;
+        }
+
+        async function salvarPermissoes() {
+            if (!usuarioSelecionado) return;
+
+            try {
+                showLoading(true);
+
+                for (const modulo of modulosData) {
+                    const perm = permissoesSelecionadas[modulo.id] || {
+                        pode_acessar: false,
+                        pode_criar: false,
+                        pode_editar: false,
+                        pode_deletar: false
+                    };
+
+                    const { data: existe } = await window.supabase
+                        .from('usuarios_modulos')
+                        .select('id')
+                        .eq('usuario_id', usuarioSelecionado)
+                        .eq('modulo_id', modulo.id)
+                        .maybeSingle();
+
+                    if (existe) {
+                        await window.supabase
+                            .from('usuarios_modulos')
+                            .update({
+                                pode_acessar: perm.pode_acessar,
+                                pode_criar: perm.pode_criar,
+                                pode_editar: perm.pode_editar,
+                                pode_deletar: perm.pode_deletar
+                            })
+                            .eq('id', existe.id);
+                    } else {
+                        await window.supabase
+                            .from('usuarios_modulos')
+                            .insert([{
+                                usuario_id: usuarioSelecionado,
+                                modulo_id: modulo.id,
+                                pode_acessar: perm.pode_acessar,
+                                pode_criar: perm.pode_criar,
+                                pode_editar: perm.pode_editar,
+                                pode_deletar: perm.pode_deletar
+                            }]);
+                    }
+                }
+
+                showToast('Permissões salvas com sucesso!', 'success');
+                fecharModal();
+                await carregarDados();
+                renderizarUsuarios();
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                showToast('Erro ao salvar permissões: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modal-permissoes').classList.add('hidden');
+            usuarioSelecionado = null;
+            permissoesSelecionadas = {};
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+        }
+    </script>
+</body>
+</html>

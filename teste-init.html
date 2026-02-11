@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Supabase Init</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">🔍 Status Supabase</h1>
+        
+        <div id="status" class="p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6">
+            <p class="text-blue-800">⏳ Carregando...</p>
+        </div>
+
+        <pre id="debug" class="p-4 bg-gray-900 text-green-400 rounded-lg text-sm overflow-auto max-h-96 font-mono"></pre>
+
+        <div class="mt-6 space-y-2">
+            <button 
+                onclick="verificarStatus()" 
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+                🔄 Verificar Status
+            </button>
+            <button 
+                onclick="irParaDashboard()" 
+                class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+            >
+                ➜ Ir para Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const debugDiv = document.getElementById('debug');
+
+        function log(msg) {
+            debugDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function verificarStatus() {
+            debugDiv.textContent = '';
+            statusDiv.className = 'p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6';
+            statusDiv.innerHTML = '<p class="text-blue-800">⏳ Verificando...</p>';
+
+            log('=== VERIFICAÇÃO SUPABASE ===\n');
+            
+            // Aguardar config.js estar pronto
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Verificar biblioteca
+            log(`✓ Biblioteca Supabase (supabaseLib): ${!!supabaseLib}`);
+            log(`✓ Cliente Central (supabaseCentral): ${!!supabaseCentral}`);
+            log(`✓ Cliente Empresa (CURRENT_SUPABASE): ${!!CURRENT_SUPABASE}`);
+            log(`✓ window.supabase: ${!!window.supabase}\n`);
+
+            if (CURRENT_EMPRESA) {
+                log(`🏢 Empresa Carregada: ${CURRENT_EMPRESA.nome}`);
+                log('✅ Cliente da empresa está ATIVO\n');
+            } else {
+                log('ℹ️ Nenhuma empresa carregada');
+                log('   (Esperado se não fez login ainda)\n');
+            }
+
+            // Testar método .from()
+            try {
+                if (!window.supabase?.from) {
+                    throw new Error('window.supabase.from não é uma função');
+                }
+                
+                log('🧪 Testando window.supabase.from()');
+                log('✅ SUCESSO: window.supabase.from() está funcionando!\n');
+                
+                statusDiv.className = 'p-4 rounded-lg bg-green-50 border border-green-200 mb-6';
+                statusDiv.innerHTML = '<p class="text-green-800">✅ Cliente Supabase PRONTO</p>';
+                
+            } catch (e) {
+                log(`❌ ERRO: ${e.message}\n`);
+                
+                if (supabaseCentral?.from) {
+                    log('ℹ️ Banco central está funcionando');
+                    log('   Carregue empresa para ativar cliente específico\n');
+                    
+                    statusDiv.className = 'p-4 rounded-lg bg-yellow-50 border border-yellow-200 mb-6';
+                    statusDiv.innerHTML = '<p class="text-yellow-800">⚠️ Banco central OK, faça login</p>';
+                } else {
+                    statusDiv.className = 'p-4 rounded-lg bg-red-50 border border-red-200 mb-6';
+                    statusDiv.innerHTML = '<p class="text-red-800">❌ Erro ao inicializar</p>';
+                }
+            }
+        }
+
+        async function irParaDashboard() {
+            await verificarStatus();
+            if (window.supabase?.from) {
+                setTimeout(() => {
+                    window.location.href = 'pages/dashboard.html';
+                }, 1000);
+            } else {
+                alert('⚠️ Cliente não está pronto. Faça login primeiro em http://localhost:8000/index.html');
+            }
+        }
+
+        // Verificar automaticamente ao carregar
+        window.addEventListener('load', () => {
+            log('📄 Página carregada\n');
+            setTimeout(verificarStatus, 500);
+        });
+    </script>
+</body>
+</html>

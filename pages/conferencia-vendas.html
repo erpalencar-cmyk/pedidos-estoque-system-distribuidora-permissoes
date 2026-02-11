@@ -274,6 +274,7 @@
 
         (async () => {
             // Verificar autenticação
+            await aguardarClientePronto();
             await checkAuth();
             currentUser = await getCurrentUser();
             document.getElementById('navbar').innerHTML = createNavbar();

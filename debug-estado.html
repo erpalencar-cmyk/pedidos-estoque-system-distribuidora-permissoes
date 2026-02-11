@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Estado do Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🔍 Debug: Estado do Supabase</h1>
+        
+        <div id="status" class="p-4 rounded-lg bg-blue-900 border border-blue-700 mb-6">
+            <p>⏳ Carregando...</p>
+        </div>
+
+        <pre id="debug" class="p-4 bg-gray-800 rounded text-green-400 font-mono text-sm overflow-auto max-h-96 border border-gray-700"></pre>
+
+        <div class="mt-6 space-y-2">
+            <button onclick="verificarStatus()" class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">
+                🔄 Verificar Agora
+            </button>
+            <button onclick="irParaProdutos()" class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                ➜ Ir para Produtos
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        const debugDiv = document.getElementById('debug');
+        const statusDiv = document.getElementById('status');
+
+        function log(msg) {
+            debugDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function verificarStatus() {
+            debugDiv.textContent = '';
+            statusDiv.innerHTML = '<p>⏳ Verificando...</p>';
+
+            log('=== VERIFICAÇÃO DO ESTADO SUPABASE ===\n');
+            
+            // Aguardar um pouco para config.js processar
+            await new Promise(r => setTimeout(r, 500));
+
+            // Verificações básicas
+            log(`✓ supabaseLib: ${!!supabaseLib}`);
+            log(`✓ supabaseCentral: ${!!supabaseCentral}`);
+            log(`✓ CURRENT_SUPABASE: ${!!CURRENT_SUPABASE}`);
+            log(`✓ CURRENT_EMPRESA: ${!!CURRENT_EMPRESA}`);
+            log(`✓ window.supabase: ${!!window.supabase}`);
+            log(`✓ window.supabase.from: ${typeof window.supabase?.from}\n`);
+
+            if (CURRENT_EMPRESA) {
+                log(`🏢 Empresa em Memória: ${CURRENT_EMPRESA.nome}`);
+                log(`🆔 ID: ${CURRENT_EMPRESA.id}`);
+                log(`🔗 URL: ${CURRENT_EMPRESA.supabase_url}\n`);
+            } else {
+                log('⚠️ Nenhuma empresa em memória\n');
+            }
+
+            // Testar window.supabase.from()
+            try {
+                if (!window.supabase?.from || typeof window.supabase.from !== 'function') {
+                    throw new Error('window.supabase.from não é uma função');
+                }
+                
+                log('🧪 Testando window.supabase.from()');
+                log('✅ SUCESSO! window.supabase.from() está funcionando\n');
+                
+                statusDiv.innerHTML = '<p class="text-green-300">✅ Sistema Pronto - window.supabase.from() funciona</p>';
+                return;
+            } catch (e) {
+                log(`❌ ERRO: ${e.message}\n`);
+                
+                if (supabaseCentral?.from) {
+                    log('ℹ️ supabaseCentral.from() funciona');
+                    log('   Mas window.supabase.from() não');
+                    log('   → Empresa não foi restaurada do localStorage\n');
+                    
+                    statusDiv.innerHTML = '<p class="text-yellow-300">⚠️ Empresa não carregada - Faça login primeiro</p>';
+                } else {
+                    statusDiv.innerHTML = '<p class="text-red-300">❌ Erro ao inicializar</p>';
+                }
+            }
+        }
+
+        async function irParaProdutos() {
+            await verificarStatus();
+            if (window.supabase?.from) {
+                setTimeout(() => {
+                    window.location.href = 'pages/produtos.html';
+                }, 1000);
+            } else {
+                alert('❌ window.supabase.from não está funcionando. Verifique o console.');
+            }
+        }
+
+        // Verificar automaticamente ao carregar
+        window.addEventListener('load', () => {
+            setTimeout(verificarStatus, 500);
+        });
+    </script>
+</body>
+</html>

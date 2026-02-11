@@ -14,13 +14,6 @@ async function login(email, password) {
 
         if (error) throw error;
 
-        // Verificar se o email foi confirmado
-        if (!data.user.email_confirmed_at) {
-            await window.supabase.auth.signOut();
-            showToast('❌ Você precisa confirmar seu email antes de fazer login! Verifique sua caixa de entrada.', 'error', 6000);
-            return;
-        }
-
         showToast('Login realizado com sucesso!', 'success');
         redirect('/pages/dashboard.html');
         
@@ -51,16 +44,19 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
             throw authError;
         }
 
-        // Criar registro na tabela users (PENDENTE DE APROVAÇÃO)
+        // Criar registro na tabela users (JÁ ATIVO)
         const { error: userError } = await window.supabase
             .from('users')
             .insert([{
                 id: authData.user.id,
-                email,
+                email: email,
                 full_name: fullName,
+                nome_completo: fullName,
                 role: role,
                 whatsapp: whatsapp,
-                active: false
+                ativo: true,
+                email_confirmado: true,
+                approved: true
             }]);
 
         if (userError) {
@@ -68,16 +64,19 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
             if (userError.message.includes('duplicate key') || 
                 userError.message.includes('users_email_key') ||
                 userError.message.includes('users_pkey')) {
-                // Usuário já está cadastrado, apenas mostrar o modal de confirmação
-                console.log('Usuário já existe na tabela users, mostrando modal de confirmação');
+                // Usuário já está cadastrado
+                console.log('Usuário já existe na tabela users');
             } else {
                 // Outro erro, lançar exceção
                 throw userError;
             }
         }
 
-        // Mostrar modal de confirmação de email
-        showEmailConfirmationModal(email);
+        // Mostrar sucesso e redirecionar para login
+        showToast('✅ Cadastro realizado com sucesso! Você será redirecionado para login.', 'success');
+        setTimeout(() => {
+            redirect('../index.html');
+        }, 2000);
         
     } catch (error) {
         // Se for erro customizado (mensagem em português), mostrar direto
@@ -89,71 +88,6 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
     } finally {
         showLoading(false);
     }
-}
-
-// Mostrar modal de confirmação de email
-function showEmailConfirmationModal(email) {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    modal.innerHTML = `
-        <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-8">
-            <div class="text-center">
-                <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">📧 Verifique seu Email AGORA!</h2>
-                
-                <div class="bg-green-100 border-l-4 border-green-600 p-4 mb-6 text-left">
-                    <p class="text-sm text-green-900 mb-3">
-                        <strong class="text-lg">✅ PASSO 1: CONFIRME SEU EMAIL</strong>
-                    </p>
-                    <p class="text-sm text-green-800 mb-2">
-                        Enviamos um email de confirmação para:
-                    </p>
-                    <p class="text-green-900 font-bold break-all">${email}</p>
-                </div>
-
-                <div class="space-y-3 text-left mb-6 bg-white border-2 border-green-500 p-4 rounded-lg">
-                    <p class="text-gray-800 font-semibold mb-3">
-                        ⚡ Ações imediatas:
-                    </p>
-                    <p class="text-gray-700">
-                        <strong class="text-green-600">1.</strong> Abra sua caixa de entrada <strong>AGORA</strong>
-                    </p>
-                    <p class="text-gray-700">
-                        <strong class="text-green-600">2.</strong> Procure por um email com assunto <em>"Confirme seu cadastro"</em>
-                    </p>
-                    <p class="text-gray-700">
-                        <strong class="text-green-600">3.</strong> Clique no link <strong>"Confirmar Email"</strong>
-                    </p>
-                    <p class="text-sm text-gray-600 italic mt-2">
-                        💡 Verifique a pasta <strong>SPAM</strong> se não encontrar
-                    </p>
-                </div>
-
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-left">
-                    <p class="text-sm text-blue-900 mb-2">
-                        <strong class="text-lg">⏳ PASSO 2: AGUARDE APROVAÇÃO</strong>
-                    </p>
-                    <p class="text-sm text-blue-800">
-                        Após confirmar seu email, sua conta ficará <strong>pendente de aprovação</strong> do administrador. Você receberá uma notificação quando for aprovado.
-                    </p>
-                </div>
-
-                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 text-left">
-                    <p class="text-sm text-yellow-800">
-                        <strong>⚠️ Atenção:</strong> O link de confirmação expira em 24 horas. Se não confirmar, será necessário fazer um novo cadastro.
-                    </p>
-                </div>
-                <button onclick="window.location.href='/index.html'" class="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 transition">
-                    Ir para Login
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
 }
 
 // Fazer logout

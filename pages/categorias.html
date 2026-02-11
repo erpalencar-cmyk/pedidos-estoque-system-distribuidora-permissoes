@@ -109,6 +109,7 @@
 
         (async () => {
             try {
+                await aguardarClientePronto();
                 await checkAuth();
                 document.getElementById('navbar').innerHTML = createNavbar();
                 document.getElementById('sidebar-container').innerHTML = createSidebar();

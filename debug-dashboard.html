@@ -1,0 +1,108 @@
+<!-- Debug Page para Verificar Cliente Supabase no Dashboard -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">🔍 Debug Dashboard</h1>
+        
+        <div id="status" class="p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6">
+            <p class="text-blue-800">⏳ Carregando...</p>
+        </div>
+
+        <pre id="debug" class="p-4 bg-gray-900 text-green-400 rounded-lg text-sm overflow-auto max-h-96 font-mono"></pre>
+
+        <div class="mt-6 space-y-2">
+            <button 
+                onclick="verificarStatus()" 
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+                🔄 Verificar Status Agora
+            </button>
+            <button 
+                onclick="irParaDashboard()" 
+                class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+            >
+                ➜ Ir para Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        const debugDiv = document.getElementById('debug');
+        const statusDiv = document.getElementById('status');
+
+        function log(msg) {
+            debugDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function verificarStatus() {
+            debugDiv.textContent = '';
+            statusDiv.className = 'p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6';
+            statusDiv.innerHTML = '<p class="text-blue-800">⏳ Verificando...</p>';
+
+            log('=== DEBUG DASHBOARD ===\n');
+
+            // Timeout para dar tempo ao config.js inicializar
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Verificar variáveis globais
+            log(`✓ supabaseCentral existe: ${!!supabaseCentral}`);
+            log(`✓ CURRENT_SUPABASE existe: ${!!CURRENT_SUPABASE}`);
+            log(`✓ CURRENT_EMPRESA existe: ${!!CURRENT_EMPRESA}`);
+            log(`✓ window.supabase existe: ${!!window.supabase}\n`);
+
+            if (CURRENT_EMPRESA) {
+                log(`🏢 Empresa: ${CURRENT_EMPRESA.nome}`);
+                log(`🔗 URL: ${CURRENT_EMPRESA.supabase_url}\n`);
+            } else {
+                log('❌ Nenhuma empresa carregada!\n');
+            }
+
+            // Tentar usar window.supabase
+            try {
+                log('🧪 Testando window.supabase.from()...');
+                const test = window.supabase?.from;
+                if (test) {
+                    log('✅ window.supabase.from() disponível!\n');
+                    statusDiv.className = 'p-4 rounded-lg bg-green-50 border border-green-200 mb-6';
+                    statusDiv.innerHTML = '<p class="text-green-800">✅ Dashboard pronto!</p>';
+                } else {
+                    log('❌ window.supabase.from() NÃO disponível\n');
+                    statusDiv.className = 'p-4 rounded-lg bg-red-50 border border-red-200 mb-6';
+                    statusDiv.innerHTML = '<p class="text-red-800">❌ Cliente não inicializado</p>';
+                }
+            } catch (e) {
+                log(`❌ Erro: ${e.message}\n`);
+                statusDiv.className = 'p-4 rounded-lg bg-red-50 border border-red-200 mb-6';
+                statusDiv.innerHTML = `<p class="text-red-800">❌ ${e.message}</p>`;
+            }
+        }
+
+        async function irParaDashboard() {
+            await verificarStatus();
+            if (window.supabase?.from) {
+                setTimeout(() => {
+                    window.location.href = 'pages/dashboard.html';
+                }, 1000);
+            }
+        }
+
+        // Verificar automaticamente ao carregar
+        window.addEventListener('load', () => {
+            log('📄 Página carregada\n');
+            setTimeout(verificarStatus, 500);
+        });
+    </script>
+</body>
+</html>

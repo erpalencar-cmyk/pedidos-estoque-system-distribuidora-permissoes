@@ -287,6 +287,10 @@
             try {
                 await checkAuth();
                 
+                // Garantir que o cliente Supabase está pronto ANTES de qualquer operação
+                await aguardarClientePronto();
+                console.log('✅ Cliente Supabase pronto, empresa:', CURRENT_EMPRESA?.nome);
+                
                 // Renderizar navbar e sidebar
                 document.getElementById('navbar').innerHTML = createNavbar();
                 document.getElementById('sidebar-container').innerHTML = createSidebar();

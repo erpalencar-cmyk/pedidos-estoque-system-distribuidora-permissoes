@@ -282,6 +282,7 @@
         }
 
         (async () => {
+            await aguardarClientePronto();
             await checkAuth();
             currentUser = await getCurrentUser();
             

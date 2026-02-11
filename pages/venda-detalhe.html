@@ -1048,9 +1048,10 @@
             
             // Controle de visibilidade do botão editar observações
             const btnEditarObs = document.getElementById('btn-editar-obs-venda');
-            if (venda.status_venda === 'RASCUNHO' && (venda.operador_id === currentUser.id || currentUser.role === 'ADMIN')) {
+            const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'Administrador' || currentUser.role === 'administrador';
+            if (venda.status_venda === 'RASCUNHO' && (venda.operador_id === currentUser.id || isAdmin)) {
                 btnEditarObs.classList.remove('hidden');
-            } else if (currentUser.role === 'ADMIN') {
+            } else if (isAdmin) {
                 btnEditarObs.classList.remove('hidden');
             } else {
                 btnEditarObs.classList.add('hidden');
@@ -1242,7 +1243,7 @@
             // Verificar status em ambos os campos
             const statusAtual = (venda.status || venda.status_venda || '').toUpperCase();
             const isRascunho = statusAtual === 'RASCUNHO';
-            const isAdmin = currentUser.role === 'ADMIN';
+            const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'Administrador' || currentUser.role === 'administrador';
             const isProprietario = venda.operador_id === currentUser.id;
             
             console.log('statusAtual:', statusAtual);
@@ -1255,7 +1256,8 @@
             console.log('podeEditar:', podeEditar);
             
             // Permite finalizar vendas em RASCUNHO (novo fluxo) ou APROVADO (pedidos antigos já aprovados)
-            const podeFinalizar = ['RASCUNHO', 'APROVADO'].includes(statusAtual) && ['ADMIN', 'VENDEDOR'].includes(currentUser.role);
+            const isVendador = currentUser.role === 'VENDEDOR';
+            const podeFinalizar = ['RASCUNHO', 'APROVADO'].includes(statusAtual) && (isAdmin || isVendedor);
             
             if (podeEditar) {
                 document.getElementById('btn-add-item').style.display = 'block';
@@ -1278,7 +1280,7 @@
             }
             
             // Botão para registrar pagamento (vendas finalizadas com saldo pendente)
-            if (venda.status_venda === 'FINALIZADO' && venda.pagamento_status !== 'PAGO' && ['ADMIN', 'VENDEDOR'].includes(currentUser.role)) {
+            if (venda.status_venda === 'FINALIZADO' && venda.pagamento_status !== 'PAGO' && (isAdmin || isVendedor)) {
                 const pendente = (venda.total || 0) - (venda.valor_pago || 0);
                 if (pendente > 0) {
                     botoes.push(`<button onclick="abrirModalPagamento()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700">💰 Registrar Pagamento</button>`);
@@ -1299,12 +1301,12 @@
             console.log('Condição:', isFinalizada && currentUser.role === 'ADMIN');
             console.log('================================');
             
-            if (isFinalizada && currentUser.role === 'ADMIN') {
+            if (isFinalizada && isAdmin) {
                 botoes.push('<button onclick="openModal(\'modal-cancelar\')" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">🚫 Cancelar Venda</button>');
             }
             
             // Botão de emitir nota fiscal para vendas finalizadas sem nota
-            if (isFinalizada && ['ADMIN', 'VENDEDOR'].includes(currentUser.role)) {
+            if (isFinalizada && (isAdmin || isVendedor)) {
                 if (!venda.nfce_referencia && !venda.status_fiscal) {
                     botoes.push('<button onclick="emitirNotaFiscal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">📄 Emitir NFC-e</button>');
                 } else if (venda.nfce_referencia || venda.status_fiscal === 'EMITIDA_NFCE') {

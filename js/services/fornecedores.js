@@ -5,6 +5,15 @@
 // Listar fornecedores
 async function listFornecedores(filters = {}) {
     try {
+        // Garantir que window.supabase está pronto
+        if (!window.supabase || typeof window.supabase.from !== 'function') {
+            if (typeof aguardarClientePronto === 'function') {
+                await aguardarClientePronto();
+            } else {
+                throw new Error('Cliente Supabase não disponível');
+            }
+        }
+        
         let query = window.supabase
             .from('fornecedores')
             .select('*')

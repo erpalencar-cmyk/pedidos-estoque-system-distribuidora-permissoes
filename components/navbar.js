@@ -42,6 +42,15 @@ function createNavbar() {
 }
 
 async function initNavbar() {
+    try {
+        // Garantir que o cliente Supabase está pronto
+        if (typeof aguardarClientePronto === 'function') {
+            await aguardarClientePronto();
+        }
+    } catch (e) {
+        console.warn('⚠️ Cliente Supabase não ficou pronto em initNavbar:', e.message);
+    }
+    
     const user = await getCurrentUser();
     if (user) {
         const userNameEl = document.getElementById('user-name');

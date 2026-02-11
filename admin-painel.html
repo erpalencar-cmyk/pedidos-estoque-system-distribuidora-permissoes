@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Gerenciar Empresas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <div class="bg-gray-800 border-b border-gray-700 p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold">⚙️ Painel Admin</h1>
+                <p class="text-gray-400 mt-1">Gerenciamento de Empresas</p>
+            </div>
+            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-sign-out-alt"></i> Sair
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Alert -->
+        <div id="alert" class="hidden mb-6 p-4 rounded-lg"></div>
+
+        <!-- Button Adicionar Empresa -->
+        <div class="mb-6">
+            <button 
+                onclick="mostrarFormNovaEmpresa()" 
+                class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+            >
+                <i class="fas fa-plus"></i> Adicionar Nova Empresa
+            </button>
+        </div>
+
+        <!-- Modal Nova Empresa -->
+        <div id="modalNovaEmpresa" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full border border-gray-700">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fas fa-building text-green-500"></i> Nova Empresa
+                </h2>
+
+                <form id="formNovaEmpresa" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Nome da Empresa</label>
+                        <input 
+                            type="text" 
+                            id="nomeEmpresa" 
+                            required 
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                            placeholder="Ex: Distribuidora XYZ"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">CNPJ</label>
+                        <input 
+                            type="text" 
+                            id="cnpjEmpresa" 
+                            required 
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                            placeholder="Ex: 12.345.678/0001-99"
+                            maxlength="18"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">URL Supabase da Empresa</label>
+                        <input 
+                            type="url" 
+                            id="urlEmpresa" 
+                            required 
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                            placeholder="Ex: https://xxxxx.supabase.co"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Chave Anon Supabase</label>
+                        <textarea 
+                            id="keyEmpresa" 
+                            required 
+                            rows="3"
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white font-mono text-sm"
+                            placeholder="Cole a chave pública aqui"
+                        ></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">URL do Logo (Opcional)</label>
+                        <input 
+                            type="url" 
+                            id="logoEmpresa" 
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                            placeholder="Ex: https://..."
+                        >
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button 
+                            type="submit" 
+                            class="flex-1 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold"
+                        >
+                            <i class="fas fa-save mr-2"></i> Salvar Empresa
+                        </button>
+                        <button 
+                            type="button" 
+                            onclick="fecharModal()" 
+                            class="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-semibold"
+                        >
+                            <i class="fas fa-times mr-2"></i> Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Empresas -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div class="p-6 border-b border-gray-700">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-list text-blue-500"></i> Empresas Cadastradas
+                </h2>
+            </div>
+
+            <div id="listaEmpresas" class="divide-y divide-gray-700">
+                <div class="p-6 text-center text-gray-400">⏳ Carregando empresas...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+            <p class="mt-4 text-gray-300">Processando...</p>
+        </div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        const alert = document.getElementById('alert');
+        const loading = document.getElementById('loading');
+        const modalNovaEmpresa = document.getElementById('modalNovaEmpresa');
+        const formNovaEmpresa = document.getElementById('formNovaEmpresa');
+        const listaEmpresas = document.getElementById('listaEmpresas');
+
+        // Verificar autenticação
+        (async () => {
+            try {
+                await new Promise(r => setTimeout(r, 300)); // Aguardar config.js
+                
+                const { data: { session } } = await supabaseCentral.auth.getSession();
+                if (!session) {
+                    window.location.href = 'pages/admin-login.html';
+                    return;
+                }
+
+                console.log(`✅ Admin autenticado: ${session.user.email}`);
+                carregarEmpresas();
+            } catch (error) {
+                console.error('Erro ao verificar sessão:', error);
+                window.location.href = 'pages/admin-login.html';
+            }
+        })();
+
+        function mostrarAlerta(msg, tipo) {
+            alert.className = 'p-4 rounded-lg';
+            if (tipo === 'error') {
+                alert.className += ' bg-red-900 border border-red-700 text-red-200';
+            } else if (tipo === 'success') {
+                alert.className += ' bg-green-900 border border-green-700 text-green-200';
+            } else {
+                alert.className += ' bg-blue-900 border border-blue-700 text-blue-200';
+            }
+            alert.innerHTML = msg;
+            alert.classList.remove('hidden');
+            setTimeout(() => alert.classList.add('hidden'), 5000);
+        }
+
+        function mostrarFormNovaEmpresa() {
+            modalNovaEmpresa.classList.remove('hidden');
+        }
+
+        function fecharModal() {
+            modalNovaEmpresa.classList.add('hidden');
+            formNovaEmpresa.reset();
+        }
+
+        async function carregarEmpresas() {
+            try {
+                const { data, error } = await supabaseCentral
+                    .from('empresas')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    listaEmpresas.innerHTML = `
+                        <div class="p-6 text-center text-gray-400">
+                            <i class="fas fa-building text-gray-600 text-4xl mb-2"></i>
+                            <p class="mt-2">Nenhuma empresa cadastrada</p>
+                            <p class="text-sm mt-1">Clique em "Adicionar Nova Empresa" para começar</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listaEmpresas.innerHTML = data.map(empresa => `
+                    <div class="p-6 hover:bg-gray-700 transition">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold flex items-center gap-2">
+                                    ${empresa.logo_url ? `<img src="${empresa.logo_url}" alt="" class="h-8 w-8 rounded">` : '<i class="fas fa-building text-blue-500"></i>'}
+                                    ${empresa.nome}
+                                </h3>
+                                <p class="text-gray-400 text-sm">CNPJ: ${empresa.cnpj}</p>
+                            </div>
+                            <button 
+                                onclick="deletarEmpresa('${empresa.id}')" 
+                                class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm flex items-center gap-2"
+                            >
+                                <i class="fas fa-trash"></i> Deletar
+                            </button>
+                        </div>
+                        <div class="text-gray-400 text-sm space-y-1">
+                            <p><strong>URL:</strong> <code class="bg-gray-900 px-2 py-1 rounded text-xs">${empresa.supabase_url}</code></p>
+                            <p><strong>Chave:</strong> <code class="bg-gray-900 px-2 py-1 rounded text-xs">${empresa.supabase_anon_key.substring(0, 20)}...</code></p>
+                            ${empresa.logo_url ? `<p><strong>Logo:</strong> <a href="${empresa.logo_url}" target="_blank" class="text-blue-400 hover:underline">Ver</a></p>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar empresas:', error);
+                listaEmpresas.innerHTML = `<div class="p-6 text-red-400">❌ Erro: ${error.message}</div>`;
+            }
+        }
+
+        formNovaEmpresa.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('nomeEmpresa').value.trim();
+            const cnpj = document.getElementById('cnpjEmpresa').value.trim();
+            const url = document.getElementById('urlEmpresa').value.trim();
+            const key = document.getElementById('keyEmpresa').value.trim();
+            const logo = document.getElementById('logoEmpresa').value.trim();
+
+            if (!nome || !cnpj || !url || !key) {
+                mostrarAlerta('❌ Preencha todos os campos obrigatórios', 'error');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            try {
+                const { data, error } = await supabaseCentral
+                    .from('empresas')
+                    .insert([{
+                        nome,
+                        cnpj,
+                        supabase_url: url,
+                        supabase_anon_key: key,
+                        logo_url: logo || null
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                mostrarAlerta(`✅ Empresa "${nome}" criada com sucesso!`, 'success');
+                fecharModal();
+                carregarEmpresas();
+            } catch (error) {
+                console.error('Erro ao criar empresa:', error);
+                mostrarAlerta(`❌ Erro: ${error.message}`, 'error');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
+
+        async function deletarEmpresa(empresaId) {
+            if (!confirm('Tem certeza que deseja deletar esta empresa? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            try {
+                const { error } = await supabaseCentral
+                    .from('empresas')
+                    .delete()
+                    .eq('id', empresaId);
+
+                if (error) throw error;
+
+                mostrarAlerta('✅ Empresa deletada com sucesso', 'success');
+                carregarEmpresas();
+            } catch (error) {
+                console.error('Erro ao deletar empresa:', error);
+                mostrarAlerta(`❌ Erro: ${error.message}`, 'error');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        async function logout() {
+            try {
+                await supabaseCentral.auth.signOut();
+                window.location.href = 'pages/admin-login.html';
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -150,90 +150,140 @@ function redirect(url) {
 // Verificar se está autenticado
 async function checkAuth() {
     try {
+        // Garantir que o Supabase está pronto antes de usar
+        if (!window.supabase || typeof window.supabase.auth !== 'object') {
+            console.warn('⏳ Supabase não inicializado ainda, aguardando...');
+            if (typeof aguardarClientePronto === 'function') {
+                await aguardarClientePronto();
+            } else {
+                // Fallback: aguardar um pouco
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
         if (!window.supabase) {
-            console.warn('Supabase não inicializado, aguardando...');
+            console.warn('❌ Supabase indisponível após aguardar');
             redirect('/index.html');
             return null;
         }
 
-        const { data: { session } } = await window.supabase.auth.getSession();
+        // Apenas verificar se há sessão válida
+        // NÃO fazer nenhuma query ao banco - isso está causando erro 406
+        const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
+        
+        if (sessionError) {
+            console.warn('⚠️ Erro ao obter sessão:', sessionError.message);
+            redirect('/index.html');
+            return null;
+        }
+
         if (!session) {
+            console.log('⏳ Sem sessão ativa');
             redirect('/index.html');
             return null;
         }
 
-        // Verificar se o usuário está ativo na tabela users
-        const { data: userData, error } = await window.supabase
-            .from('users')
-            .select('ativo')
-            .eq('id', session.user.id)
-            .single();
-
-        if (error) {
-            console.error('Erro ao verificar status do usuário:', error);
-            try {
-                await window.supabase.auth.signOut();
-            } catch (e) {
-                console.warn('Erro ao fazer logout:', e);
+        console.log('✅ Sessão válida para:', session.user.email);
+        
+        // ⚡ IMPORTANTE: Se usuário existe em auth mas não em public.users, criar automaticamente
+        // Isso resolve problema de usuários "órfãos" em auth.users sem registro em public.users
+        try {
+            // Verificar se usuário existe em public.users (usando maybeSingle para não errar)
+            const { data: userExists, error: checkError } = await window.supabase
+                .from('users')
+                .select('id')
+                .eq('id', session.user.id)
+                .maybeSingle();
+            
+            // Se usuário não existe, criar automaticamente
+            if (!userExists && !checkError) {
+                console.log('⚠️ Usuário existe em Auth mas não em public.users, criando automaticamente...');
+                await window.supabase
+                    .from('users')
+                    .insert([{
+                        id: session.user.id,
+                        email: session.user.email,
+                        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                        nome_completo: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                        role: 'ESTOQUISTA',  // role padrão
+                        ativo: true,
+                        email_confirmado: true,
+                        approved: true
+                    }]);
+                console.log('✅ Registro de usuário criado automaticamente');
             }
-            redirect('/index.html');
-            return null;
+        } catch (syncError) {
+            // Não bloqueia login se não conseguir sincronizar
+            console.warn('⚠️ Não conseguiu sincronizar usuário (continuando):', syncError.message);
         }
-
-        // Se o usuário não estiver ativo, fazer logout e redirecionar
-        if (!userData || !userData.ativo) {
-            try {
-                await window.supabase.auth.signOut();
-            } catch (e) {
-                console.warn('Erro ao fazer logout:', e);
-            }
-            showToast('⏳ Sua conta está aguardando aprovação do administrador. Você será notificado quando for aprovada.', 'warning', 6000);
-            setTimeout(() => {
-                redirect('/index.html');
-            }, 2000);
-            return null;
-        }
-
+        
         return session;
-    } catch (storageError) {
-        console.warn('Erro de acesso ao storage:', storageError);
-        // Em contexto de sandbox, continuar sem verificação rigorosa
-        return { user: { id: 'mock-user' } };
+
+    } catch (error) {
+        console.error('❌ Erro em checkAuth:', error.message);
+        // Em qualquer erro, redirecionar para login
+        redirect('/index.html');
+        return null;
     }
 }
 
 // Obter usuário atual
 async function getCurrentUser() {
     try {
-        if (!window.supabase) {
-            console.warn('Supabase não inicializado para getCurrentUser');
+        // Garantir que o Supabase está pronto
+        if (!window.supabase || typeof window.supabase.from !== 'function') {
+            console.warn('Supabase não inicializado para getCurrentUser, aguardando...');
+            if (typeof aguardarClientePronto === 'function') {
+                await aguardarClientePronto();
+            } else {
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
+        if (!window.supabase || typeof window.supabase.from !== 'function') {
+            console.warn('Supabase indisponível após aguardar em getCurrentUser');
             return null;
         }
 
         const { data: { session } } = await window.supabase.auth.getSession();
         if (!session) return null;
 
-        const { data: user, error } = await window.supabase
+        const { data: users, error } = await window.supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .limit(1);
 
         if (error) {
             console.error('Erro ao buscar usuário:', error);
             return null;
         }
 
+        // Retornar primeiro usuário ou null se não houver
+        const user = users && users.length > 0 ? users[0] : null;
+        
+        if (!user) {
+            console.warn('⚠️ Usuário autenticado mas não encontrado na tabela users. ID:', session.user.id);
+            // Retornar usuário com role VENDEDOR (padrão) em vez de null
+            return {
+                id: session.user.id,
+                email: session.user.email,
+                full_name: session.user.user_metadata?.full_name || 'Usuário',
+                role: 'VENDEDOR',  // Role padrão
+                ativo: true
+            };
+        }
+
         return user;
     } catch (storageError) {
         console.warn('Erro de acesso ao storage no getCurrentUser:', storageError);
-        // Em contexto restritivo, retornar usuário mock
+        // Em contexto restritivo, retornar usuário mock com VENDEDOR
         return {
             id: 'mock-user',
             email: 'usuario@sistema.com',
             full_name: 'Usuário do Sistema',
             role: 'VENDEDOR',
-            active: true
+            ativo: true
         };
     }
 }
@@ -243,10 +293,15 @@ async function hasRole(roles) {
     const user = await getCurrentUser();
     if (!user) return false;
     
+    // Normalizar role do usuário
+    const normalizedUserRole = user.role?.toUpperCase() === 'ADMINISTRADOR' ? 'ADMIN' : user.role?.toUpperCase();
+    
     if (Array.isArray(roles)) {
-        return roles.includes(user.role);
+        return roles.map(r => r?.toUpperCase() === 'ADMINISTRADOR' ? 'ADMIN' : r?.toUpperCase()).includes(normalizedUserRole);
     }
-    return user.role === roles;
+    
+    const normalizedCheckRole = roles?.toUpperCase() === 'ADMINISTRADOR' ? 'ADMIN' : roles?.toUpperCase();
+    return normalizedUserRole === normalizedCheckRole;
 }
 
 // Obter badge de status
@@ -424,9 +479,9 @@ function handleError(error, customMessage = 'Ocorreu um erro') {
  */
 async function getEmpresaConfig() {
     try {
-        // Verificar se supabase está disponível
-        if (!window.supabase) {
-            console.warn('Supabase não disponível para getEmpresaConfig');
+        // Verificar se supabase está COMPLETAMENTE disponível
+        if (!window.supabase || typeof window.supabase.from !== 'function') {
+            console.warn('⚠️ Supabase.from não disponível para getEmpresaConfig');
             return null;
         }
 

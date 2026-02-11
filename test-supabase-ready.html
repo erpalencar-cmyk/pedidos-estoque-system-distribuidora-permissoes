@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Supabase Pronto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🧪 Teste de Inicialização Supabase</h1>
+        
+        <div id="status" class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4">Status da Inicialização</h2>
+            <div id="status-content" class="space-y-2 font-mono text-sm">
+                <p>Carregando...</p>
+            </div>
+        </div>
+
+        <div id="test-results" class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Resultados dos Testes</h2>
+            <div id="results-content" class="space-y-2">
+                <!-- Preenchido dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        async function runTests() {
+            const statusDiv = document.getElementById('status-content');
+            const resultsDiv = document.getElementById('results-content');
+            
+            const log = (msg) => {
+                const p = document.createElement('p');
+                p.textContent = msg;
+                statusDiv.appendChild(p);
+            };
+            
+            const addResult = (name, status, message) => {
+                const div = document.createElement('div');
+                const color = status === 'ok' ? 'text-green-600' : 'text-red-600';
+                div.className = `p-3 border rounded ${color} ${status === 'ok' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`;
+                div.innerHTML = `<strong>${name}:</strong> ${message}`;
+                resultsDiv.appendChild(div);
+            };
+            
+            // Teste 1: Supabase library
+            log('1️⃣  Aguardando supabaseLib...');
+            const maxTries = 50;
+            let tries = 0;
+            while (!supabaseLib && tries < maxTries) {
+                await new Promise(r => setTimeout(r, 50));
+                tries++;
+            }
+            if (supabaseLib) {
+                log('✅ supabaseLib pronto');
+                addResult('supabaseLib', 'ok', 'Biblioteca carregada');
+            } else {
+                log('❌ supabaseLib não carregou');
+                addResult('supabaseLib', 'fail', 'Não foi carregada em tempo');
+            }
+            
+            // Teste 2: Supabase Central
+            log('2️⃣  Verificando supabaseCentral...');
+            if (supabaseCentral) {
+                log('✅ supabaseCentral pronto');
+                addResult('supabaseCentral', 'ok', 'Cliente central criado');
+            } else {
+                log('❌ supabaseCentral não foi criado');
+                addResult('supabaseCentral', 'fail', 'Não foi inicializado');
+            }
+            
+            // Teste 3: CURRENT_SUPABASE
+            log('3️⃣  Verificando CURRENT_SUPABASE...');
+            if (CURRENT_SUPABASE) {
+                log('✅ CURRENT_SUPABASE pronto');
+                log(`   Empresa: ${CURRENT_EMPRESA?.nome || 'N/A'}`);
+                addResult('CURRENT_SUPABASE', 'ok', `Empresa: ${CURRENT_EMPRESA?.nome || 'Nenhuma'}`);
+            } else {
+                log('⚠️ CURRENT_SUPABASE não restaurado (esperado se não logado)');
+                addResult('CURRENT_SUPABASE', 'ok', 'Nenhuma empresa selecionada (normal no login)');
+            }
+            
+            // Teste 4: window.supabase
+            log('4️⃣  Verificando window.supabase...');
+            if (window.supabase && typeof window.supabase.from === 'function') {
+                log('✅ window.supabase.from() funciona!');
+                addResult('window.supabase.from()', 'ok', 'Método disponível');
+            } else {
+                log('❌ window.supabase.from() NÃO funciona');
+                const type = window.supabase ? typeof window.supabase : 'undefined';
+                const hasFrom = window.supabase ? (typeof window.supabase.from) : 'N/A';
+                addResult('window.supabase.from()', 'fail', `window.supabase é ${type}, .from é ${hasFrom}`);
+            }
+            
+            // Teste 5: aguardarClientePronto
+            log('5️⃣  Testando aguardarClientePronto()...');
+            try {
+                await aguardarClientePronto();
+                log('✅ aguardarClientePronto() completou');
+                addResult('aguardarClientePronto()', 'ok', 'Função executada com sucesso');
+            } catch (e) {
+                log('❌ aguardarClientePronto() falhou: ' + e.message);
+                addResult('aguardarClientePronto()', 'fail', e.message);
+            }
+            
+            log('');
+            log('✅ Teste completo!');
+        }
+        
+        // Aguardar um pouco para o config.js ser carregado
+        setTimeout(() => {
+            document.getElementById('status-content').innerHTML = '';
+            runTests();
+        }, 500);
+    </script>
+</body>
+</html>

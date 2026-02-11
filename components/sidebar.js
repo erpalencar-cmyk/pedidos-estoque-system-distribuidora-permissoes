@@ -44,6 +44,13 @@ function createSidebar() {
                         Usuários
                     </a>
 
+                    <a href="/pages/gerenciar-permissoes.html" id="menu-gerenciar-permissoes" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition">
+                        <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        Gerenciar Permissões
+                    </a>
+
                     <a href="/pages/caixas.html" id="menu-caixas" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition">
                         <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -242,7 +249,7 @@ async function initSidebar() {
         // VENDEDOR: Só vê vendas e clientes
         if (role === 'VENDEDOR') {
             // Esconder: produtos, fornecedores, usuários, aprovações de usuários, config empresa, estoque, compras, aprovações, financeiro
-            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-usuarios', 'menu-aprovacao-usuarios', 
+            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-usuarios', 'menu-gerenciar-permissoes', 'menu-aprovacao-usuarios', 
                           'menu-config-empresa', 'menu-estoque', 'menu-compras', 'menu-aprovacao', 
                           'menu-contas-pagar', 'menu-contas-receber', 'menu-analise-financeira']);
         }
@@ -250,21 +257,22 @@ async function initSidebar() {
         // COMPRADOR: Só vê compras, estoque, produtos, fornecedores e contas a pagar
         if (role === 'COMPRADOR') {
             // Esconder: vendas, clientes, usuários, aprovações de usuários, config empresa, aprovações, contas a receber
-            hideMenuItems(['menu-vendas', 'menu-clientes', 'menu-usuarios', 'menu-aprovacao-usuarios', 
+            hideMenuItems(['menu-vendas', 'menu-clientes', 'menu-usuarios', 'menu-gerenciar-permissoes', 'menu-aprovacao-usuarios', 
                           'menu-config-empresa', 'menu-aprovacao', 'menu-contas-receber', 'menu-analise-financeira']);
         }
 
         // APROVADOR: Só vê aprovações
         if (role === 'APROVADOR') {
             // Esconder: produtos, fornecedores, clientes, usuários, aprovações de usuários, config empresa, estoque, compras, vendas, financeiro
-            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-clientes', 'menu-usuarios', 
+            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-clientes', 'menu-usuarios', 'menu-gerenciar-permissoes',
                           'menu-aprovacao-usuarios', 'menu-config-empresa', 'menu-estoque', 
                           'menu-compras', 'menu-vendas', 'menu-contas-pagar', 'menu-contas-receber', 'menu-analise-financeira']);
         }
 
         // ADMIN: Vê tudo (não esconde nada)
         // Análise Financeira e Reprocessar Estoque são exclusivos do ADMIN
-        if (role !== 'ADMIN') {
+        const isAdmin = role === 'ADMIN' || role === 'Administrador' || role === 'administrador' || role === 'ADMINISTRADOR';
+        if (!isAdmin) {
             hideMenuItems(['menu-analise-financeira', 'menu-reprocessar-estoque']);
         }
     }

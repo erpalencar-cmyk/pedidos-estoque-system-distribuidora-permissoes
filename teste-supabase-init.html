@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">🔧 Teste Inicialização Supabase</h1>
+        
+        <div id="resultado" class="p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6">
+            <p class="text-blue-800">⏳ Carregando...</p>
+        </div>
+
+        <div class="space-y-4">
+            <button 
+                onclick="testarConnexao()" 
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+                🧪 Testar Conexão
+            </button>
+
+            <button 
+                onclick="location.href='pages/admin-login.html'" 
+                class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+            >
+                🔐 Ir para Admin Login
+            </button>
+        </div>
+
+        <pre id="debug" class="mt-6 p-4 bg-gray-900 text-green-400 rounded-lg text-sm overflow-auto max-h-96 font-mono"></pre>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+
+    <script>
+        const resultadoDiv = document.getElementById('resultado');
+        const debugDiv = document.getElementById('debug');
+
+        function log(mensagem) {
+            debugDiv.textContent += mensagem + '\n';
+            console.log(mensagem);
+        }
+
+        async function testarConnexao() {
+            debugDiv.textContent = '';
+            resultadoDiv.className = 'p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6';
+            resultadoDiv.innerHTML = '<p class="text-blue-800">⏳ Testando...</p>';
+
+            log('=== TESTE INICIALIZAÇÃO SUPABASE ===\n');
+            
+            // Verificar se window.supabase existe
+            log(`✓ window.supabase existe: ${!!window.supabase}`);
+            log(`✓ window.supabaseCentral existe: ${!!window.supabaseCentral}`);
+            log(`✓ supabaseCentral (global) existe: ${!!supabaseCentral}\n`);
+
+            // Aguardar Supabase
+            try {
+                await aguardarSupabase();
+                log('✅ Supabase inicializado com sucesso!\n');
+            } catch (error) {
+                log(`❌ Erro: ${error.message}\n`);
+                resultadoDiv.className = 'p-4 rounded-lg bg-red-50 border border-red-200 mb-6';
+                resultadoDiv.innerHTML = `<p class="text-red-800">❌ Erro: ${error.message}</p>`;
+                return;
+            }
+
+            // Tentar fazer uma query de teste
+            try {
+                log('🔄 Testando query ao banco central...');
+                const { data, error } = await supabaseCentral
+                    .from('empresas')
+                    .select('id, nome, cnpj')
+                    .limit(1);
+
+                if (error) {
+                    log(`❌ Erro na query: ${error.message}`);
+                    resultadoDiv.className = 'p-4 rounded-lg bg-yellow-50 border border-yellow-200 mb-6';
+                    resultadoDiv.innerHTML = `<p class="text-yellow-800">⚠️ Query retornou erro: ${error.message}</p>`;
+                    return;
+                }
+
+                log(`✅ Query OK! Empresas encontradas: ${data?.length || 0}`);
+                if (data && data.length > 0) {
+                    log(`🏢 Primeira empresa: ${data[0].nome}`);
+                }
+
+                resultadoDiv.className = 'p-4 rounded-lg bg-green-50 border border-green-200 mb-6';
+                resultadoDiv.innerHTML = `<p class="text-green-800">✅ Tudo OK! Pode fazer login.</p>`;
+
+            } catch (error) {
+                log(`❌ Exceção: ${error.message}`);
+                resultadoDiv.className = 'p-4 rounded-lg bg-red-50 border border-red-200 mb-6';
+                resultadoDiv.innerHTML = `<p class="text-red-800">❌ Exceção: ${error.message}</p>`;
+            }
+        }
+
+        // Testar automaticamente ao carregar
+        window.addEventListener('load', () => {
+            log('📄 Página carregada\n');
+            setTimeout(testarConnexao, 500);
+        });
+    </script>
+</body>
+</html>

@@ -244,13 +244,20 @@
         // ========== INICIALIZAÇÃO ==========
         (async () => {
             try {
-                if (!await hasRole('ADMIN')) {
-                    showToast('Acesso negado', 'error');
-                    redirect('/pages/dashboard.html');
+                await aguardarClientePronto();
+                const user = await getCurrentUser();
+                console.log('Usuário atual:', user);
+                
+                // Verificar múltiplas variações de admin
+                const isAdmin = user && (user.role === 'ADMIN' || user.role === 'Administrador' || user.role === 'administrador' || user.role === 'ADMINISTRADOR');
+                
+                if (!isAdmin) {
+                    console.warn('Usuário sem permissão ADMIN. Role:', user?.role);
+                    showToast('Acesso negado. Apenas administradores podem gerenciar usuários.', 'error');
+                    setTimeout(() => window.location.href = '/pages/dashboard.html', 2000);
                     return;
                 }
                 
-                await checkAuth();
                 document.getElementById('navbar').innerHTML = createNavbar();
                 document.getElementById('sidebar-container').innerHTML = createSidebar();
                 await initNavbar();
@@ -258,8 +265,8 @@
                 await loadUsuarios();
             } catch (error) {
                 console.error('Erro ao inicializar usuários:', error);
-                document.getElementById('navbar').innerHTML = createNavbar();
-                document.getElementById('sidebar-container').innerHTML = createSidebar();
+                showToast('Erro ao carregar página de usuários: ' + error.message, 'error');
+                setTimeout(() => window.location.href = '/pages/dashboard.html', 2000);
             }
             
             // Configurar navegação por tabs

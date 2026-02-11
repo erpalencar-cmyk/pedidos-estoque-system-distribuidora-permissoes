@@ -556,6 +556,11 @@
             try {
                 console.log('=== INICIANDO PRODUTOS ===');
                 
+                // Garantir que o cliente Supabase está pronto ANTES de qualquer operação
+                console.log('0. Aguardando cliente Supabase ficar pronto...');
+                await aguardarClientePronto();
+                console.log('✅ Cliente Supabase pronto!');
+                
                 console.log('1. Verificando checkAuth...');
                 await checkAuth();
                 console.log('✅ checkAuth OK');
@@ -909,6 +914,9 @@
 
         async function loadProdutos() {
             try {
+                // Garantir que o cliente Supabase está pronto antes de usar
+                await aguardarClientePronto();
+                
                 showLoading(true);
                 produtosData = await listProdutos();
                 console.log('✓ Produtos carregados:', { total: produtosData?.length || 0, data: produtosData });

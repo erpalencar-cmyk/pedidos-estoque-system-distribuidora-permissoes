@@ -670,6 +670,7 @@
     <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/permissoes.js"></script>
     <script src="../js/rbac.js"></script>
     <script src="../js/services/empresa.js"></script>
     <script src="../js/services/nuvem-fiscal.js"></script>
@@ -684,10 +685,11 @@
 
         // ========== INICIALIZAÇÃO ==========
         (async () => {
+            await aguardarClientePronto();
             await checkAuth();
             
-            // Proteger com RBAC
-            if (!(await RBACSystem.protegerPagina(['ADMIN']))) {
+            // Proteger com verificação de acesso ao módulo
+            if (!(await verificarAcessoModulo('configuracoes', true))) {
                 return;
             }
 

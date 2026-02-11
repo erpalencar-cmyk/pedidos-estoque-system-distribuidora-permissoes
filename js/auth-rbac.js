@@ -5,6 +5,20 @@
 // =====================================================
 
 /**
+ * Normalizar role para aceitar múltiplas variações de admin
+ * @param {string} role - Role original
+ * @returns {string} Role normalizado
+ */
+function normalizeRole(role) {
+    if (!role) return null;
+    const normalized = role.toUpperCase();
+    if (normalized === 'ADMIN' || normalized === 'ADMINISTRADOR') {
+        return 'ADMIN';
+    }
+    return role;
+}
+
+/**
  * Definição de roles e permissões
  * Estrutura: página -> roles permitidas
  */
@@ -65,7 +79,8 @@ function hasPageAccess(user, pageName) {
     if (!pageName) return false;
     
     // ADMIN tem acesso a tudo
-    if (user.role === 'ADMIN') return true;
+    const normalizedRole = normalizeRole(user.role);
+    if (normalizedRole === 'ADMIN') return true;
     
     // Verificar se página restringe acesso
     const allowedRoles = RBAC_PERMISSIONS[pageName];
@@ -75,7 +90,7 @@ function hasPageAccess(user, pageName) {
         return true;
     }
     
-    return allowedRoles.includes(user.role);
+    return allowedRoles.includes(normalizeRole(user.role));
 }
 
 /**
@@ -135,7 +150,8 @@ function canPerformAction(user, action, resource) {
     if (!user) return false;
     
     // ADMIN pode fazer tudo
-    if (user.role === 'ADMIN') return true;
+    const normalizedRole = normalizeRole(user.role);
+    if (normalizedRole === 'ADMIN') return true;
     
     // Definir permissões por ação e recurso
     const permissions = {
@@ -170,7 +186,7 @@ function canPerformAction(user, action, resource) {
         return false;
     }
     
-    return allowedRoles.includes(user.role);
+    return allowedRoles.includes(normalizeRole(user.role));
 }
 
 /**
@@ -178,11 +194,13 @@ function canPerformAction(user, action, resource) {
  * @param {string} role - Papel a verificar
  * @returns {boolean}
  */
-async function isRole(role) {
+    async function isRole(role) {
     try {
         const user = await getCurrentUser();
         if (!user) return false;
-        return user.role === role || user.role === 'ADMIN';
+        const normalizedUserRole = normalizeRole(user.role);
+        const normalizedCheckRole = normalizeRole(role);
+        return normalizedUserRole === normalizedCheckRole || normalizedUserRole === 'ADMIN';
     } catch (error) {
         console.error('Erro ao verificar role:', error);
         return false;
@@ -203,7 +221,9 @@ function hideIfNoAccess(elementId, requiredRole = null) {
             
             let hasAccess = false;
             if (requiredRole) {
-                hasAccess = user && (user.role === requiredRole || user.role === 'ADMIN');
+                const normalizedUserRole = normalizeRole(user.role);
+                const normalizedRequiredRole = normalizeRole(requiredRole);
+                hasAccess = user && (normalizedUserRole === normalizedRequiredRole || normalizedUserRole === 'ADMIN');
             } else {
                 hasAccess = user ? true : false;
             }

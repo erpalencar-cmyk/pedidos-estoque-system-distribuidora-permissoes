@@ -357,6 +357,7 @@
             try {
                 console.log('=== INICIANDO CONTAS A PAGAR ===');
                 
+                await aguardarClientePronto();
                 await checkAuth();
                 
                 document.getElementById('navbar').innerHTML = createNavbar();

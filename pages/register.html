@@ -35,6 +35,18 @@
 
         <form id="register-form" class="space-y-4">
             <div>
+                <label for="empresa_id" class="block text-sm font-medium text-gray-700 mb-2">Selecione sua Empresa *</label>
+                <select 
+                    id="empresa_id" 
+                    required 
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                    <option value="">-- Carregando empresas --</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Se sua empresa não está na lista, peça ao administrador para adicioná-la.</p>
+            </div>
+
+            <div>
                 <label for="full_name" class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
                 <input 
                     type="text" 
@@ -133,49 +145,166 @@
     <script src="../js/auth.js"></script>
     
     <script>
-        // Carregar dados da empresa (logo e nome)
+        // =====================================================
+        // TRATAMENTO GLOBAL DE ERROS
+        // =====================================================
+        // Capturar erros não capturados de storage/contexto restrito
+        window.addEventListener('error', (event) => {
+            if (event.message?.includes('Access to storage')) {
+                console.warn('⚠️ Erro de acesso a storage capturado (global handler):', event.message);
+                event.preventDefault(); // Impedir que seja lançado como erro não tratado
+            }
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason?.message?.includes('Access to storage')) {
+                console.warn('⚠️ Promise rejection de acesso a storage capturada:', event.reason.message);
+                event.preventDefault(); // Impedir que seja lançado como erro não tratado
+            }
+        });
+
+        const empresaSelect = document.getElementById('empresa_id');
+        
+        // Carregar empresas (seguindo padrão do index.html)
+        async function carregarEmpresas() {
+            try {
+                // Aguardar config.js estar pronto (sem chamar aguardarClientePronto!)
+                await new Promise(r => setTimeout(r, 300));
+                
+                console.log('🔄 Carregando empresas...');
+                const { data, error } = await window.supabaseCentral
+                    .from('empresas')
+                    .select('id, nome, cnpj')
+                    .order('nome');
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    empresaSelect.innerHTML = '<option value="">Nenhuma empresa cadastrada</option>';
+                    empresaSelect.disabled = true;
+                    return;
+                }
+
+                empresaSelect.innerHTML = [
+                    '<option value="">-- Selecione uma empresa --</option>',
+                    ...data.map(emp => `<option value="${emp.id}">${emp.nome} (${emp.cnpj})</option>`)
+                ].join('');
+
+                console.log(`✅ ${data.length} empresas carregadas`);
+            } catch (error) {
+                console.error('❌ Erro ao carregar empresas:', error);
+                empresaSelect.innerHTML = '<option value="">Erro ao carregar empresas</option>';
+                empresaSelect.disabled = true;
+            }
+        }
+
+        // Carregar dados da empresa (logo e nome) - padrão do index.html
         (async () => {
             try {
-                const empresaConfig = await getEmpresaConfig();
-                if (empresaConfig) {
-                    // Atualizar logo
+                // Aguardar config estar pronto e carregar empresas
+                await carregarEmpresas();
+
+                // Carregar config da empresa
+                try {
+                    const empresaConfig = await getEmpresaConfig();
+                    if (empresaConfig) {
+                        // Atualizar logo
+                        const logoEl = document.getElementById('empresa-logo');
+                        if (logoEl && empresaConfig.logo_url) {
+                            logoEl.innerHTML = `<img src="${empresaConfig.logo_url}" alt="Logo" class="w-full h-full object-contain rounded-full">`;
+                        }
+
+                        // Atualizar nome da empresa
+                        const nomeEl = document.getElementById('empresa-nome');
+                        if (nomeEl && empresaConfig.nome_empresa) {
+                            nomeEl.textContent = empresaConfig.nome_empresa;
+                        }
+
+                        // Atualizar título da página
+                        if (empresaConfig.nome_empresa) {
+                            document.title = `Criar Conta - ${empresaConfig.nome_empresa}`;
+                        }
+                    }
+                } catch (error) {
+                    console.log('ℹ️ Usando configurações padrão da empresa');
+                }
+                
+                // Aplicar máscara de WhatsApp
+                applyMask('whatsapp', 'whatsapp');
+            } catch (error) {
+                console.error('⚠️ Erro ao carregar dados:', error.message);
+                // Continuar mesmo com erro
+            }
+        })();
+
+        // Quando empresa for selecionada
+        empresaSelect.addEventListener('change', async (e) => {
+            const empresaId = e.target.value;
+            
+            if (!empresaId) {
+                console.log('Nenhuma empresa selecionada');
+                return;
+            }
+
+            try {
+                console.log(`🔄 Carregando empresa: ${empresaId}`);
+                await carregarEmpresa(empresaId);
+                
+                // Atualizar identificação visual (logo/nome)
+                if (CURRENT_EMPRESA) {
                     const logoEl = document.getElementById('empresa-logo');
-                    if (logoEl && empresaConfig.logo_url) {
-                        logoEl.innerHTML = `<img src="${empresaConfig.logo_url}" alt="Logo" class="w-full h-full object-contain rounded-full">`;
+                    if (logoEl && CURRENT_EMPRESA.logo_url) {
+                        logoEl.innerHTML = `<img src="${CURRENT_EMPRESA.logo_url}" alt="Logo" class="w-full h-full object-contain rounded-full">`;
                     }
 
-                    // Atualizar nome da empresa
                     const nomeEl = document.getElementById('empresa-nome');
-                    if (nomeEl && empresaConfig.nome_empresa) {
-                        nomeEl.textContent = empresaConfig.nome_empresa;
+                    if (nomeEl) {
+                        nomeEl.textContent = CURRENT_EMPRESA.nome;
                     }
 
-                    // Atualizar título da página
-                    if (empresaConfig.nome_empresa) {
-                        document.title = `Criar Conta - ${empresaConfig.nome_empresa}`;
-                    }
+                    document.title = `Criar Conta - ${CURRENT_EMPRESA.nome}`;
+                    console.log(`✅ Empresa carregada: ${CURRENT_EMPRESA.nome}`);
                 }
             } catch (error) {
-                console.log('Usando configurações padrão da empresa');
+                console.error('❌ Erro ao carregar empresa:', error);
+                showToast(`Erro ao carregar empresa: ${error.message}`, 'error');
             }
-            
-            // Aplicar máscara de WhatsApp
-            applyMask('whatsapp', 'whatsapp');
-        })();
+        });
 
         document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const fullName = document.getElementById('full_name').value;
-            const email = document.getElementById('email').value;
+            const empresaId = document.getElementById('empresa_id').value;
+            const fullName = document.getElementById('full_name').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             const role = document.getElementById('role').value;
             const whatsapp = document.getElementById('whatsapp').value || null;
             
+            if (!empresaId) {
+                showToast('Selecione sua empresa', 'error');
+                return;
+            }
+            
+            if (!fullName || !email || !password) {
+                showToast('Preencha todos os campos obrigatórios', 'error');
+                return;
+            }
+            
             if (password !== confirmPassword) {
                 showToast('As senhas não conferem', 'error');
                 return;
+            }
+            
+            // Garantir que a empresa está carregada
+            if (!CURRENT_EMPRESA || CURRENT_EMPRESA.id !== empresaId) {
+                try {
+                    await carregarEmpresa(empresaId);
+                } catch (error) {
+                    showToast('Erro ao carregar empresa', 'error');
+                    return;
+                }
             }
             
             await register(email, password, fullName, role, whatsapp);
