@@ -44,7 +44,7 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
             throw authError;
         }
 
-        // Criar registro na tabela users (JÁ ATIVO)
+        // Criar registro na tabela users (INATIVO - aguardando aprovação do admin)
         const { error: userError } = await window.supabase
             .from('users')
             .insert([{
@@ -54,9 +54,9 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
                 nome_completo: fullName,
                 role: role,
                 whatsapp: whatsapp,
-                ativo: true,
-                email_confirmado: true,
-                approved: true
+                ativo: false,
+                email_confirmado: false,
+                approved: false
             }]);
 
         if (userError) {

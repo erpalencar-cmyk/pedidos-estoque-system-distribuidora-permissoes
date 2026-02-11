@@ -206,9 +206,9 @@ async function checkAuth() {
                         full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
                         nome_completo: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
                         role: 'ESTOQUISTA',  // role padrão
-                        ativo: true,
-                        email_confirmado: true,
-                        approved: true
+                        ativo: false,
+                        email_confirmado: false,
+                        approved: false
                     }]);
                 console.log('✅ Registro de usuário criado automaticamente');
             }
@@ -411,12 +411,12 @@ function handleError(error, customMessage = 'Ocorreu um erro') {
         return;
     }
     
-    // Email não confirmado
-    if (errorMessage.includes('Email not confirmed') ||
-        errorMessage.includes('not confirmed')) {
-        showToast('Email não confirmado. Verifique sua caixa de entrada e clique no link de confirmação.', 'error');
-        return;
-    }
+    // Email não confirmado - REMOVIDO (não precisa mais confirmar email)
+    // if (errorMessage.includes('Email not confirmed') ||
+    //     errorMessage.includes('not confirmed')) {
+    //     showToast('Email não confirmado. Verifique sua caixa de entrada e clique no link de confirmação.', 'error');
+    //     return;
+    // }
     
     // Usuário não encontrado
     if (errorMessage.includes('User not found')) {
