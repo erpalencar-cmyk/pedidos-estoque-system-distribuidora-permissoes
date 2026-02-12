@@ -153,6 +153,7 @@
     <script src="../js/session-manager.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/auth-rbac.js"></script>
     <script src="../js/services/usuarios.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
@@ -169,7 +170,7 @@
             
             // Verificar se é ADMIN
             const user = await getCurrentUser();
-            const isAdmin = user && (user.role === 'ADMIN' || user.role === 'Administrador' || user.role === 'administrador' || user.role === 'ADMINISTRADOR');
+            const isAdmin = user && normalizeRole(user.role) === 'ADMIN';
             
             if (!isAdmin) {
                 showToast('Acesso negado. Apenas administradores podem acessar esta página.', 'error');
@@ -204,8 +205,13 @@
         async function loadUsuarios() {
             const usuarios = await listUsuarios();
             
-            // Usuários pendentes: email confirmado mas não aprovados
-            const pendentes = usuarios.filter(u => u.email_confirmado && !u.approved);
+            // Usuários pendentes: NÃO aprovados (independente de email_confirmado)
+            // Excluir admins da lista de pendentes (eles não precisam aprovação)
+            const pendentes = usuarios.filter(u => {
+                const role = (u.role || '').toUpperCase();
+                const isAdmin = role === 'ADMIN' || role === 'ADMINISTRADOR';
+                return !u.approved && !isAdmin;
+            });
             // Usuários aprovados: aprovados e ativos
             const aprovados = usuarios.filter(u => u.approved && u.ativo);
 
@@ -257,7 +263,8 @@
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-600">${u.whatsapp || '-'}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">${formatDateTime(u.created_at)}</td>
-                        <td class="px-6 py-4 text-sm">
+                        <td class="px-6 py-4 text-sm space-x-2">
+                            <a href="/pages/gerenciar-permissoes.html" class="text-blue-600 hover:text-blue-800 font-medium">🔑 Permissões</a>
                             <button onclick="desativarUsuario('${u.id}')" class="text-orange-600 hover:text-orange-800 font-medium">🔒 Desativar</button>
                         </td>
                     </tr>
@@ -300,12 +307,16 @@
         async function confirmarAprovacao() {
             showLoading(true);
             try {
+                // Obter ID do admin logado
+                const { data: { session } } = await window.supabase.auth.getSession();
+                const adminId = session?.user?.id || null;
+
                 const { error } = await window.supabase
                     .from('users')
                     .update({ 
                         ativo: true, 
                         approved: true,
-                        approved_by: window.session.user.id,
+                        approved_by: adminId,
                         approved_at: new Date().toISOString()
                     })
                     .eq('id', usuarioSelecionado);
@@ -318,6 +329,11 @@
                 showToast('Usuário aprovado com sucesso! Email de notificação enviado.', 'success');
                 closeModal('modal-aprovar');
                 await loadUsuarios();
+
+                // Oferecer gerenciar permissões do usuário recém-aprovado
+                if (confirm(`Deseja definir as permissões de acesso de ${nomeUsuarioSelecionado} agora?`)) {
+                    window.location.href = `/pages/gerenciar-permissoes.html`;
+                }
             } catch (error) {
                 handleError(error, 'Erro ao aprovar usuário');
             } finally {

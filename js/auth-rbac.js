@@ -2,6 +2,7 @@
 // SISTEMA DE CONTROLE DE ACESSO (RBAC)
 // Arquivo: js/auth-rbac.js
 // Propósito: Verificar permissões e proteger páginas
+// Agora integrado com permissões dinâmicas (tabela usuarios_modulos)
 // =====================================================
 
 /**
@@ -19,62 +20,64 @@ function normalizeRole(role) {
 }
 
 /**
- * Definição de roles e permissões
- * Estrutura: página -> roles permitidas
+ * Mapeamento de página HTML → slug de módulo
+ * Usado para proteger o acesso direto via URL
  */
-const RBAC_PERMISSIONS = {
-    // Dashboard - Todos podem ver
-    'dashboard.html': ['ADMIN', 'GERENTE', 'VENDEDOR', 'OPERADOR_CAIXA', 'ESTOQUISTA', 'COMPRADOR', 'APROVADOR'],
-    
-    // PDV - Apenas Vendedor/Operador de Caixa
-    'pdv.html': ['ADMIN', 'OPERADOR_CAIXA', 'VENDEDOR'],
-    
-    // Gerenciamento de Estoque - Admin, Gerente, Estoquista
-    'estoque.html': ['ADMIN', 'GERENTE', 'ESTOQUISTA'],
-    'estoque-novo.html': ['ADMIN', 'GERENTE', 'ESTOQUISTA'],
-    'reprocessar-estoque.html': ['ADMIN'],
-    
-    // Produtos - Admin, Gerente, Comprador
-    'produtos.html': ['ADMIN', 'GERENTE', 'COMPRADOR', 'ESTOQUISTA'],
-    'categorias.html': ['ADMIN', 'GERENTE'],
-    'marcas.html': ['ADMIN', 'GERENTE'],
-    
-    // Pedidos e Vendas - Múltiplos roles
-    'pedidos.html': ['ADMIN', 'GERENTE', 'COMPRADOR', 'APROVADOR'],
-    'pedido-detalhe.html': ['ADMIN', 'GERENTE', 'COMPRADOR', 'APROVADOR'],
-    'vendas.html': ['ADMIN', 'GERENTE', 'VENDEDOR', 'OPERADOR_CAIXA'],
-    'vendas-pendentes.html': ['ADMIN', 'GERENTE', 'VENDEDOR', 'OPERADOR_CAIXA'],
-    'venda-detalhe.html': ['ADMIN', 'GERENTE', 'VENDEDOR', 'OPERADOR_CAIXA'],
-    'pre-pedidos.html': ['ADMIN', 'GERENTE', 'COMPRADOR', 'APROVADOR'],
-    
-    // Conferência e Separação
-    'conferencia-vendas.html': ['ADMIN', 'GERENTE', 'ESTOQUISTA'],
-    
-    // Financeiro
-    'contas-receber.html': ['ADMIN', 'GERENTE', 'OPERADOR_CAIXA'],
-    'contas-pagar.html': ['ADMIN', 'GERENTE', 'COMPRADOR'],
-    'caixas.html': ['ADMIN', 'OPERADOR_CAIXA'],
-    'analise-financeira.html': ['ADMIN', 'GERENTE'],
-    'analise-lucros.html': ['ADMIN', 'GERENTE'],
-    
-    // CRM
-    'clientes.html': ['ADMIN', 'GERENTE', 'VENDEDOR', 'COMPRADOR'],
-    'fornecedores.html': ['ADMIN', 'GERENTE', 'COMPRADOR'],
-    
-    // Admin - Apenas ADMIN
-    'usuarios.html': ['ADMIN'],
-    'aprovacao-usuarios.html': ['ADMIN'],
-    'configuracoes-empresa.html': ['ADMIN'],
-    'analise.html': ['ADMIN', 'GERENTE']
+const PAGE_MODULE_MAP = {
+    'dashboard.html': 'dashboard',
+    'produtos.html': 'produtos',
+    'categorias.html': 'produtos',
+    'marcas.html': 'produtos',
+    'fornecedores.html': 'fornecedores',
+    'clientes.html': 'clientes',
+    'clientes-template.html': 'clientes',
+    'usuarios.html': 'usuarios',
+    'gerenciar-permissoes.html': 'gerenciar-permissoes',
+    'aprovacao-usuarios.html': 'aprovacao-usuarios',
+    'configuracoes-empresa.html': 'configuracoes-empresa',
+    'pdv.html': 'pdv',
+    'comandas.html': 'comandas',
+    'caixas.html': 'caixas',
+    'estoque.html': 'estoque',
+    'controle-validade.html': 'controle-validade',
+    'pedidos.html': 'pedidos',
+    'pedido-detalhe.html': 'pedidos',
+    'vendas.html': 'vendas',
+    'vendas-pendentes.html': 'vendas-pendentes',
+    'venda-detalhe.html': 'vendas',
+    'conferencia-vendas.html': 'conferencia-vendas',
+    'aprovacao.html': 'aprovacao',
+    'pre-pedidos.html': 'pre-pedidos',
+    'contas-pagar.html': 'contas-pagar',
+    'contas-receber.html': 'contas-receber',
+    'analise-financeira.html': 'analise-financeira',
+    'analise-lucros.html': 'analise-financeira',
+    'analise.html': 'analise-financeira',
+    'documentos-fiscais.html': 'documentos-fiscais',
+    'distribuicao-nfce.html': 'distribuicao-nfce',
+    'teste-focus-nfe.html': 'teste-focus-nfe',
+    'teste-nuvem-fiscal.html': 'teste-nuvem-fiscal',
+    'reprocessar-estoque.html': 'reprocessar-estoque'
 };
 
 /**
+ * Módulos exclusivos de ADMIN
+ */
+const ADMIN_ONLY_PAGES = [
+    'usuarios', 'gerenciar-permissoes', 'aprovacao-usuarios',
+    'teste-focus-nfe', 'teste-nuvem-fiscal',
+    'reprocessar-estoque'
+];
+
+/**
  * Verificar se o usuário tem permissão para acessar a página atual
+ * Usa permissões dinâmicas da tabela usuarios_modulos
  * @param {Object} user - Objeto do usuário autenticado
  * @param {string} pageName - Nome do arquivo HTML (ex: 'usuarios.html')
- * @returns {boolean} true se tem permissão, false caso contrário
+ * @param {string[]} permittedSlugs - Lista de slugs permitidos (opcional, para evitar re-query)
+ * @returns {boolean}
  */
-function hasPageAccess(user, pageName) {
+function hasPageAccess(user, pageName, permittedSlugs = null) {
     if (!user) return false;
     if (!pageName) return false;
     
@@ -82,19 +85,36 @@ function hasPageAccess(user, pageName) {
     const normalizedRole = normalizeRole(user.role);
     if (normalizedRole === 'ADMIN') return true;
     
-    // Verificar se página restringe acesso
-    const allowedRoles = RBAC_PERMISSIONS[pageName];
-    if (!allowedRoles) {
-        // Se página não está mapeada, permitir (modo falha aberto)
-        console.warn(`⚠️ Página não mapeada em RBAC: ${pageName}`);
+    // Obter o slug do módulo da página
+    const moduleSlug = PAGE_MODULE_MAP[pageName];
+    if (!moduleSlug) {
+        // Página não mapeada — permitir (modo falha aberto)
+        console.warn(`⚠️ Página não mapeada em PAGE_MODULE_MAP: ${pageName}`);
         return true;
     }
-    
-    return allowedRoles.includes(normalizeRole(user.role));
+
+    // Dashboard sempre acessível
+    if (moduleSlug === 'dashboard') return true;
+
+    // Módulos exclusivos de admin
+    if (ADMIN_ONLY_PAGES.includes(moduleSlug)) {
+        return false;
+    }
+
+    // Se temos lista de slugs permitidos, verificar
+    if (permittedSlugs) {
+        return permittedSlugs.includes('*') || permittedSlugs.includes(moduleSlug);
+    }
+
+    // Sem lista de slugs — não temos como verificar sincronamente
+    // Usar protectPageAccess() (async) é o recomendado
+    console.warn(`⚠️ hasPageAccess sem permittedSlugs para ${pageName} — use protectPageAccess() (async)`);
+    return true;
 }
 
 /**
  * Verificar se página é acessível e redirecionar se não
+ * Usa permissões dinâmicas do banco de dados
  * DEVE SER CHAMADA NO INÍCIO DE CADA PÁGINA
  */
 async function protectPageAccess() {
@@ -108,29 +128,68 @@ async function protectPageAccess() {
             return false;
         }
         
+        // ADMIN tem acesso a tudo
+        const normalizedRole = normalizeRole(user.role);
+        if (normalizedRole === 'ADMIN') {
+            console.log('✅ Acesso liberado: ADMIN');
+            return true;
+        }
+
         // Obter nome da página atual
         const currentPage = window.location.pathname.split('/').pop();
-        
-        // Verificar permissão
-        if (!hasPageAccess(user, currentPage)) {
-            console.error(`🔒 Acesso negado para ${currentPage} com role ${user.role}`);
-            
-            // Mostrar alerta
+
+        // Obter slug do módulo
+        const moduleSlug = PAGE_MODULE_MAP[currentPage];
+        if (!moduleSlug) {
+            console.warn(`⚠️ Página não mapeada: ${currentPage} — acesso permitido`);
+            return true;
+        }
+
+        // Dashboard sempre acessível
+        if (moduleSlug === 'dashboard') {
+            return true;
+        }
+
+        // Módulos exclusivos de admin — negar para não-admin
+        if (ADMIN_ONLY_PAGES.includes(moduleSlug)) {
+            console.error(`🔒 Acesso negado: ${currentPage} é exclusivo de ADMIN`);
+            showToast('❌ Acesso exclusivo para administradores.', 'error', 5000);
+            setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 2000);
+            return false;
+        }
+
+        // Verificar permissão na tabela usuarios_modulos
+        let temAcesso = false;
+        try {
+            const { data, error } = await window.supabase
+                .from('usuarios_modulos')
+                .select('pode_acessar, modulos!inner(slug)')
+                .eq('usuario_id', user.id)
+                .eq('modulos.slug', moduleSlug)
+                .eq('pode_acessar', true)
+                .maybeSingle();
+
+            if (!error && data) {
+                temAcesso = true;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao consultar permissões:', err);
+            // Em caso de erro, usar fallback permissivo para não bloquear
+            temAcesso = true;
+        }
+
+        if (!temAcesso) {
+            console.error(`🔒 Acesso negado para ${currentPage} (módulo: ${moduleSlug}) — role: ${user.role}`);
             showToast(
-                `❌ Você não tem permissão para acessar esta página. Seu perfil é: ${user.role}`,
+                `❌ Você não tem permissão para acessar esta página. Peça ao administrador para liberar o acesso.`,
                 'error',
                 5000
             );
-            
-            // Redirecionar para dashboard
-            setTimeout(() => {
-                window.location.href = '/pages/dashboard.html';
-            }, 2000);
-            
+            setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 2000);
             return false;
         }
         
-        console.log(`✅ Acesso permitido: ${currentPage} para ${user.role}`);
+        console.log(`✅ Acesso permitido: ${currentPage} (módulo: ${moduleSlug})`);
         return true;
         
     } catch (error) {

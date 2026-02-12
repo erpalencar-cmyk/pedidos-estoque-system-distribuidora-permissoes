@@ -12,7 +12,70 @@ async function login(email, password) {
             password
         });
 
-        if (error) throw error;
+        if (error) {
+            // Tratar erro de email não confirmado — orientar admin a desabilitar
+            if (error.message?.includes('Email not confirmed') || error.message?.includes('email_not_confirmed')) {
+                showToast('⚠️ Email não confirmado. O administrador precisa desabilitar a confirmação de email no Supabase (Auth > Settings > Confirm email = OFF). Enquanto isso, peça ao admin para confirmar seu email manualmente.', 'error');
+                showLoading(false);
+                return;
+            }
+            throw error;
+        }
+
+        // =====================================================
+        // VERIFICAR SE USUÁRIO ESTÁ APROVADO E ATIVO
+        // =====================================================
+        try {
+            // Buscar por ID primeiro, fallback por email
+            let userData = null;
+            const { data: userById, error: userError } = await window.supabase
+                .from('users')
+                .select('ativo, approved, role')
+                .eq('id', data.user.id)
+                .maybeSingle();
+
+            if (userError) {
+                console.warn('⚠️ Erro ao verificar status do usuário:', userError.message);
+            }
+
+            userData = userById;
+
+            // Fallback: buscar por email se não encontrou por ID
+            if (!userData && !userError) {
+                const { data: userByEmail } = await window.supabase
+                    .from('users')
+                    .select('ativo, approved, role')
+                    .eq('email', data.user.email)
+                    .maybeSingle();
+                userData = userByEmail;
+            }
+
+            if (userData) {
+                // ADMIN sempre pode entrar
+                const isAdmin = (userData.role || '').toUpperCase() === 'ADMIN' || 
+                                (userData.role || '').toUpperCase() === 'ADMINISTRADOR';
+
+                if (!isAdmin) {
+                    if (userData.approved === false) {
+                        // Não aprovado — fazer logout e bloquear
+                        await window.supabase.auth.signOut();
+                        showToast('⏳ Sua conta ainda não foi aprovada pelo administrador. Aguarde a aprovação para acessar o sistema.', 'error');
+                        showLoading(false);
+                        return;
+                    }
+
+                    if (userData.ativo === false) {
+                        // Desativado — fazer logout e bloquear
+                        await window.supabase.auth.signOut();
+                        showToast('🔒 Sua conta está desativada. Entre em contato com o administrador.', 'error');
+                        showLoading(false);
+                        return;
+                    }
+                }
+            }
+        } catch (checkError) {
+            console.warn('⚠️ Erro na verificação de aprovação (continuando login):', checkError.message);
+        }
 
         showToast('Login realizado com sucesso!', 'success');
         redirect('/pages/dashboard.html');
@@ -30,21 +93,35 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
         showLoading(true);
 
         // Criar usuário no auth do Supabase
+        // NOTA: Para sistema com aprovação, a confirmação de email deve estar DESABILITADA
+        // no Supabase Dashboard (Auth > Settings > Confirm email = OFF)
         const { data: authData, error: authError } = await window.supabase.auth.signUp({
             email,
-            password
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    role: role
+                }
+            }
         });
 
         if (authError) {
             // Tratar erro específico de email já registrado no Supabase Auth
             if (authError.message.includes('already registered') || 
                 authError.message.includes('User already registered')) {
-                throw new Error('Este email já está cadastrado. Se você já confirmou o email, faça login. Caso contrário, verifique sua caixa de entrada.');
+                throw new Error('Este email já está cadastrado. Faça login ou entre em contato com o administrador.');
             }
             throw authError;
         }
 
-        // Criar registro na tabela users (INATIVO - aguardando aprovação do admin)
+        // Verificar se o signUp retornou um usuário válido
+        if (!authData?.user?.id) {
+            throw new Error('Erro ao criar conta. Tente novamente.');
+        }
+
+        // Criar registro na tabela public.users (INATIVO - aguardando aprovação do admin)
+        // email_confirmado = true (não usamos confirmação de email do Supabase, usamos aprovação)
         const { error: userError } = await window.supabase
             .from('users')
             .insert([{
@@ -55,7 +132,7 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
                 role: role,
                 whatsapp: whatsapp,
                 ativo: false,
-                email_confirmado: false,
+                email_confirmado: true,
                 approved: false
             }]);
 
@@ -64,19 +141,24 @@ async function register(email, password, fullName, role = 'COMPRADOR', whatsapp 
             if (userError.message.includes('duplicate key') || 
                 userError.message.includes('users_email_key') ||
                 userError.message.includes('users_pkey')) {
-                // Usuário já está cadastrado
                 console.log('Usuário já existe na tabela users');
             } else {
-                // Outro erro, lançar exceção
                 throw userError;
             }
         }
 
+        // Fazer logout imediato — o usuário não pode acessar o sistema até aprovação
+        try {
+            await window.supabase.auth.signOut();
+        } catch (logoutErr) {
+            console.warn('Aviso ao fazer signOut pós-registro:', logoutErr.message);
+        }
+
         // Mostrar sucesso e redirecionar para login
-        showToast('✅ Cadastro realizado com sucesso! Você será redirecionado para login.', 'success');
+        showToast('✅ Cadastro realizado! Aguarde a aprovação do administrador para acessar o sistema.', 'success');
         setTimeout(() => {
             redirect('../index.html');
-        }, 2000);
+        }, 3000);
         
     } catch (error) {
         // Se for erro customizado (mensagem em português), mostrar direto

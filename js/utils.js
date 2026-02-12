@@ -185,32 +185,73 @@ async function checkAuth() {
 
         console.log('✅ Sessão válida para:', session.user.email);
         
-        // ⚡ IMPORTANTE: Se usuário existe em auth mas não em public.users, criar automaticamente
-        // Isso resolve problema de usuários "órfãos" em auth.users sem registro em public.users
+        // ⚡ IMPORTANTE: Sincronizar usuário auth ↔ public.users
+        // Trata 3 cenários:
+        //   A) Usuário existe em public.users com o mesmo id → ok
+        //   B) Usuário existe em public.users por email mas com id diferente → corrigir id
+        //   C) Usuário não existe em public.users → criar registro
         try {
-            // Verificar se usuário existe em public.users (usando maybeSingle para não errar)
-            const { data: userExists, error: checkError } = await window.supabase
+            // Cenário A: Buscar por id (caminho feliz)
+            const { data: userById, error: checkError } = await window.supabase
                 .from('users')
-                .select('id')
+                .select('id, email')
                 .eq('id', session.user.id)
                 .maybeSingle();
-            
-            // Se usuário não existe, criar automaticamente
-            if (!userExists && !checkError) {
-                console.log('⚠️ Usuário existe em Auth mas não em public.users, criando automaticamente...');
-                await window.supabase
+
+            if (!userById && !checkError) {
+                // Cenário B: Buscar por email (id desalinhado)
+                const { data: userByEmail } = await window.supabase
                     .from('users')
-                    .insert([{
-                        id: session.user.id,
-                        email: session.user.email,
-                        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-                        nome_completo: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-                        role: 'ESTOQUISTA',  // role padrão
-                        ativo: false,
-                        email_confirmado: false,
-                        approved: false
-                    }]);
-                console.log('✅ Registro de usuário criado automaticamente');
+                    .select('id, email')
+                    .eq('email', session.user.email)
+                    .maybeSingle();
+
+                if (userByEmail) {
+                    // Usuário existe com email mas id diferente — corrigir
+                    console.warn(`⚠️ ID desalinhado: auth=${session.user.id}, DB=${userByEmail.id}. Corrigindo...`);
+                    const { error: updateError } = await window.supabase
+                        .from('users')
+                        .update({ id: session.user.id })
+                        .eq('email', session.user.email);
+
+                    if (updateError) {
+                        console.error('❌ Erro ao corrigir ID do usuário:', updateError.message);
+                    } else {
+                        console.log('✅ ID do usuário corrigido para:', session.user.id);
+
+                        // Também corrigir usuarios_modulos para o novo ID
+                        try {
+                            await window.supabase
+                                .from('usuarios_modulos')
+                                .update({ usuario_id: session.user.id })
+                                .eq('usuario_id', userByEmail.id);
+                            console.log('✅ Permissões migradas para o novo ID');
+                        } catch (permErr) {
+                            console.warn('⚠️ Erro ao migrar permissões:', permErr.message);
+                        }
+                    }
+                } else {
+                    // Cenário C: Usuário não existe de forma alguma — criar
+                    console.log('⚠️ Usuário não existe em public.users, criando...');
+                    const { error: insertError } = await window.supabase
+                        .from('users')
+                        .insert([{
+                            id: session.user.id,
+                            email: session.user.email,
+                            full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                            nome_completo: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                            role: session.user.user_metadata?.role || 'ESTOQUISTA',
+                            ativo: false,
+                            email_confirmado: true,
+                            approved: false
+                        }]);
+
+                    if (insertError) {
+                        console.warn('⚠️ Erro ao criar registro de usuário:', insertError.message);
+                    } else {
+                        console.log('✅ Registro de usuário criado automaticamente');
+                    }
+                }
             }
         } catch (syncError) {
             // Não bloqueia login se não conseguir sincronizar
@@ -248,28 +289,39 @@ async function getCurrentUser() {
         const { data: { session } } = await window.supabase.auth.getSession();
         if (!session) return null;
 
+        // Buscar por ID (caminho feliz)
+        let user = null;
         const { data: users, error } = await window.supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
             .limit(1);
 
-        if (error) {
-            console.error('Erro ao buscar usuário:', error);
-            return null;
+        if (!error && users && users.length > 0) {
+            user = users[0];
         }
 
-        // Retornar primeiro usuário ou null se não houver
-        const user = users && users.length > 0 ? users[0] : null;
-        
+        // Fallback: buscar por email (caso ID esteja desalinhado)
+        if (!user) {
+            const { data: usersByEmail, error: emailError } = await window.supabase
+                .from('users')
+                .select('*')
+                .eq('email', session.user.email)
+                .limit(1);
+
+            if (!emailError && usersByEmail && usersByEmail.length > 0) {
+                user = usersByEmail[0];
+                console.warn(`⚠️ Usuário encontrado por email (id DB: ${user.id}, id Auth: ${session.user.id})`);
+            }
+        }
+
         if (!user) {
             console.warn('⚠️ Usuário autenticado mas não encontrado na tabela users. ID:', session.user.id);
-            // Retornar usuário com role VENDEDOR (padrão) em vez de null
             return {
                 id: session.user.id,
                 email: session.user.email,
                 full_name: session.user.user_metadata?.full_name || 'Usuário',
-                role: 'VENDEDOR',  // Role padrão
+                role: 'VENDEDOR',
                 ativo: true
             };
         }
@@ -411,12 +463,12 @@ function handleError(error, customMessage = 'Ocorreu um erro') {
         return;
     }
     
-    // Email não confirmado - REMOVIDO (não precisa mais confirmar email)
-    // if (errorMessage.includes('Email not confirmed') ||
-    //     errorMessage.includes('not confirmed')) {
-    //     showToast('Email não confirmado. Verifique sua caixa de entrada e clique no link de confirmação.', 'error');
-    //     return;
-    // }
+    // Email não confirmado — orientar admin
+    if (errorMessage.includes('Email not confirmed') ||
+        errorMessage.includes('email_not_confirmed')) {
+        showToast('⚠️ Email não confirmado. O admin precisa desabilitar a confirmação de email no Supabase (Auth > Settings > Confirm email = OFF).', 'error');
+        return;
+    }
     
     // Usuário não encontrado
     if (errorMessage.includes('User not found')) {

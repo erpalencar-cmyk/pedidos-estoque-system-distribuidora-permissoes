@@ -345,10 +345,23 @@ class SessionManager {
                         .from('users')
                         .select('ativo')
                         .eq('id', session.user.id)
-                        .single();
+                        .maybeSingle();
                     
-                    if (userError || !userData || !userData.ativo) {
-                        console.warn('⚠️  Usuário não está mais ativo, redirecionando para login...');
+                    if (userError) {
+                        console.warn('⚠️  Erro ao consultar status do usuário:', userError.message);
+                        // Não fazer logout por erro de query — pode ser temporário
+                        return;
+                    }
+
+                    if (!userData) {
+                        // Usuário existe em auth mas não em public.users
+                        // Não forçar logout — checkAuth() vai criar o registro
+                        console.warn('⚠️  Usuário sem registro em public.users (será criado automaticamente)');
+                        return;
+                    }
+
+                    if (userData.ativo === false) {
+                        console.warn('⚠️  Usuário desativado, redirecionando para login...');
                         await this.performLogout('usuario-inativo');
                         return;
                     }

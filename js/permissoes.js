@@ -1,13 +1,18 @@
 /**
  * Sistema de Permissões por Usuário Individual
- * Cada admin de empresa configura quais módulos cada usuário pode acessar
+ * Cada admin de empresa configura quais módulos cada usuário pode acessar.
+ * 
+ * NOTA: Como cada empresa tem seu próprio banco Supabase,
+ * não é necessário filtrar por empresa_id — os dados já são isolados por projeto.
  */
 
 class PermissaoManager {
     constructor() {
         this.usuarioId = null;
-        this.empresaId = null;
-        this.permissoesCache = {};
+        this.userRole = null;
+        this._cachePermissoes = null; // Cache: { slug: { pode_acessar, pode_criar, pode_editar, pode_deletar } }
+        this._cacheTimestamp = 0;
+        this._cacheTTL = 60000; // 1 minuto de cache
     }
 
     /**
@@ -16,13 +21,12 @@ class PermissaoManager {
     async inicializar() {
         try {
             const user = await getCurrentUser();
-            const empresa = await getEmpresaConfig();
             
             this.usuarioId = user?.id;
-            this.empresaId = empresa?.id;
+            this.userRole = (user?.role || '').toUpperCase();
             
-            if (!this.usuarioId || !this.empresaId) {
-                console.warn('⚠️ PermissaoManager: Usuário ou empresa não inicializados');
+            if (!this.usuarioId) {
+                console.warn('⚠️ PermissaoManager: Usuário não autenticado');
                 return false;
             }
             
@@ -34,48 +38,90 @@ class PermissaoManager {
     }
 
     /**
+     * Verifica se o usuário é ADMIN (acesso total)
+     */
+    isAdmin() {
+        return this.userRole === 'ADMIN' || this.userRole === 'ADMINISTRADOR';
+    }
+
+    /**
+     * Invalida o cache de permissões (útil após salvar permissões)
+     */
+    invalidarCache() {
+        this._cachePermissoes = null;
+        this._cacheTimestamp = 0;
+    }
+
+    /**
+     * Carrega todas as permissões do usuário de uma vez (com cache)
+     * @returns {Promise<Object>} Mapa de slug → permissões
+     */
+    async _carregarPermissoes() {
+        // Retornar do cache se válido
+        if (this._cachePermissoes && (Date.now() - this._cacheTimestamp) < this._cacheTTL) {
+            return this._cachePermissoes;
+        }
+
+        if (!this.usuarioId) return {};
+
+        try {
+            const { data, error } = await window.supabase
+                .from('usuarios_modulos')
+                .select(`
+                    pode_acessar,
+                    pode_criar,
+                    pode_editar,
+                    pode_deletar,
+                    modulos(slug)
+                `)
+                .eq('usuario_id', this.usuarioId);
+
+            if (error) throw error;
+
+            const cache = {};
+            (data || []).forEach(item => {
+                const slug = item.modulos?.slug;
+                if (slug) {
+                    cache[slug] = {
+                        pode_acessar: item.pode_acessar === true,
+                        pode_criar: item.pode_criar === true,
+                        pode_editar: item.pode_editar === true,
+                        pode_deletar: item.pode_deletar === true
+                    };
+                }
+            });
+
+            this._cachePermissoes = cache;
+            this._cacheTimestamp = Date.now();
+            return cache;
+        } catch (error) {
+            console.error('❌ Erro ao carregar permissões:', error);
+            return {};
+        }
+    }
+
+    /**
      * Verifica se usuário pode acessar um módulo
-     * Consulta a tabela usuarios_modulos
      * @param {string} slugModulo - Slug do módulo (ex: 'pdv', 'produtos')
      * @returns {Promise<boolean>}
      */
     async podeAcessarModulo(slugModulo) {
-        if (!this.usuarioId || !this.empresaId) {
-            console.warn('⚠️ PermissaoManager não inicializado, usando fallback');
-            return this._verificarPermissaoLocal(slugModulo);
+        if (!this.usuarioId) {
+            await this.inicializar();
         }
 
+        // ADMIN tem acesso total
+        if (this.isAdmin()) return true;
+
+        // Dashboard é sempre acessível
+        if (slugModulo === 'dashboard') return true;
+
         try {
-            // Primeiro, encontra o módulo pelo slug
-            const { data: modulo, error: erroModulo } = await window.supabase
-                .from('modulos')
-                .select('id')
-                .eq('slug', slugModulo)
-                .single();
-
-            if (erroModulo || !modulo) {
-                console.warn(`⚠️ Módulo ${slugModulo} não encontrado`);
-                return this._verificarPermissaoLocal(slugModulo);
-            }
-
-            // Depois, verifica a permissão do usuário
-            const { data, error } = await window.supabase
-                .from('usuarios_modulos')
-                .select('pode_acessar')
-                .eq('empresa_id', this.empresaId)
-                .eq('usuario_id', this.usuarioId)
-                .eq('modulo_id', modulo.id)
-                .maybeSingle();
-
-            if (error && error.code !== 'PGRST116') {
-                throw error;
-            }
-
-            // Se não tem registro, significa que não tem acesso
-            return data?.pode_acessar === true;
+            const permissoes = await this._carregarPermissoes();
+            return permissoes[slugModulo]?.pode_acessar === true;
         } catch (error) {
             console.warn(`⚠️ Erro ao verificar permissão para ${slugModulo}:`, error.message);
-            return this._verificarPermissaoLocal(slugModulo);
+            return false;
         }
     }
 
@@ -86,28 +132,16 @@ class PermissaoManager {
      * @returns {Promise<boolean>}
      */
     async verificarAcao(slugModulo, acao = 'pode_acessar') {
-        if (!this.usuarioId || !this.empresaId) {
-            return false;
+        if (!this.usuarioId) {
+            await this.inicializar();
         }
 
+        // ADMIN pode tudo
+        if (this.isAdmin()) return true;
+
         try {
-            const { data: modulo } = await window.supabase
-                .from('modulos')
-                .select('id')
-                .eq('slug', slugModulo)
-                .single();
-
-            if (!modulo) return false;
-
-            const { data } = await window.supabase
-                .from('usuarios_modulos')
-                .select(acao)
-                .eq('empresa_id', this.empresaId)
-                .eq('usuario_id', this.usuarioId)
-                .eq('modulo_id', modulo.id)
-                .maybeSingle();
-
-            return data && data[acao] === true;
+            const permissoes = await this._carregarPermissoes();
+            return permissoes[slugModulo]?.[acao] === true;
         } catch (error) {
             console.warn(`⚠️ Erro ao verificar ação ${acao}:`, error.message);
             return false;
@@ -115,22 +149,61 @@ class PermissaoManager {
     }
 
     /**
-     * Obtém lista de módulos que usuário pode acessar
+     * Obtém lista de slugs de módulos que o usuário pode acessar
+     * @returns {Promise<string[]>}
+     */
+    async obterSlugsPermitidos() {
+        if (!this.usuarioId) {
+            await this.inicializar();
+        }
+
+        // ADMIN: retorna ['*'] para indicar acesso total
+        if (this.isAdmin()) return ['*'];
+
+        try {
+            const permissoes = await this._carregarPermissoes();
+            const slugs = ['dashboard']; // Dashboard sempre acessível
+            
+            Object.entries(permissoes).forEach(([slug, perm]) => {
+                if (perm.pode_acessar) {
+                    slugs.push(slug);
+                }
+            });
+
+            return slugs;
+        } catch (error) {
+            console.error('❌ Erro ao obter slugs permitidos:', error);
+            return ['dashboard'];
+        }
+    }
+
+    /**
+     * Obtém lista de módulos que usuário pode acessar (com dados completos)
      * @returns {Promise<Array>}
      */
     async obterModulosDisponiveis() {
-        if (!this.usuarioId || !this.empresaId) {
-            return [];
+        if (!this.usuarioId) {
+            await this.inicializar();
         }
 
         try {
+            if (this.isAdmin()) {
+                // ADMIN: retorna todos os módulos ativos
+                const { data, error } = await window.supabase
+                    .from('modulos')
+                    .select('id, nome, slug, icone')
+                    .eq('ativo', true)
+                    .order('ordem');
+                if (error) throw error;
+                return data || [];
+            }
+
             const { data, error } = await window.supabase
                 .from('usuarios_modulos')
                 .select(`
                     modulo_id,
                     modulos(id, nome, slug, icone)
                 `)
-                .eq('empresa_id', this.empresaId)
                 .eq('usuario_id', this.usuarioId)
                 .eq('pode_acessar', true);
 
@@ -140,33 +213,6 @@ class PermissaoManager {
         } catch (error) {
             console.error('❌ Erro ao obter módulos disponíveis:', error);
             return [];
-        }
-    }
-
-    /**
-     * Fallback: Verifica permissão baseado no role do usuário
-     * Usado quando a tabela de permissões individuais não está disponível
-     * @private
-     */
-    async _verificarPermissaoLocal(slugModulo) {
-        try {
-            const user = await getCurrentUser();
-            const role = user?.role || 'VENDEDOR';
-
-            // Permissões padrão por role (fallback)
-            const permissoes = {
-                'ADMIN': ['*'], // Acesso total
-                'VENDEDOR': ['dashboard', 'produtos', 'estoque', 'vendas', 'pdv', 'clientes'],
-                'COMPRADOR': ['dashboard', 'produtos', 'fornecedores', 'pedidos-compra', 'estoque'],
-                'APROVADOR': ['dashboard', 'analises-financeiras', 'pedidos-compra', 'estoque'],
-                'GERENTE': ['dashboard', 'analises-financeiras', 'estoque', 'vendas'],
-            };
-
-            const modulosAcesso = permissoes[role] || [];
-            return modulosAcesso.includes('*') || modulosAcesso.includes(slugModulo);
-        } catch (error) {
-            console.warn('⚠️ Erro no fallback de permissão:', error);
-            return false;
         }
     }
 }
@@ -183,8 +229,7 @@ const permissaoManager = new PermissaoManager();
  */
 async function verificarAcessoModulo(moduloSlug, redirectOnDeny = false) {
     try {
-        // Inicializa se não foi inicializado
-        if (!permissaoManager.usuarioId || !permissaoManager.empresaId) {
+        if (!permissaoManager.usuarioId) {
             await permissaoManager.inicializar();
         }
 
@@ -217,7 +262,7 @@ async function verificarAcessoModulo(moduloSlug, redirectOnDeny = false) {
  * @returns {Promise<boolean>}
  */
 async function podeCriar(moduloSlug) {
-    if (!permissaoManager.usuarioId || !permissaoManager.empresaId) {
+    if (!permissaoManager.usuarioId) {
         await permissaoManager.inicializar();
     }
     return permissaoManager.verificarAcao(moduloSlug, 'pode_criar');
@@ -229,7 +274,7 @@ async function podeCriar(moduloSlug) {
  * @returns {Promise<boolean>}
  */
 async function podeEditar(moduloSlug) {
-    if (!permissaoManager.usuarioId || !permissaoManager.empresaId) {
+    if (!permissaoManager.usuarioId) {
         await permissaoManager.inicializar();
     }
     return permissaoManager.verificarAcao(moduloSlug, 'pode_editar');
@@ -241,7 +286,7 @@ async function podeEditar(moduloSlug) {
  * @returns {Promise<boolean>}
  */
 async function podeDeletar(moduloSlug) {
-    if (!permissaoManager.usuarioId || !permissaoManager.empresaId) {
+    if (!permissaoManager.usuarioId) {
         await permissaoManager.inicializar();
     }
     return permissaoManager.verificarAcao(moduloSlug, 'pode_deletar');

@@ -106,6 +106,7 @@
     <script src="../js/config.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/auth-rbac.js"></script>
     <script src="../js/permissoes.js"></script>
     <script src="../components/navbar.js"></script>
     <script src="../components/sidebar.js"></script>
@@ -124,8 +125,8 @@
                 const user = await getCurrentUser();
                 console.log('Usuário atual:', user);
                 
-                // Verificar múltiplas variações de admin
-                const isAdmin = user && (user.role === 'ADMIN' || user.role === 'Administrador' || user.role === 'administrador' || user.role === 'ADMINISTRADOR');
+                // Usar normalizeRole para verificar admin
+                const isAdmin = user && normalizeRole(user.role) === 'ADMIN';
                 
                 if (!isAdmin) {
                     console.warn('Usuário sem permissão ADMIN. Role:', user?.role);
@@ -273,14 +274,22 @@
                 permissoesMap[p.modulo_id] = p;
             });
 
+            // PRÉ-POPULAR permissoesSelecionadas com valores ATUAIS do banco
+            // Assim, salvar sem alterar nada NÃO reseta as permissões
+            modulosData.forEach(modulo => {
+                const perm = permissoesMap[modulo.id];
+                permissoesSelecionadas[modulo.id] = {
+                    modulo_id: modulo.id,
+                    pode_acessar: perm ? !!perm.pode_acessar : false,
+                    pode_criar: perm ? !!perm.pode_criar : false,
+                    pode_editar: perm ? !!perm.pode_editar : false,
+                    pode_deletar: perm ? !!perm.pode_deletar : false
+                };
+            });
+
             const listaDiv = document.getElementById('modulos-list');
             listaDiv.innerHTML = modulosData.map(modulo => {
-                const perm = permissoesMap[modulo.id] || {
-                    pode_acessar: false,
-                    pode_criar: false,
-                    pode_editar: false,
-                    pode_deletar: false
-                };
+                const perm = permissoesSelecionadas[modulo.id];
 
                 return `
                     <tr>
@@ -334,42 +343,66 @@
             try {
                 showLoading(true);
 
-                for (const modulo of modulosData) {
+                // Montar array de upsert com TODOS os módulos
+                const registros = modulosData.map(modulo => {
                     const perm = permissoesSelecionadas[modulo.id] || {
                         pode_acessar: false,
                         pode_criar: false,
                         pode_editar: false,
                         pode_deletar: false
                     };
+                    return {
+                        usuario_id: usuarioSelecionado,
+                        modulo_id: modulo.id,
+                        pode_acessar: !!perm.pode_acessar,
+                        pode_criar: !!perm.pode_criar,
+                        pode_editar: !!perm.pode_editar,
+                        pode_deletar: !!perm.pode_deletar
+                    };
+                });
 
-                    const { data: existe } = await window.supabase
+                // Upsert em lote — requer unique constraint em (usuario_id, modulo_id)
+                // Fallback: se upsert falhar, usar método individual
+                let upsertOk = false;
+                try {
+                    const { error } = await window.supabase
                         .from('usuarios_modulos')
-                        .select('id')
-                        .eq('usuario_id', usuarioSelecionado)
-                        .eq('modulo_id', modulo.id)
-                        .maybeSingle();
+                        .upsert(registros, { onConflict: 'usuario_id,modulo_id' });
 
-                    if (existe) {
-                        await window.supabase
-                            .from('usuarios_modulos')
-                            .update({
-                                pode_acessar: perm.pode_acessar,
-                                pode_criar: perm.pode_criar,
-                                pode_editar: perm.pode_editar,
-                                pode_deletar: perm.pode_deletar
-                            })
-                            .eq('id', existe.id);
+                    if (error) {
+                        console.warn('Upsert em lote falhou, usando fallback individual:', error.message);
                     } else {
-                        await window.supabase
+                        upsertOk = true;
+                    }
+                } catch (e) {
+                    console.warn('Upsert não suportado, usando fallback:', e.message);
+                }
+
+                // Fallback: inserir/atualizar um a um
+                if (!upsertOk) {
+                    for (const reg of registros) {
+                        const { data: existe } = await window.supabase
                             .from('usuarios_modulos')
-                            .insert([{
-                                usuario_id: usuarioSelecionado,
-                                modulo_id: modulo.id,
-                                pode_acessar: perm.pode_acessar,
-                                pode_criar: perm.pode_criar,
-                                pode_editar: perm.pode_editar,
-                                pode_deletar: perm.pode_deletar
-                            }]);
+                            .select('id')
+                            .eq('usuario_id', reg.usuario_id)
+                            .eq('modulo_id', reg.modulo_id)
+                            .maybeSingle();
+
+                        if (existe) {
+                            await window.supabase
+                                .from('usuarios_modulos')
+                                .update({
+                                    pode_acessar: reg.pode_acessar,
+                                    pode_criar: reg.pode_criar,
+                                    pode_editar: reg.pode_editar,
+                                    pode_deletar: reg.pode_deletar
+                                })
+                                .eq('id', existe.id);
+                        } else {
+                            await window.supabase
+                                .from('usuarios_modulos')
+                                .insert([reg]);
+                        }
                     }
                 }
 
