@@ -6,7 +6,7 @@ function createSidebar() {
     return `
         <aside id="sidebar" class="sidebar fixed top-16 left-0 h-full w-64 bg-gray-800 text-white z-30 overflow-y-auto pb-20">
             <nav class="mt-5 px-2">
-                <a href="/pages/dashboard.html" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition mb-1">
+                <a href="/pages/dashboard.html" id="menu-dashboard" class="sidebar-link group flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-gray-700 transition mb-1">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                     </svg>
@@ -241,40 +241,88 @@ async function initSidebar() {
         }
     });
 
-    // Controle de visibilidade baseado em permissões por perfil
-    const user = await getCurrentUser();
-    if (user) {
-        const role = user.role;
-
-        // VENDEDOR: Só vê vendas e clientes
-        if (role === 'VENDEDOR') {
-            // Esconder: produtos, fornecedores, usuários, aprovações de usuários, config empresa, estoque, compras, aprovações, financeiro
-            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-usuarios', 'menu-gerenciar-permissoes', 'menu-aprovacao-usuarios', 
-                          'menu-config-empresa', 'menu-estoque', 'menu-compras', 'menu-aprovacao', 
-                          'menu-contas-pagar', 'menu-contas-receber', 'menu-analise-financeira']);
+    // ============================================
+    // 🔐 VERIFICAR PERMISSÕES RBAC com PermissaoManager
+    // ============================================
+    
+    // Garantir que PermissaoManager está definido e inicializado
+    if (typeof permissaoManager !== 'undefined' && permissaoManager) {
+        // Inicializar PermissaoManager na primeira vez
+        if (!permissaoManager.role || (permissaoManager.role === 'VENDEDOR' && !permissaoManager.usuarioId)) {
+            await permissaoManager.inicializar();
         }
 
-        // COMPRADOR: Só vê compras, estoque, produtos, fornecedores e contas a pagar
-        if (role === 'COMPRADOR') {
-            // Esconder: vendas, clientes, usuários, aprovações de usuários, config empresa, aprovações, contas a receber
-            hideMenuItems(['menu-vendas', 'menu-clientes', 'menu-usuarios', 'menu-gerenciar-permissoes', 'menu-aprovacao-usuarios', 
-                          'menu-config-empresa', 'menu-aprovacao', 'menu-contas-receber', 'menu-analise-financeira']);
-        }
+        // Mapeamento: menu ID → módulo slug (baseado no sidebar real)
+        const menuModuloMap = {
+            // Seção: Dashboard
+            'menu-dashboard': 'dashboard',
+            
+            // Seção: Configuração
+            'menu-produtos': 'produtos',
+            'menu-fornecedores': 'fornecedores',
+            'menu-clientes': 'clientes',
+            'menu-usuarios': 'usuarios',
+            'menu-gerenciar-permissoes': 'gerenciar-permissoes',
+            'menu-caixas': 'caixas',
+            'menu-aprovacao-usuarios': 'aprovacao-usuarios',
+            'menu-config-empresa': 'configuracoes',
+            
+            // Seção: Vendas e PDV
+            'menu-pdv': 'pdv',
+            'menu-comandas': 'comandas',
+            
+            // Seção: Estoque
+            'menu-estoque': 'estoque',
+            'menu-controle-validade': 'controle-validade',
+            
+            // Seção: Vendas
+            'menu-compras': 'pedidos-compra',
+            'menu-vendas': 'vendas',
+            'menu-vendas-pendentes': 'vendas',
+            'menu-conferencia': 'vendas',
+            'menu-aprovacao': 'vendas',
+            'menu-pre-pedidos': 'vendas',
+            
+            // Seção: Financeiro
+            'menu-contas-pagar': 'contas-pagar',
+            'menu-contas-receber': 'contas-receber',
+            'menu-analise-financeira': 'analise-financeira',
+            
+            // Seção: Fiscal
+            'menu-documentos-fiscais': 'documentos-fiscais',
+            'menu-distribuicao-nfce': 'distribuicao-nfce',
+            
+            // Seção: Testes (não vão ter permissão, para não aparecer para usuários normais)
+            'menu-teste-focus': 'teste-focus-nfe',
+            'menu-teste-nuvem': 'teste-nuvem-fiscal',
+            'menu-reprocessar-estoque': 'reprocessar-estoque'
+        };
 
-        // APROVADOR: Só vê aprovações
-        if (role === 'APROVADOR') {
-            // Esconder: produtos, fornecedores, clientes, usuários, aprovações de usuários, config empresa, estoque, compras, vendas, financeiro
-            hideMenuItems(['menu-produtos', 'menu-fornecedores', 'menu-clientes', 'menu-usuarios', 'menu-gerenciar-permissoes',
-                          'menu-aprovacao-usuarios', 'menu-config-empresa', 'menu-estoque', 
-                          'menu-compras', 'menu-vendas', 'menu-contas-pagar', 'menu-contas-receber', 'menu-analise-financeira']);
+        // Verificar cada item do menu
+        for (const [menuId, moduloSlug] of Object.entries(menuModuloMap)) {
+            const menuItem = document.getElementById(menuId);
+            if (menuItem) {
+                try {
+                    const temPermissao = await permissaoManager.podeAcessarModulo(moduloSlug);
+                    
+                    if (temPermissao) {
+                        // ✅ TEM PERMISSÃO - mostra explicitamente
+                        menuItem.style.display = 'block';
+                        console.log(`✅ Menu ${menuId} VISÍVEL (permissão OK para ${moduloSlug})`);
+                    } else {
+                        // 🔒 SEM PERMISSÃO - esconde
+                        menuItem.style.display = 'none';
+                        console.log(`🔒 Menu ${menuId} oculto (sem permissão para ${moduloSlug})`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Erro ao verificar permissão de ${menuId}:`, error.message);
+                }
+            } else {
+                console.warn(`⚠️ Menu item ${menuId} não encontrado no DOM`);
+            }
         }
-
-        // ADMIN: Vê tudo (não esconde nada)
-        // Análise Financeira e Reprocessar Estoque são exclusivos do ADMIN
-        const isAdmin = role === 'ADMIN' || role === 'Administrador' || role === 'administrador' || role === 'ADMINISTRADOR';
-        if (!isAdmin) {
-            hideMenuItems(['menu-analise-financeira', 'menu-reprocessar-estoque']);
-        }
+    } else {
+        console.warn('⚠️ PermissaoManager não está definido');
     }
 
     // Fechar sidebar ao clicar fora (mobile)

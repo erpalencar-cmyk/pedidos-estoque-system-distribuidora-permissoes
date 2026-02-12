@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aguardando Aprovação - Sistema de Compras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-500 to-blue-600 min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-lg shadow-2xl p-8 text-center">
+            <!-- Ícone de Espera -->
+            <div class="mb-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
+                    <i class="fas fa-hourglass-half text-blue-600 text-4xl pulse-animation"></i>
+                </div>
+            </div>
+
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                ⏳ Aguardando Aprovação
+            </h1>
+
+            <p class="text-gray-600 mb-6">
+                Sua solicitação de acesso foi recebida com sucesso. Um administrador em breve analisará e aprovará seu cadastro.
+            </p>
+
+            <!-- Info Box -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
+                <p class="text-sm text-blue-800">
+                    <strong>📧 Você receberá uma notificação por email</strong> assim que sua conta for aprovada.
+                </p>
+            </div>
+
+            <!-- Status Atual -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-8 text-left">
+                <p class="text-sm text-gray-600 mb-3"><strong>Status da Sua Conta:</strong></p>
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 mr-3"></i>
+                        <span class="text-sm text-gray-700">Cadastro realizado</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-yellow-600 mr-3"></i>
+                        <span class="text-sm text-gray-700">Aguardando aprovação do administrador</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-lock text-gray-400 mr-3"></i>
+                        <span class="text-sm text-gray-600">Acesso ao sistema (liberado após aprovação)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações do Usuário -->
+            <div id="user-info" class="bg-gray-50 rounded-lg p-4 mb-8 text-left hidden">
+                <p class="text-sm text-gray-600 mb-2"><strong>Seus Dados:</strong></p>
+                <p id="user-email" class="text-sm text-gray-700">Email: --</p>
+                <p id="user-name" class="text-sm text-gray-700">Nome: --</p>
+            </div>
+
+            <!-- Botões -->
+            <div class="space-y-3">
+                <button onclick="verificarAprovacao()" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-sync-alt"></i>
+                    Verificar Status
+                </button>
+                <button onclick="fazerLogout()" class="w-full px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    Fazer Logout
+                </button>
+            </div>
+
+            <!-- Informação Extra -->
+            <p class="text-xs text-gray-500 mt-6">
+                Se tiver dúvidas, entre em contato com o administrador do sistema.
+            </p>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    
+    <script>
+        // Carregar informações do usuário
+        async function carregarInfoUsuario() {
+            try {
+                const user = await getCurrentUser();
+                if (user) {
+                    document.getElementById('user-info').classList.remove('hidden');
+                    document.getElementById('user-email').textContent = `Email: ${user.email}`;
+                    document.getElementById('user-name').textContent = `Nome: ${user.full_name}`;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar informações:', error);
+            }
+        }
+
+        // Verificar se a aprovação foi realizada
+        async function verificarAprovacao() {
+            try {
+                showLoading(true);
+                const user = await getCurrentUser();
+                
+                if (!user) {
+                    showToast('Erro ao verificar status. Faça login novamente.', 'error');
+                    logout();
+                    return;
+                }
+
+                // Buscar dados atualizados do usuário
+                const { data: userData, error } = await window.supabase
+                    .from('users')
+                    .select('approved, ativo')
+                    .eq('id', user.id)
+                    .single();
+
+                if (error) throw error;
+
+                // Se foi aprovado, redirecionar para dashboard
+                if (userData.approved && userData.ativo) {
+                    showToast('🎉 Sua conta foi aprovada! Redirecionando...', 'success');
+                    setTimeout(() => {
+                        redirect('../pages/dashboard.html');
+                    }, 1500);
+                } else {
+                    showToast('Sua conta ainda está aguardando aprovação. Tente novamente em alguns minutos.', 'info');
+                }
+            } catch (error) {
+                handleError(error, 'Erro ao verificar status');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Fazer logout
+        function fazerLogout() {
+            logout();
+        }
+
+        // Verificar a cada 30 segundos se foi aprovado
+        let totalCheckTime = 0;
+        const maxCheckTime = 10 * 60 * 1000; // 10 minutos
+
+        const autoCheckInterval = setInterval(async () => {
+            totalCheckTime += 30000;
+            
+            // Para de verificar após 10 minutos
+            if (totalCheckTime > maxCheckTime) {
+                clearInterval(autoCheckInterval);
+                return;
+            }
+
+            try {
+                const user = await getCurrentUser();
+                if (user) {
+                    const { data: userData } = await window.supabase
+                        .from('users')
+                        .select('approved, ativo')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (userData.approved && userData.ativo) {
+                        showToast('🎉 Sua conta foi aprovada! Redirecionando...', 'success');
+                        clearInterval(autoCheckInterval);
+                        setTimeout(() => {
+                            redirect('../pages/dashboard.html');
+                        }, 1500);
+                    }
+                }
+            } catch (error) {
+                console.warn('Erro ao verificar aprovação automática:', error);
+            }
+        }, 30000); // Verificar a cada 30 segundos
+
+        // Carregar informações ao abrir a página
+        window.addEventListener('load', () => {
+            carregarInfoUsuario();
+        });
+    </script>
+</body>
+</html>

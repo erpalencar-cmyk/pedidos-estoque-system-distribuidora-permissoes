@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Sistema RBAC v3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🔐 Teste - Sistema RBAC v3</h1>
+
+        <!-- Status -->
+        <div id="status" class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Status</h2>
+            <div id="status-content" class="space-y-2">
+                <p class="text-gray-600">Carregando...</p>
+            </div>
+        </div>
+
+        <!-- Permissões -->
+        <div id="permissoes" class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Permissões do Usuário</h2>
+            <div id="permissoes-content" class="space-y-2">
+                <p class="text-gray-600">Carregando...</p>
+            </div>
+        </div>
+
+        <!-- Menu Items Visibility -->
+        <div id="menus" class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">Visibilidade dos Menus</h2>
+            <div id="menus-content" class="space-y-2">
+                <p class="text-gray-600">Carregando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/session-manager.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/permissoes.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        (async () => {
+            try {
+                // 1. Verificar autenticação
+                console.log('========== TESTE SISTEMA RBAC V3 ==========');
+                const { data: { user: authUser }, error } = await window.supabase.auth.getUser();
+                
+                if (error || !authUser) {
+                    document.getElementById('status-content').innerHTML = `
+                        <p class="text-red-600 font-semibold">❌ Usuário não autenticado</p>
+                        <p class="text-gray-600">Faça login novamente</p>
+                    `;
+                    return;
+                }
+
+                console.log('✅ Auth User:', authUser.id);
+                console.log('   Email:', authUser.email);
+                console.log('   Metadata:', authUser.user_metadata);
+
+                // 2. Inicializar PermissaoManager
+                const pm = new PermissaoManager();
+                console.log('📋 Inicializando PermissaoManager...');
+                await pm.inicializar();
+
+                console.log('✅ PermissaoManager pronto');
+                console.log('   Role:', pm.role);
+                console.log('   UsuarioId:', pm.usuarioId);
+
+                // 3. Atualizar Status
+                document.getElementById('status-content').innerHTML = `
+                    <p class="text-green-600 font-semibold">✅ Autenticado</p>
+                    <p><strong>ID:</strong> ${authUser.id}</p>
+                    <p><strong>Email:</strong> ${authUser.email}</p>
+                    <p><strong>Role:</strong> <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">${pm.role}</span></p>
+                `;
+
+                // 4. Mostrar permissões
+                const permissoes = {
+                    'ADMIN': 'Tudo (👑 Acesso Total)',
+                    'GERENTE': 'Tudo exceto Usuários, Aprovações, Config',
+                    'VENDEDOR': 'Vendas, PDV, Produtos, Estoque, Clientes, Caixas',
+                    'OPERADOR_CAIXA': 'PDV, Vendas, Caixas, Clientes, Comandas',
+                    'ESTOQUISTA': 'Estoque, Produtos, Controle Validade, Pedidos Compra',
+                    'COMPRADOR': 'Estoque, Produtos, Fornecedores, Pedidos Compra',
+                    'APROVADOR': 'Pedidos Compra, Contas Pagar, Vendas, Análise Financeira'
+                };
+
+                const permissaoDescricao = permissoes[pm.role] || 'Permissões padrão';
+                document.getElementById('permissoes-content').innerHTML = `
+                    <p><strong>${pm.role}:</strong> ${permissaoDescricao}</p>
+                    <p class="text-xs text-gray-500 mt-4">Legenda:</p>
+                    <ul class="text-xs text-gray-500 space-y-1">
+                        <li>✅ Menu visível = você tem permissão</li>
+                        <li>🔒 Menu oculto = você não tem permissão</li>
+                    </ul>
+                `;
+
+                // 5. Testar alguns menus
+                const testMenus = [
+                    { id: 'dashboard', slug: 'dashboard' },
+                    { id: 'pdv', slug: 'pdv' },
+                    { id: 'produtos', slug: 'produtos' },
+                    { id: 'usuarios', slug: 'usuarios' },
+                    { id: 'estoque', slug: 'estoque' },
+                    { id: 'fornecedores', slug: 'fornecedores' },
+                    { id: 'vendas', slug: 'vendas' },
+                    { id: 'analise-financeira', slug: 'analise-financeira' }
+                ];
+
+                let menusHtml = '';
+                for (const menu of testMenus) {
+                    const temPermissao = await pm.podeAcessarModulo(menu.slug);
+                    const status = temPermissao ? '✅ Visível' : '🔒 Oculto';
+                    const bgClass = temPermissao ? 'bg-green-50' : 'bg-gray-50';
+                    const textClass = temPermissao ? 'text-green-700' : 'text-gray-700';
+                    
+                    menusHtml += `
+                        <div class="${bgClass} p-3 rounded border-l-4 ${temPermissao ? 'border-green-500' : 'border-gray-300'}">
+                            <p class="${textClass} font-semibold">${status} - ${menu.slug}</p>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('menus-content').innerHTML = menusHtml;
+
+                console.log('========== TESTE CONCLUÍDO COM SUCESSO ==========');
+
+            } catch (error) {
+                console.error('❌ Erro durante teste:', error);
+                document.getElementById('status-content').innerHTML = `
+                    <p class="text-red-600 font-semibold">❌ Erro</p>
+                    <p class="text-gray-600">${error.message}</p>
+                `;
+            }
+        })();
+    </script>
+</body>
+</html>

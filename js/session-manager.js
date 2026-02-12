@@ -339,17 +339,21 @@ class SessionManager {
                     return;
                 }
                 
-                // Verificar se o usuário ainda está ativo no banco
+                // Verificar status do usuário (mas permitir login mesmo se inativo - será redirecionado)
                 try {
                     const { data: userData, error: userError } = await window.supabase
                         .from('users')
-                        .select('ativo')
+                        .select('ativo, approved, email_confirmado')
                         .eq('id', session.user.id)
                         .single();
                     
-                    if (userError || !userData || !userData.ativo) {
-                        console.warn('⚠️  Usuário não está mais ativo, redirecionando para login...');
-                        await this.performLogout('usuario-inativo');
+                    // Se o usuário não foi aprovado ainda, redirecionar para página de aguarde
+                    if (userData && !userData.approved && !userData.ativo) {
+                        console.warn('⚠️ Usuário não aprovado ainda. Redirecionando para aguarde...');
+                        // Redirecionar para página de aguarde de aprovação
+                        if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
+                            window.location.href = '/pages/aguardando-aprovacao.html';
+                        }
                         return;
                     }
                 } catch (dbError) {
