@@ -5,27 +5,6 @@
 // =====================================================
 
 /**
- * Mapeamento de páginas para slugs de módulos (para verificação de permissões granulares)
- */
-const PAGE_TO_MODULE_SLUG = {
-    'pdv.html': 'pdv',
-    'produtos.html': 'produtos',
-    'categorias.html': 'categorias',
-    'marcas.html': 'marcas',
-    'estoque.html': 'estoque',
-    'vendas.html': 'vendas',
-    'pedidos.html': 'pedidos-compra',
-    'clientes.html': 'clientes',
-    'fornecedores.html': 'fornecedores',
-    'contas-receber.html': 'contas-receber',
-    'contas-pagar.html': 'contas-pagar',
-    'caixas.html': 'caixas',
-    'usuarios.html': 'usuarios',
-    'configuracoes-empresa.html': 'configuracoes',
-    'gerenciar-permissoes.html': 'gerenciar-permissoes'
-};
-
-/**
  * Normalizar role para aceitar múltiplas variações de admin
  * @param {string} role - Role original
  * @returns {string} Role normalizado
@@ -132,9 +111,9 @@ async function protectPageAccess() {
         // Obter nome da página atual
         const currentPage = window.location.pathname.split('/').pop();
         
-        // Verificar permissão por ROLE (verificação básica)
+        // Verificar permissão
         if (!hasPageAccess(user, currentPage)) {
-            console.error(`🔒 Acesso negado por ROLE para ${currentPage} com role ${user.role}`);
+            console.error(`🔒 Acesso negado para ${currentPage} com role ${user.role}`);
             
             // Mostrar alerta
             showToast(
@@ -149,37 +128,6 @@ async function protectPageAccess() {
             }, 2000);
             
             return false;
-        }
-
-        // Se existe sistema de permissões granulares e arquivo permissoes.js foi carregado
-        if (typeof permissaoManager !== 'undefined' && permissaoManager) {
-            const moduleSlug = PAGE_TO_MODULE_SLUG[currentPage];
-            
-            if (moduleSlug) {
-                // Inicializar permissao manager se ainda não foi
-                if (!permissaoManager.usuarioId) {
-                    await permissaoManager.inicializar();
-                }
-                
-                // Verificar permissão granular
-                const temPermissaoModulo = await permissaoManager.podeAcessarModulo(moduleSlug);
-                
-                if (!temPermissaoModulo) {
-                    console.error(`🔒 Acesso negado por MÓDULO para ${currentPage} (módulo: ${moduleSlug})`);
-                    
-                    showToast(
-                        `❌ Seu administrador não liberou acesso a este módulo.`,
-                        'error',
-                        5000
-                    );
-                    
-                    setTimeout(() => {
-                        window.location.href = '/pages/dashboard.html';
-                    }, 2000);
-                    
-                    return false;
-                }
-            }
         }
         
         console.log(`✅ Acesso permitido: ${currentPage} para ${user.role}`);
